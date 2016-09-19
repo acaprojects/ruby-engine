@@ -1,0 +1,8 @@
+Description:
+    Generates a module scaffold for you
+
+Example:
+    rails generate module manufacturer/category/module_name
+
+    This will create:
+        app/modules/manufacturer/category/module_name.rb

@@ -1,0 +1,35 @@
+
+
+
+# Set a cluster name and password for couchbase
+cluster.name: engine
+couchbase.username: admin
+couchbase.password: changeme
+
+couchbase.typeSelector: org.elasticsearch.transport.couchbase.capi.RegexTypeSelector
+
+# -------------------
+# ACA Engine Mappings:
+# -------------------
+couchbase.typeSelector.documentTypesRegex.sgrp: ^sgrp(-|_).+$
+couchbase.typeSelector.documentTypesRegex.user: ^user(-|_).+$
+couchbase.typeSelector.documentTypesRegex.mod: ^mod(-|_).+$
+couchbase.typeSelector.documentTypesRegex.alog: ^alog(-|_).+$
+couchbase.typeSelector.documentTypesRegex.sys: ^sys(-|_).+$
+couchbase.typeSelector.documentTypesRegex.dep: ^dep(-|_).+$
+couchbase.typeSelector.documentTypesRegex.zone: ^zone(-|_).+$
+couchbase.typeSelector.documentTypesRegex.trigger: ^trigger(-|_).+$
+couchbase.typeSelector.documentTypesRegex.trig: ^trig(-|_).+$
+couchbase.typeSelector.documentTypesRegex.stats: ^zzz(-|_).+$
+couchbase.typeSelector.documentTypesRegex.edge: ^edge(-|_).+$
+couchbase.typeSelector.documentTypesRegex.disc: ^disc-.+$   # Disc is different to all the other IDs
+
+
+# Module to dependency mapping
+couchbase.parentSelector.documentTypeParentFields.mod: doc.dependency_id
+couchbase.documentTypeRoutingFields.mod: doc.dependency_id
+
+# Trigger mappings
+couchbase.parentSelector.documentTypeParentFields.trig: doc.trigger_id
+couchbase.documentTypeRoutingFields.trig: doc.trigger_id
+
