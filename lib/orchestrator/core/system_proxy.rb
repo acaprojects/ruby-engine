@@ -36,9 +36,7 @@ module Orchestrator
             # @param index [Integer] the index of the desired module (starting at 1)
             # @return [::Orchestrator::Core::RequestsProxy] proxies requests to a single module
             def get(mod, index = 1)
-                index -= 1  # Get the real index
                 name = mod.to_sym
-
                 RequestProxy.new(@thread, system.get(name, index), @user)
             end
 
@@ -60,9 +58,7 @@ module Orchestrator
             # @param index [Integer] the index of the desired module (starting at 1)
             # @return [true, false] does the module exist?
             def exists?(mod, index = 1)
-                index -= 1  # Get the real index
                 name = mod.to_sym
-
                 !system.get(name, index).nil?
             end
 
@@ -173,7 +169,7 @@ module Orchestrator
 
                 # if the module exists, subscribe on the correct thread
                 # use a bit of promise magic as required
-                mod_man = sys.get(mod_name, index - 1)
+                mod_man = sys.get(mod_name, index)
                 sub = if mod_man
                     defer = @thread.defer
 

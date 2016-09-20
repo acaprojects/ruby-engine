@@ -151,7 +151,7 @@ module Orchestrator
                     old_id = sub.mod_id
 
                     # re-index the subscription
-                    mod = sys.get(sub.mod_name, sub.index - 1)
+                    mod = sys.get(sub.mod_name, sub.index)
                     sub.mod_id = mod ? mod.settings.id.to_sym : nil
 
                     # Check for changes (order, removal, replacement)
@@ -219,6 +219,30 @@ module Orchestrator
                 end
             end
         end
+
+        # ======================
+        # Used for testing only:
+        # ======================
+        def valid?(sub)
+            statuses = @subscriptions[sub.mod_id]
+            if statuses
+                subscriptions = statuses[sub.status]
+                if subscriptions
+                    return :active if subscriptions.include? sub.sub_id
+                end
+            end
+
+            # Update the system lookup if a system was specified
+            if sub.sys_id
+                subscriptions = @systems[sub.sys_id]
+                if subscriptions
+                    return :inactive if subscriptions.include? sub.sub_id
+                end
+            end
+
+            false
+        end
+        # ======================
 
 
         protected

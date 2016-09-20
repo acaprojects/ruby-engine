@@ -128,7 +128,7 @@ module Orchestrator
                         whitelist[:args] = params[:args] || []
                     end
                     index = para[:index]
-                    mod = sys.get(para[:module].to_sym, index.nil? ? 0 : (index.to_i - 1))
+                    mod = sys.get(para[:module].to_sym, index.nil? ? 1 : index.to_i)
                     if mod
                         user = current_user
 
@@ -162,7 +162,7 @@ module Orchestrator
                 if sys
                     para = params.permit(:module, :index, :lookup)
                     index = para[:index]
-                    mod = sys.get(para[:module].to_sym, index.nil? ? 0 : (index.to_i - 1))
+                    mod = sys.get(para[:module].to_sym, index.nil? ? 1 : index.to_i)
                     if mod
                         if para.has_key?(:lookup)
                             render json: mod.status[para[:lookup].to_sym]
@@ -189,7 +189,7 @@ module Orchestrator
                 if sys
                     para = params.permit(:module, :index)
                     index = para[:index]
-                    index = index.nil? ? 0 : (index.to_i - 1);
+                    index = index.nil? ? 1 : index.to_i;
 
                     mod = sys.get(para[:module].to_sym, index)
                     if mod

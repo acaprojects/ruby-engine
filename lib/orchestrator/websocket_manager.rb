@@ -149,7 +149,7 @@ module Orchestrator
             system = ::Orchestrator::System.get(sys)
 
             if system
-                mod_man = system.get(mod, index - 1)
+                mod_man = system.get(mod, index)
                 if mod_man
                     req = Core::RequestProxy.new(@reactor, mod_man, @user)
                     result = req.method_missing(name, *args)
@@ -271,7 +271,7 @@ module Orchestrator
 
             # if the module exists, subscribe on the correct thread
             # use a bit of promise magic as required
-            mod_man = system.get(mod_name, index - 1)
+            mod_man = system.get(mod_name, index)
             defer = @reactor.defer
 
             # Ensure browser sees this before the first status update
@@ -345,7 +345,7 @@ module Orchestrator
                 @reactor.work(proc {
                     system = ::Orchestrator::System.get(sys)
                     if system
-                        mod_man = system.get(mod, index - 1)
+                        mod_man = system.get(mod, index)
                         if mod_man
                             mod_man.settings.id.to_sym
                         else

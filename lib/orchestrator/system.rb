@@ -83,7 +83,7 @@ module Orchestrator
         def get(mod, index)
             mods = @modules[mod]
             if mods
-                mods[index]
+                mods[index - 1]
             else
                 nil # As subscriptions can be made to modules that don't exist
             end
