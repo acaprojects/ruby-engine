@@ -96,6 +96,31 @@ module Orchestrator
             end
         end
 
+        # Used to maintain subscriptions where module is moved to another thread
+        # or even another server.
+        def move(mod_id, to_thread)
+            # Also called from edge_control.load
+            # return if to_thread == @thread # (this check is performed before this function is called)
+
+            mod_id = mod_id.to_sym
+            statuses = @subscriptions.delete(mod_id)
+
+            if statuses
+                statuses.each_value do |subs|
+                    # Remove the system references from this thread
+                    subs.each_value do |sub|
+                        @systems[sub.sys_id].delete(sub.sub_id) if sub.sys_id
+                        @systems.delete(sub.sys_id) if @systems[sub.sys_id].empty?
+                    end
+                end
+
+                # Transfer the subscriptions
+                to_thread.schedule do
+                    to_thread.observer.transfer(mod_id, statuses)
+                end
+            end
+        end
+
         def transfer(mod_id, statuses)
             mod_man = @controller.loaded? mod_id
 
@@ -157,12 +182,10 @@ module Orchestrator
 
                     # Check for existing status to send to subscriber
                     value = mod.status[sub.status]
-                    sub.notify(value) unless value.nil?
+                    sub.notify(value) if value
 
                     # Transfer the subscription if on a different thread
-                    if mod.thread != @thread
-                        move(sub.mod_id, mod.thread)
-                    end
+                    move(sub.mod_id, mod.thread) unless mod.thread == @thread
                 end
             end
         end
@@ -243,31 +266,6 @@ module Orchestrator
                 end
             else
                 exec_unsubscribe(sub)
-            end
-        end
-
-        # Used to maintain subscriptions where module is moved to another thread
-        # or even another server.
-        def move(mod_id, to_thread)
-            # Also called from edge_control.load
-            return if to_thread == @thread
-
-            mod_id = mod_id.to_sym
-            statuses = @subscriptions.delete(mod_id)
-
-            if statuses
-                statuses.each_value do |subs|
-                    # Remove the system references from this thread
-                    subs.each_value do |sub|
-                        @systems[sub.sys_id].delete(sub.sub_id) if sub.sys_id
-                        @systems.delete(sub.sys_id) if @systems[sub.sys_id].empty?
-                    end
-                end
-
-                # Transfer the subscriptions
-                to_thread.schedule do
-                    to_thread.observer.transfer(mod_id, statuses)
-                end
             end
         end
     end

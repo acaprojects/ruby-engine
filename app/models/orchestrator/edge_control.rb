@@ -369,7 +369,8 @@ module Orchestrator
                             # Observers can exist before modules are instantiated
                             if @boot_complete
                                 @control.threads.each do |thr|
-                                    thr.observer.move(mod_id, thread)
+                                    # Check if move is required before the schedule
+                                    thr.schedule { thr.observer.move(mod_id, thread) } unless thr == thread
                                 end
 
                                 # run the module if it should be running
