@@ -8,7 +8,11 @@ class MockController
     end
 
     def loaded?(mod_id)
-        @loaded[mod_id]
+        @loaded[mod_id.to_sym]
+    end
+
+    def add(mod)
+        @loaded[mod.settings.id.to_sym] = mod
     end
 
     def log_unhandled_exception(e)
@@ -298,8 +302,18 @@ describe Orchestrator::Status do
             @sys.add_module(@mod2, :Display)
             @sys.add_module(@mod3, :Display)
 
+            @controller.loaded = {}
+            @controller.add(@mod)
+            @controller.add(@mod2)
+            @controller.add(@mod3)
+
             opts = {
-                callback: proc { |sub| @log << sub.value },
+                callback: proc { |sub|
+                    @log << sub.value
+                    if sub.value.nil?
+                        puts caller.join("\n")
+                    end
+                },
                 on_thread: reactor,
                 mod_name: :Display,
                 sys_name: "Some System",
@@ -373,17 +387,89 @@ describe Orchestrator::Status do
                 @sys.add_module(@mod, :Display)
                 @status.reloaded_system(@sys.id, @sys)
 
-                # Subscription 4 which was for display 3 should now be active
+                # Subscription 4 which is now for display 1 should now be active
                 expect(@status.valid?(@sub4)).to be(:active)
                 expect(@sub4.mod_id).to be(@mod.settings.id.to_sym)
             }
 
             expect(@log).to eq(['sub1', 'sub2', 'sub3', 'sub4', 'sub2', 'sub4', 'sub1'])
         end
-    end
 
-    # Test for settings transfer between threads
-    describe 'system migrate' do
-        
+        it 'should migrate modules accross threads' do
+            expect(@log).to eq([])
+            expect(@sub1.value).to be(nil)
+            expect(@sub2.value).to be(nil)
+            expect(@sub3.value).to be(nil)
+            expect(@sub4.value).to be(nil)
+
+            @reactor.run { |reactor|
+                @mod.update_status(@status,  :testing, 'sub1')
+                @mod2.update_status(@status, :testing, 'sub2')
+                @mod2.update_status(@status, :other,   'sub3')
+                @mod3.update_status(@status, :testing, 'sub4')
+
+                expect(@log).to eq(['sub1', 'sub2', 'sub3', 'sub4'])
+
+                # Remove 1 display
+                expect(@sub4.mod_id).to be(@mod3.settings.id.to_sym)
+                @sys.modules[:Display].shift
+                expect(@sys.get(:Display, 3)).to be(nil)
+
+                # Move modules to a new thread
+                reactor2 = ::Libuv::Reactor.new
+                status2 = Orchestrator::Status.new(reactor2, @controller)
+                status2.reloaded_system(@sys.id, @sys)
+
+                reactor2.instance_eval { @observer = status2 }
+                @mod2.thread = reactor2
+                
+                @status.reloaded_system(@sys.id, @sys)
+
+                # Proccess scheduled events
+                thread = Thread.new do
+                    reactor2.run { |reactor|
+                        reactor.next_tick do
+                            reactor.next_tick do
+                                reactor.next_tick do
+                                    status2.reloaded_system(@sys.id, @sys)
+                                end
+                            end
+                        end
+                    }
+                end
+                thread.join
+
+                # Next tick as thread join above would have paused the reactor thread
+                reactor.next_tick do
+                    # Subscription 1 should now have a new status and new mod_id
+                    expect(@sub1.mod_id).to be(@mod2.settings.id.to_sym)
+
+                    # Subscription 4 which was for display 3 should now be inactive
+                    expect(@status.valid?(@sub4)).to be(:inactive)
+                    expect(@sub4.mod_id).to be(nil)
+
+                    # Status of other displays should have updated
+                    expect(@log).to eq(['sub1', 'sub2', 'sub3', 'sub4', 'sub2', 'sub4'])
+
+                    # Add display back to the system
+                    @sys.add_module(@mod, :Display)
+                    @status.reloaded_system(@sys.id, @sys)
+
+                    # Subscription 4 which is now for display 1 should now be active
+                    expect(@status.valid?(@sub4)).to be(:active)
+                    expect(@sub4.mod_id).to be(@mod.settings.id.to_sym)
+
+                    # -----------------------------------------
+
+                    # Confirm subscriptions have changed thread
+                    expect(@status.valid?(@sub1)).to be(false)
+                    expect(@status.valid?(@sub1)).to be(false)
+                    expect(status2.valid?(@sub1)).to be(:active)
+                    expect(status2.valid?(@sub1)).to be(:active)
+                end
+            }
+
+            expect(@log).to eq(['sub1', 'sub2', 'sub3', 'sub4', 'sub2', 'sub4', 'sub1'])
+        end
     end
 end

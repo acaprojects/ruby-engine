@@ -96,45 +96,22 @@ module Orchestrator
             end
         end
 
-        # Used to maintain subscriptions where module is moved to another thread
-        # or even another server.
-        def move(mod_id, to_thread)
-            # Also called from edge_control.load
-            return if to_thread == @thread
-
-            mod_id = mod_id.to_sym
-
-            @thread.schedule do
-                statuses = @subscriptions.delete(mod_id)
-
-                if statuses
-                    statuses.each_value do |subs|
-                        # Remove the system references from this thread
-                        subs.each_value do |sub|
-                            @systems[sub.sys_id].delete(sub.sub_id) if sub.sys_id
-                        end
-                    end
-
-                    # Transfer the subscriptions
-                    to_thread.observer.transfer(mod_id, statuses)
-                end
-            end
-        end
-
         def transfer(mod_id, statuses)
-            @thread.schedule do
-                @subscriptions[mod_id.to_sym] = statuses
+            mod_man = @controller.loaded? mod_id
 
-                mod_man = @controller.loaded? mod_id
+            # We check for mod_man here as we don't want to loose the
+            # subscription if the module is unloaded mid-transfer
+            @subscriptions[mod_id.to_sym] = statuses if mod_man
 
-                # Rebuild the system level lookup on this thread
-                statuses.each_value do |subs|
-                    subs.each_value do |sub|
-                        if sub.sys_id
-                            @systems[sub.sys_id] ||= {}
-                            @systems[sub.sys_id][sub.sub_id] = sub
+            # Rebuild the system level lookup on this thread
+            statuses.each_value do |subs|
+                subs.each_value do |sub|
+                    if sub.sys_id
+                        @systems[sub.sys_id] ||= {}
+                        @systems[sub.sys_id][sub.sub_id] = sub
 
-                            # Update the status value
+                        # Update the status value
+                        if mod_man
                             value = mod_man.status[sub.status]
                             sub.notify(value)
                         end
@@ -147,6 +124,7 @@ module Orchestrator
         def reloaded_system(sys_id, sys)
             subscriptions = @systems[sys_id.to_sym]
             if subscriptions
+                check = []
                 subscriptions.each_value do |sub|
                     old_id = sub.mod_id
 
@@ -160,20 +138,7 @@ module Orchestrator
                         old_sub[sub.status].delete(sub.sub_id) if old_sub
 
                         # Update to the new module
-                        if mod
-                            @subscriptions[sub.mod_id] ||= {}
-                            @subscriptions[sub.mod_id][sub.status] ||= {}
-                            @subscriptions[sub.mod_id][sub.status][sub.sub_id] = sub
-
-                            # Check for existing status to send to subscriber
-                            value = mod.status[sub.status]
-                            sub.notify(value) unless value.nil?
-
-                            # Transfer the subscription if on a different thread
-                            if mod.thread != @thread
-                                move(sub.mod_id.to_sym, mod.thread)
-                            end
-                        end
+                        check << [sub, mod] if mod
 
                         # Perform any required cleanup
                         if old_sub && old_sub[sub.status].empty?
@@ -182,6 +147,21 @@ module Orchestrator
                                 @subscriptions.delete(old_id)
                             end
                         end
+                    end
+                end
+
+                check.each do |sub, mod|
+                    @subscriptions[sub.mod_id] ||= {}
+                    @subscriptions[sub.mod_id][sub.status] ||= {}
+                    @subscriptions[sub.mod_id][sub.status][sub.sub_id] = sub
+
+                    # Check for existing status to send to subscriber
+                    value = mod.status[sub.status]
+                    sub.notify(value) unless value.nil?
+
+                    # Transfer the subscription if on a different thread
+                    if mod.thread != @thread
+                        move(sub.mod_id, mod.thread)
                     end
                 end
             end
@@ -227,17 +207,13 @@ module Orchestrator
             statuses = @subscriptions[sub.mod_id]
             if statuses
                 subscriptions = statuses[sub.status]
-                if subscriptions
-                    return :active if subscriptions.include? sub.sub_id
-                end
+                return :active if subscriptions && subscriptions.include?(sub.sub_id)
             end
 
             # Update the system lookup if a system was specified
             if sub.sys_id
                 subscriptions = @systems[sub.sys_id]
-                if subscriptions
-                    return :inactive if subscriptions.include? sub.sub_id
-                end
+                return :inactive if subscriptions && subscriptions.include?(sub.sub_id)
             end
 
             false
@@ -267,6 +243,31 @@ module Orchestrator
                 end
             else
                 exec_unsubscribe(sub)
+            end
+        end
+
+        # Used to maintain subscriptions where module is moved to another thread
+        # or even another server.
+        def move(mod_id, to_thread)
+            # Also called from edge_control.load
+            return if to_thread == @thread
+
+            mod_id = mod_id.to_sym
+            statuses = @subscriptions.delete(mod_id)
+
+            if statuses
+                statuses.each_value do |subs|
+                    # Remove the system references from this thread
+                    subs.each_value do |sub|
+                        @systems[sub.sys_id].delete(sub.sub_id) if sub.sys_id
+                        @systems.delete(sub.sys_id) if @systems[sub.sys_id].empty?
+                    end
+                end
+
+                # Transfer the subscriptions
+                to_thread.schedule do
+                    to_thread.observer.transfer(mod_id, statuses)
+                end
             end
         end
     end
