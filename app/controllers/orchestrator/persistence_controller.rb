@@ -17,9 +17,10 @@ module Orchestrator
                 # grab user for authorization checks in the web socket
                 user = current_user
                 begin
+                    ip = request.env['HTTP_X_REAL_IP'] || request.remote_ip
                     ws = ::SpiderGazelle::Websocket.new(socket, request.env)
                     fixed_device = params.has_key?(:fixed_device)
-                    WebsocketManager.new(ws, user, fixed_device)
+                    WebsocketManager.new(ws, user, fixed_device, ip)
                     ws.start
                 rescue => e
                     socket.close

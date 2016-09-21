@@ -5,7 +5,7 @@ require 'json'
 
 module Orchestrator
     class WebsocketManager
-        def initialize(ws, user, fixed_device)
+        def initialize(ws, user, fixed_device, ip)
             @ws = ws
             @user = user
             @reactor = ws.reactor
@@ -22,7 +22,7 @@ module Orchestrator
 
             @accessed = ::Set.new
             @access_log = ::Orchestrator::AccessLog.new
-            @access_log.ip, _ = @ws.peername
+            @access_log.ip = ip
             @access_log.user_id = @user.id
             @access_log.installed_device = fixed_device
 
