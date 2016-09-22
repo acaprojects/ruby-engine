@@ -251,8 +251,15 @@ module Orchestrator
                             logger.debug { "executing action #{act[:mod]}_#{act[:index]}.#{act[:func]}(#{act[:args].join(', ')})" }
                             system.get(act[:mod], act[:index]).method_missing(act[:func], *act[:args])
                         when :email
-                            logger.debug { "sending email to: #{act[:to]}" }
-                            # TODO:: provide hooks into action mailer
+                            logger.debug { "sending email to: #{act[:emails]}" }
+
+                            # TODO:: we should use a different thread pool as emails might take some time to send
+                            thread.work {
+                                TriggerMailer.trigger_notice(system.name, system.id, model.name, model.description, act[:emails], act[:content]).deliver_now
+                            }.catch do |e|
+                                # report any errors updating the model
+                                logger.print_error(e, "error sending email in #{system.id} (#{system.name}) for trigger #{id}: #{model.name}")
+                            end
                         end
                     rescue => e
                         logger.print_error(e, "error performing trigger action #{act} for trigger #{model.id}: #{model.name}")

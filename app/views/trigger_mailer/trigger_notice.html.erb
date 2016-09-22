@@ -1,0 +1,22 @@
+
+<h1><%= @trigger_name %></h1>
+<% if @trigger_desc.present? %>
+    <p>
+        <%= @trigger_desc.gsub("\n", '<br />').html_safe %>
+    </p>
+<% end %>
+
+<table>
+    <tr>
+        <td>System</td><td><%= @system_name %></td>
+    </tr>
+    <tr>
+        <td>Backoffice</td><td><a href="<%= @support_url.html_safe %>"><%= @support_url %></a></td>
+    </tr>
+</table>
+
+<% if @user_content.present? %>
+    <p>
+        <%= @user_content.gsub("\n", '<br />').html_safe %>
+    </p>
+<% end %>

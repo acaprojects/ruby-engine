@@ -21,7 +21,7 @@ module Orchestrator
         protected
 
 
-        before_delete   :cleanup_instances
+        before_delete :cleanup_instances
         def cleanup_instances
             TriggerInstance.of(self.id).each do |trig|
                 trig.delete
@@ -38,7 +38,7 @@ module Orchestrator
         # -----------
         # VALIDATIONS
         # -----------
-        validates :name,       presence: true
+        validates :name, presence: true
 
         validate  :condition_list
         validate  :action_list
@@ -96,7 +96,7 @@ module Orchestrator
             end
         end
 
-        ACTION_KEYS = Set.new([:type, :mod, :index, :func, :args])
+        ACTION_KEYS = Set.new([:type, :mod, :index, :func, :args, :emails, :content])
         def check_action(strong_act)
             act = strong_act.to_h.deep_symbolize_keys
             act.keep_if { |k, _| ACTION_KEYS.include? k }
@@ -107,8 +107,13 @@ module Orchestrator
             when :exec
                 act[:index].is_a?(Integer) && act.has_key?(:mod) && act.has_key?(:func) && act[:args].is_a?(Array)
             when :email
-                # TODO:: 
-                true
+                if act[:emails]
+                    mail = act[:emails] = act[:emails].gsub(/\s+/, '')
+                    result = mail.split(",").map { |email| email.strip }.reject { |email| email.empty? }
+                    !result.empty?
+                else
+                    false
+                end
             else
                 false
             end
