@@ -10,7 +10,7 @@ Gem::Specification.new do |s|
     s.authors     = ['Stephen von Takach']
     s.email       = ['steve@advancedcontrol.com.au']
     s.license     = 'CC BY-NC-SA'
-    s.homepage    = 'https://github.com/advancedcontrol/engine'
+    s.homepage    = 'https://github.com/acaprojects/ruby-engine'
     s.summary     = 'A distributed system for building automation'
     s.description = 'A building and Internet of Things automation system'
 
