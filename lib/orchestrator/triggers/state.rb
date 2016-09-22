@@ -159,6 +159,8 @@ module Orchestrator
                     end
                 end
 
+                # Symbols won't work as triggers as they can't be expressed in JSON
+                value = value.to_s if value.is_a?(Symbol)
                 value
             end
 
