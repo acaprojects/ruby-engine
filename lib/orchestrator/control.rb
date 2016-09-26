@@ -26,7 +26,6 @@ module Orchestrator
             @loaded = ::Concurrent::Map.new
             @zones = ::Concurrent::Map.new
             @nodes = ::Concurrent::Map.new
-            @loader = DependencyManager.instance
             @reactor = ::Libuv::Reactor.default
             @exceptions = method(:log_unhandled_exception)
 

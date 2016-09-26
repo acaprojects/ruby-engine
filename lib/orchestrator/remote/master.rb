@@ -48,7 +48,7 @@ module Orchestrator
             def start_server
                 # Bind the socket
                 @tcp = @thread.tcp
-                        .bind('0.0.0.0'.freeze, SERVER_PORT, method(:new_connection))
+                        .bind('0.0.0.0', SERVER_PORT, method(:new_connection))
                         .listen(64) # smallish backlog is all we need
 
                 # Delegate errors
