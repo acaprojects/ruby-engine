@@ -160,8 +160,7 @@ module Orchestrator
                 end
 
                 # Symbols won't work as triggers as they can't be expressed in JSON
-                value = value.to_s if value.is_a?(Symbol)
-                value
+                value.is_a?(Symbol) ? value.to_s.freeze : value
             end
 
 
