@@ -16,6 +16,16 @@ module Orchestrator
 
                 @sent = {}
                 @count = 0
+
+                # reject requests when connection fails
+                tcp.finally do
+                    e = RuntimeError.new('lost connection to remote node')
+                    e.set_backtrace([])
+                    @sent.values.each do |defer|
+                        defer.reject e
+                    end 
+                    @sent = {}
+                end
             end
 
 
@@ -35,8 +45,7 @@ module Orchestrator
                 msg[:user] = user_id if user_id
 
                 @thread.schedule do
-                    id = send_with_id(msg)
-                    @sent[id] = defer
+                    id = send_with_id(msg, defer)
                 end
 
                 defer.promise
@@ -52,8 +61,7 @@ module Orchestrator
                 }
 
                 @thread.schedule do
-                    id = send_with_id(msg)
-                    @sent[id] = defer
+                    id = send_with_id(msg, defer)
                 end
 
                 defer.promise
@@ -154,11 +162,15 @@ module Orchestrator
                 request = @sent.delete msg[:id]
 
                 if request
-                    if request[:reject]
-                        req.reject StandardError.new(request[:reject])
+                    if msg[:reject]
+                        # Rebuild the error and set the backtrace
+                        klass = msg[:klass]
+                        err = klass ? klass.constantize.new(msg[:reject]) : RuntimeError.new(msg[:reject])
+                        err.set_backtrace(msg[:btrace]) if msg.has_key? :btrace
+                        request.reject err
                     else
-                        req.resolve request[:resolve]
-                        if request[:was_object]
+                        request.resolve msg[:resolve]
+                        if msg[:was_object]
                             # TODO:: log a warning that the return value might not
                             # be what was expected
                         end
@@ -188,7 +200,7 @@ module Orchestrator
                     end
                 else
                     # reject the request
-                    send_rejection(req_id, 'module not loaded'.freeze)
+                    send_rejection(req_id, 'module not loaded')
                 end
             end
 
@@ -200,7 +212,7 @@ module Orchestrator
                     val = mod.status[status.to_sym]
                     send_resolution(req_id, val)
                 else
-                    send_rejection(req_id, 'module not loaded'.freeze)
+                    send_rejection(req_id, 'module not loaded')
                 end
             end
 
@@ -252,12 +264,18 @@ module Orchestrator
             # IO Transport
             # ------------
 
-            def send_with_id(msg)
+            def send_with_id(msg, defer)
                 id = next_id
-                msg[:id] = id
-                output = ::JSON.generate(msg)
-                @tcp.write "\x02#{output}\x03"
-                id
+                begin
+                    msg[:id] = id
+                    @sent[id] = defer
+                    output = ::JSON.generate(msg)
+                    @tcp.write "\x02#{output}\x03"
+                    id
+                rescue => e
+                    @sent.delete id
+                    defer.reject e
+                end
             end
 
             def send_direct(msg)
@@ -271,8 +289,9 @@ module Orchestrator
                     id: req_id,
                     type: :resp
                 }
+
                 # Don't send nil values (save on bytes)
-                response[:resolve] = value if value.nil?
+                response[:resolve] = value if value
 
                 output = nil
                 begin
@@ -291,9 +310,16 @@ module Orchestrator
             def send_rejection(req_id, msg)
                 response = {
                     id: req_id,
-                    type: :resp,
-                    reject: msg
+                    type: :resp
                 }
+
+                if msg.is_a? Exception
+                    response[:klass] = msg.class.name
+                    response[:reject] = msg.message
+                    response[:btrace] = msg.backtrace
+                else
+                    response[:reject] = msg
+                end
 
                 output = ::JSON.generate(response)
 
