@@ -48,7 +48,7 @@ module Orchestrator
         def binding
             return @binding if @binding || self.id.nil?
             chars = self.id.split('_', 2)[1]
-            @binding = 't'
+            @binding = String.new('t')
             chars.each_byte do |byte|
                 @binding << byte.to_s(16)
             end
