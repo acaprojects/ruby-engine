@@ -307,17 +307,9 @@ module Orchestrator
             defer.promise
         end
 
-        def log_unhandled_exception(*args)
-            msg = String.new
-            err = args[-1]
-            if err && err.respond_to?(:backtrace)
-                msg << "exception: #{err.message} (#{args[0..-2]})"
-                msg << "\n#{err.backtrace.join("\n")}" if err.respond_to?(:backtrace) && err.backtrace
-            else
-                msg << "unhandled exception: #{args}"
-            end
-            @logger.error msg
-            ::Libuv::Q.reject(@reactor, msg)
+        def log_unhandled_exception(error, context)
+            @logger.print_error error, context
+            ::Libuv::Q.reject(@reactor, error)
         end
 
 
@@ -378,7 +370,7 @@ module Orchestrator
 
             Thread.new do
                 thread.run do |promise|
-                    promise.progress @exceptions
+                    promise.notifier @exceptions
                     attach_watchdog thread
                 end
             end
@@ -411,7 +403,7 @@ module Orchestrator
 
             Thread.new do
                 thread.run do |promise|
-                    promise.progress @exceptions
+                    promise.notifier @exceptions
 
                     thread.scheduler.every 2000 do
                         check_threads
