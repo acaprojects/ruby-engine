@@ -67,7 +67,7 @@ module Orchestrator
                                 previous = mod.current_user
                                 mod.current_user = @user
 
-                                instance = @mod.instance
+                                instance = mod.instance
                                 if instance.nil?
                                     err = StandardError.new "method '#{name}' request failed as the module '#{mod.settings.id}' is currently stopped"
                                     defer.reject(err)
