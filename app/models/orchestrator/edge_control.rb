@@ -431,6 +431,7 @@ module Orchestrator
             thread.schedule do
                 mod = Triggers::Manager.new(thread, Triggers::Module, system)
                 @loaded[sys_id] = mod  # NOTE:: Threadsafe
+                @global_cache[sys_id] = mod
                 mod.start if @boot_complete && host_active?
 
                 defer.resolve(mod)
