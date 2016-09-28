@@ -52,5 +52,14 @@ module Orchestrator
         def current_user
             @current_user ||= User.find(doorkeeper_token.resource_owner_id) if doorkeeper_token
         end
+
+        def prepare_json(object)
+            case object
+            when nil, true, false, Hash, String, Integer, Array, Float
+                object
+            else
+                nil
+            end
+        end
     end
 end

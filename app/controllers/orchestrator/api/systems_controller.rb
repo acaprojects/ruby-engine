@@ -100,7 +100,7 @@ module Orchestrator
                 # TODO:: This needs to be done on the remote as well
                 # Clear the system cache once the modules are loaded
                 # This ensures the cache is accurate
-                control.thread.finally(*loaded).then do
+                control.reactor.finally(*loaded).then do
                     # Might as well trigger update behaviour.
                     # Ensures logic modules that interact with other logic modules
                     # are accurately informed
@@ -140,12 +140,12 @@ module Orchestrator
                         result = defer.value
 
                         begin
-                            # Placed into an array so it is valid JSON
-                            # Might return a string or number
-                            render json: [result]
-                        rescue
+                            # Placed into an array so primitives values are returned as valid JSON
+                            render json: [prepare_json(result)]
+                        rescue Exception => e
                             # respond with nil if object cannot be converted to JSON
-                            head :ok
+                            logger.info "failed to convert object #{result} to JSON"
+                            render json: ['response could not be rendered in JSON']
                         end
                     else
                         head :not_found

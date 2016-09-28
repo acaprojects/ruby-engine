@@ -154,20 +154,26 @@ module Orchestrator
                     req = Core::RequestProxy.new(@reactor, mod_man, @user)
                     result = req.method_missing(name, *args)
                     result.then(proc { |res|
-                        output = nil
-                        begin
-                            ::JSON.generate([res])
-                            output = res
-                        rescue => e
-                            # respond with nil if object cannot be converted
-                            # TODO:: need a better way of dealing with this
-                            # ALSO in systems controller
-                        end
-                        @ws.text(::JSON.generate({
+                        output = {
                             id: id,
                             type: :success,
-                            value: output
-                        }))
+                            value: prepare_json(res)
+                        }
+
+                        begin
+                            @ws.text(::JSON.generate(output))
+                        rescue Exception => e
+                            # Probably an error generating JSON
+                            @logger.debug {
+                                begin
+                                    "exec could not generate JSON result for #{output[:value]}"
+                                rescue Exception => e
+                                    "exec could not generate JSON result for return value"
+                                end
+                            }
+                            output[:value] = nil
+                            @ws.text(::JSON.generate(output))
+                        end
                     }, proc { |err|
                         # Request proxy will log the error
                         error_response(id, ERRORS[:request_failed], err.message)
@@ -305,24 +311,29 @@ module Orchestrator
         end
 
         def notify_update(update)
-            output = nil
-            begin
-                ::JSON.generate([update.value])
-                output = update.value
-            rescue => e
-                # respond with nil if object cannot be converted
-                # TODO:: need a better way of dealing with this
-            end
-            @ws.text(::JSON.generate({
+            output = {
                 type: :notify,
-                value: output,
+                value: prepare_json(update.value),
                 meta: {
                     sys: update.sys_id,
                     mod: update.mod_name,
                     index: update.index,
                     name: update.status
                 }
-            }))
+            }
+
+            begin
+                @ws.text(::JSON.generate(output))
+            rescue Exception => e
+                # respond with nil if object cannot be converted
+                begin
+                    @logger.warn "status #{output[:meta]} update failed, could not generate JSON data for #{output[:value]}"
+                rescue Exception => e
+                    @logger.warn "status #{output[:meta]} update failed, could not generate JSON data for value"
+                end
+                output[:value] = nil
+                @ws.text(::JSON.generate(output))
+            end
         end
 
 
@@ -540,6 +551,15 @@ module Orchestrator
             @access_timers << @reactor.scheduler.in(900_000) do
                 @access_timers.shift
                 @access_cache.delete(sys_id)
+            end
+        end
+
+        def prepare_json(object)
+            case object
+            when nil, true, false, Hash, String, Integer, Array, Float
+                object
+            else
+                nil
             end
         end
     end
