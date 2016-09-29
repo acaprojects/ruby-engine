@@ -80,6 +80,11 @@ module Orchestrator
         end
         view :by_node
 
+        # The systems this module is in use
+        def systems
+            ControlSystem.using_module(self.id)
+        end
+
 
         protected
 

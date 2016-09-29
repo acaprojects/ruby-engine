@@ -51,10 +51,9 @@ module Orchestrator
             ]
             def safe_params
                 settings = params[:settings]
-                {
-                    settings: settings.is_a?(::Hash) ? settings : {},
-                    admins: []
-                }.merge(params.permit(NODE_PARAMS))
+                args = params.permit(NODE_PARAMS).to_h
+                args[:settings] = settings.to_unsafe_hash if settings
+                args
             end
 
             def find_edge

@@ -45,17 +45,30 @@ module Orchestrator
             TRIGGER_PARAMS = [
                 :name, :description, :debounce_period
             ]
+            DECODE_OPTIONS = {
+                symbolize_names: true
+            }.freeze
+
             # We need to support an arbitrary settings hash so have to
             # work around safe params as per 
             # http://guides.rubyonrails.org/action_controller_overview.html#outside-the-scope-of-strong-parameters
             def safe_params
-                conditions = params[:conditions]
-                actions = params[:actions]
+                all = params.to_unsafe_hash
+                args = params.permit(TRIGGER_PARAMS).to_h
 
-                {
-                    conditions: conditions.is_a?(::Array) ? conditions : nil,
-                    actions: actions.is_a?(::Array) ? actions : []
-                }.merge(params.permit(TRIGGER_PARAMS))
+                cond = all['conditions']
+                if cond
+                    cond = JSON.parse(all['conditions'], DECODE_OPTIONS)
+                    args[:conditions] = cond if cond.is_a?(::Array)
+                end
+
+                act = all['actions']
+                if act
+                    act = JSON.parse(all['actions'], DECODE_OPTIONS)
+                    args[:actions] = act if act.is_a?(::Array)
+                end
+
+                args
             end
 
             def find_trigger

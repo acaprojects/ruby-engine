@@ -106,9 +106,9 @@ module Orchestrator
             ]
             def safe_params
                 settings = params[:settings]
-                {
-                    settings: settings.is_a?(::Hash) ? settings : {}
-                }.merge(params.permit(DEP_PARAMS))
+                args = params.permit(DEP_PARAMS).to_h
+                args[:settings] = settings.to_unsafe_hash if settings
+                args
             end
 
             def find_dependency

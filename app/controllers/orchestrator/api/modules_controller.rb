@@ -90,12 +90,16 @@ module Orchestrator
                 @mod.assign_attributes(para)
                 was_running = @mod.running
 
-                save_and_respond(@mod) do
+                save_and_respond(@mod, include: {
+                    dependency: {
+                        only: [:name, :module_name]
+                    }
+                }) do
                     # Update the running module
                     promise = control.update(id)
                     if was_running
                         promise.finally do
-                            control.start id
+                            control.start(id)
                         end
                     end
                 end
@@ -171,9 +175,9 @@ module Orchestrator
             ]
             def safe_params
                 settings = params[:settings]
-                {
-                    settings: settings.is_a?(::Hash) ? settings : {}
-                }.merge(params.permit(MOD_PARAMS))
+                args = params.permit(MOD_PARAMS).to_h
+                args[:settings] = settings.to_unsafe_hash if settings
+                args
             end
 
             def lookup_module

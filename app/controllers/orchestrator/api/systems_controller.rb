@@ -273,11 +273,8 @@ module Orchestrator
             # http://guides.rubyonrails.org/action_controller_overview.html#outside-the-scope-of-strong-parameters
             def safe_params
                 settings = params[:settings]
-                args = {
-                    modules: [],
-                    zones: [],
-                    settings: settings.is_a?(::Hash) ? settings : {}
-                }.merge!(params.permit(CS_PARAMS))
+                args = params.permit(CS_PARAMS).to_h
+                args[:settings] = settings.to_unsafe_hash if settings
                 args[:installed_ui_devices] = args[:installed_ui_devices].to_i if args.has_key? :installed_ui_devices
                 args[:capacity] = args[:capacity].to_i if args.has_key? :capacity
                 args

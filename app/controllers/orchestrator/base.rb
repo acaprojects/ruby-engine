@@ -3,7 +3,8 @@
 module Orchestrator
     class Base < ::ActionController::Base
         layout nil
-        rescue_from Couchbase::Error::NotFound, with: :entry_not_found
+        rescue_from Couchbase::Error::NotFound,      with: :entry_not_found
+        rescue_from Couchbase::Error::RecordInvalid, with: :invalid_record
 
 
         before_action :doorkeeper_authorize!, except: :options
@@ -23,6 +24,12 @@ module Orchestrator
             head :not_found  # 404
         end
 
+        def invalid_record(err)
+            errors = err.record.errors
+            render json: errors, status: :not_acceptable  # 406
+        end
+
+
         # Helper for extracting the id from the request
         def id
             return @id if @id
@@ -31,9 +38,9 @@ module Orchestrator
         end
 
         # Used to save and respond to all model requests
-        def save_and_respond(model)
-            yield if model.save && block_given?
-            render json: model
+        def save_and_respond(model, opts = {})
+            yield if model.save! && block_given?
+            render json: model, **opts
         end
 
         # Checking if the user is an administrator
