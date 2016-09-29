@@ -5,6 +5,7 @@ class MockController
     def initialize(log)
         @log = log
         @loaded = {}
+        @threads = [reactor]
     end
 
     def loaded?(mod_id)
@@ -19,7 +20,7 @@ class MockController
         @log << e
     end
 
-    attr_reader :log
+    attr_reader :log, :threads
     attr_accessor :loaded
 end
 

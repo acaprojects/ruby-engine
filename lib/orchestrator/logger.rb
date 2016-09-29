@@ -2,6 +2,17 @@
 
 require 'set'
 
+# Update the regular logger
+class ::Logger
+    def print_error(e, msg = nil, trace = nil)
+        message = String.new(msg || e.message)
+        message << "\n#{e.message}" if msg
+        message << "\n#{e.backtrace.join("\n")}" if e.respond_to?(:backtrace) && e.backtrace
+        message << "\nCaller backtrace:\n#{trace.join("\n")}" if trace
+        error(message)
+    end
+end
+
 # Note:: We should be logging the User id in the log
 # see: http://pastebin.com/Wrjp8b8e (rails log_tags)
 module Orchestrator
@@ -39,24 +50,27 @@ module Orchestrator
 
         # Add listener
         def add(listener)
-            @reactor.schedule do
-                @listeners.add listener
+            if listener.nil?
+                @logger.error "attempting to add null listener\n#{caller.join("\n")}"
+                return
             end
-            listener.promise.finally do
-                @reactor.schedule do
-                    @listeners.delete listener
-                end
+            if listener.is_a? Enumerable
+                @listeners.merge(listener)
+            else
+                @listeners << listener
             end
-            listener
+
+            @level = 0
         end
 
-        def delete(listener)
-            @reactor.schedule do
+        def remove(listener)
+            if listener.is_a? Enumerable
+                @listeners.subtract(listener)
+            else
                 @listeners.delete listener
-                if @listeners.size == 0
-                    level = DEFAULT_LEVEL   # back to efficient logging
-                end
             end
+
+            @level = DEFAULT_LEVEL if @listeners.empty?
         end
 
        
@@ -117,7 +131,11 @@ module Orchestrator
                     end
                 end
                 @listeners.each do |listener|
-                    listener.notify(@klass, @mod_id, level, msg)
+                    begin
+                        listener.call(@klass, @mod_id, level, msg)
+                    rescue Exception => e
+                        @logger.error "logging to remote #{listener}\n#{e.message}\n#{e.backtrace.join("\n")}"
+                    end
                 end
             end
         end

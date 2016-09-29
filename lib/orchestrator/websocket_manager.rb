@@ -346,9 +346,8 @@ module Orchestrator
             index = index_s.to_i if index_s
 
             if @debug.nil?
-                @debug = @reactor.defer
+                @debug = method(:debug_update)
                 @inspecting = Set.new # modules
-                @debug.promise.progress method(:debug_update)
             end
 
             if index
@@ -404,25 +403,22 @@ module Orchestrator
                 if @inspecting.include?(mod)
                     @ws.text(::JSON.generate(resp))
                 else
+                    # Set sys to get errors occurring outside of the modules
+                    @logger.add @debug if @inspecting.empty?
+                    @inspecting.add mod
+
                     mod_man = ::Orchestrator::Control.instance.loaded?(mod)
                     if mod_man
-                        log = mod_man.logger
-                        log.add @debug
-                        log.level = :debug
-                        @inspecting.add mod
-
-                        # Set sys to get errors occurring outside of the modules
-                        if !@inspecting.include?(:self)
-                            @logger.add @debug
-                            @logger.level = :debug
-                            @inspecting.add :self
+                        thread = mod_man.thread
+                        thread.schedule do
+                            thread.observer.debug_subscribe(mod, @debug)
                         end
-
-                        @ws.text(::JSON.generate(resp))
                     else
-                        @logger.info("websocket debug could not find module: #{mod}")
-                        error_response(id, ERRORS[:module_not_found], "could not find module: #{mod}")
+                        @stattrak.debug_subscribe(mod, @debug)
+                        @logger.warning("websocket debug could not find module: #{mod}")
                     end
+
+                    @ws.text(::JSON.generate(resp))
                 end
             rescue => e
                 @logger.print_error(e, "websocket debug request failed")
@@ -448,38 +444,26 @@ module Orchestrator
             mod = mod_s.to_sym if mod_s
 
             if @debug.nil?
-                @debug = @reactor.defer
+                @debug = method(:debug_update)
                 @inspecting = Set.new # modules
-                @debug.promise.progress method(:debug_update)
             end
 
             # Remove module level errors
-            if mod && @inspecting.include?(mod)
-                mod_man = ::Orchestrator::Control.instance.loaded?(mod)
-                if mod_man
-                    mod_man.logger.delete @debug
-                    @inspecting.delete mod
-
-                    # Stop logging all together if no more modules being watched
-                    if @inspecting.empty?
-                        @logger.delete @debug
-                        @inspecting.delete :self
-                    end
-
-                    @ws.text(::JSON.generate({
-                        id: id,
-                        type: :success
-                    }))
-                else
-                    @logger.info("websocket ignore could not find module: #{mod}")
-                    error_response(id, ERRORS[:module_not_found], "could not find module: #{mod}")
-                end
-            else
-                @ws.text(::JSON.generate({
-                    id: id,
-                    type: :success
-                }))
+            if @inspecting && @inspecting.include?(mod)
+                @inspecting.delete mod
+                # Stop logging all together if no more modules being watched
+                @logger.remove @debug if @inspecting.empty?
+                do_ignore(mod)
             end
+
+            @ws.text(::JSON.generate({
+                id: id,
+                type: :success
+            }))
+        end
+
+        def do_ignore(mod_id)
+            @stattrak.debug_unsubscribe(mod_id, @debug)
         end
 
 
@@ -495,7 +479,10 @@ module Orchestrator
         def on_shutdown
             @bindings.each_value &method(:do_unbind)
             @bindings = nil
-            @debug.resolve(true) if @debug # detach debug listeners
+            if @inspecting
+                @inspecting.each &method(:do_ignore)
+                @inspecting = nil
+            end
 
             if @accessTimer
                 @accessTimer.cancel

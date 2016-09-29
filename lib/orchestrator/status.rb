@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'set'
+
 module Orchestrator
     Subscription = Struct.new(:sys_name, :sys_id, :mod_name, :mod_id, :index, :status, :callback, :on_thread) do
         @@mutex = Mutex.new
@@ -37,6 +39,8 @@ module Orchestrator
             @subscriptions = {}
             # {:system_id => Subscriptions}
             @systems = {}
+            # {:mod_id => Set([callbacks])}
+            @debugging = {}
         end
 
 
@@ -96,14 +100,79 @@ module Orchestrator
             end
         end
 
+        def debug_subscribe(mod_id, callback)
+            lookup = mod_id.to_sym
+
+            # Add locally
+            subs = @debugging[lookup]
+            subs = @debugging[lookup] = Set.new unless subs
+            subs << callback
+
+            # Add to logger
+            manager = @controller.loaded?(lookup)
+            manager.logger.add(callback) if manager
+
+            callback
+        end
+
+        def debug_unsubscribe(mod_id, callback)
+            lookup = mod_id.to_sym
+
+            # Cleanup logger
+            manager = @controller.loaded?(lookup)
+            if manager
+                thread = manager.thread
+                thread.schedule do
+                    thread.observer.exec_debug_unsubscribe(lookup, callback)
+                    manager.logger.remove(callback)
+                end
+            else
+                # Could be on any thread
+                @controller.threads.each do |thread|
+                    thread.schedule do
+                        thread.observer.exec_debug_unsubscribe(lookup, callback)
+                    end
+                end
+            end
+
+            nil
+        end
+
+        def exec_debug_unsubscribe(lookup, callback)
+            # Cleanup locally
+            subs = @debugging[lookup]
+            if subs
+                subs.delete(callback)
+                @debugging[lookup] if subs.empty?
+            end
+        end
+
+        def debug_migrate(mod_id, callbacks)
+            # NOTE:: This function is only called from move
+            return unless callbacks
+
+            subs = @debugging[mod_id]
+            if subs
+                subs.merge(callbacks)
+            else
+                subs = @debugging[mod_id] = callbacks
+            end
+
+            manager = @controller.loaded?(mod_id)
+            manager.logger.add(callbacks) if manager
+        end
+
         # Used to maintain subscriptions where module is moved to another thread
         # or even another server.
         def move(mod_id, to_thread)
             # Also called from edge_control.load
-            # return if to_thread == @thread # (this check is performed before this function is called)
+            lookup = mod_id.to_sym
 
-            mod_id = mod_id.to_sym
-            statuses = @subscriptions.delete(mod_id)
+            # Re-register debug listeners
+            debug_migrate(lookup, @debugging.delete(lookup))
+            return if to_thread == @thread
+
+            statuses = @subscriptions.delete(lookup)
 
             if statuses
                 statuses.each_value do |subs|
@@ -116,7 +185,7 @@ module Orchestrator
 
                 # Transfer the subscriptions
                 to_thread.schedule do
-                    to_thread.observer.transfer(mod_id, statuses)
+                    to_thread.observer.transfer(lookup, statuses)
                 end
             end
         end
@@ -154,6 +223,7 @@ module Orchestrator
                     old_id = sub.mod_id
 
                     # re-index the subscription
+                    sys ||= System.get(sys_id)
                     mod = sys.get(sub.mod_name, sub.index)
                     sub.mod_id = mod ? mod.settings.id.to_sym : nil
 
@@ -261,11 +331,20 @@ module Orchestrator
                         thread.observer.exec_unsubscribe(sub)
                     end
                 else
-                    # Should be in our schedule
-                    exec_unsubscribe(sub)
+                    # Could be in any schedule
+                    @controller.threads.each do |thread|
+                        thread.schedule do
+                            thread.observer.exec_unsubscribe(sub)
+                        end
+                    end
                 end
             else
-                exec_unsubscribe(sub)
+                # Could be in any schedule
+                @controller.threads.each do |thread|
+                    thread.schedule do
+                        thread.observer.exec_unsubscribe(sub)
+                    end
+                end
             end
         end
     end
