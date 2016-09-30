@@ -19,6 +19,9 @@ module Orchestrator
             app.config.orchestrator = ActiveSupport::OrderedOptions.new
             app.config.orchestrator.module_paths = []
 
+            # Authentication stack is different
+            app.config.middleware.insert_after Rack::Runtime, SelectiveStack
+
             # This is for trigger emails
             app.config.orchestrator.backoffice_url = 'https://example.domain/backoffice'
 
@@ -49,6 +52,7 @@ module Orchestrator
         #
         config.after_initialize do |app|
             require File.expand_path(File.join(File.expand_path("../", __FILE__), '../../app/models/user'))
+
             # Increase the default observe timeout
             # TODO:: We should really be writing our own DB adaptor
             ::User.bucket.default_observe_timeout = 10000000

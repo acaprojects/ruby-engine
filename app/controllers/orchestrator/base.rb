@@ -7,7 +7,7 @@ module Orchestrator
         rescue_from Couchbase::Error::RecordInvalid, with: :invalid_record
 
 
-        before_action :doorkeeper_authorize!, except: :options
+        before_action :doorkeeper_authorize!
 
 
         protected
