@@ -24,12 +24,37 @@ class MockController
     attr_accessor :loaded
 end
 
+class MockLogger
+    def initialize
+        @listeners = Set.new
+    end
+
+    attr_reader :listeners
+
+    def add(listener)
+        if listener.is_a? Enumerable
+            @listeners.merge(listener)
+        else
+            @listeners << listener
+        end
+    end
+
+    def remove(listener)
+        if listener.is_a? Enumerable
+            @listeners.subtract(listener)
+        else
+            @listeners.delete listener
+        end
+    end
+end
+
 class MockModule
     def initialize(status = {})
         @status = status
         @thread = reactor
         @settings = OpenStruct.new
         @settings.id = "mod_1-#{rand(10..9999)}"
+        @logger = MockLogger.new
     end
 
     def update_status(track, status, value)
@@ -37,7 +62,7 @@ class MockModule
         track.update(settings.id, status, value)
     end
 
-    attr_reader   :status
+    attr_reader   :status, :logger
     attr_accessor :settings, :thread
 end
 

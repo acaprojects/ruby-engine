@@ -60,6 +60,8 @@ describe Orchestrator::Status do
         @reactor = reactor
         status = @status
         @reactor.instance_eval { @observer = status }
+
+        expect(@reactor.observer).to be(@status)
     end
 
 
@@ -410,6 +412,79 @@ describe Orchestrator::Status do
             }
 
             expect(@log).to eq(['sub1', 'sub2', 'sub3', 'sub4', 'sub2', 'sub4', 'sub1'])
+        end
+    end
+
+    describe 'debugging subscriptions' do
+        it 'should subscribe to module if it has not been loaded' do
+            callbacks = @status.check_debug 'some_id'
+            expect(callbacks).to be(nil)
+
+            @reactor.run { |reactor|
+                callback = @status.debug_subscribe('some_id', proc { })
+                callbacks = @status.check_debug 'some_id'
+
+                expect(callbacks.class).to be(Set)
+                expect(callbacks.size).to be(1)
+                expect(callbacks.include?(callback)).to be(true)
+
+                @status.debug_unsubscribe('some_id', callback)
+                expect(callbacks.empty?).to be(true)
+                callbacks = @status.check_debug 'some_id'
+                expect(callbacks).to be(nil)
+            }
+        end
+
+        it 'should subscribe to module if it has been loaded' do
+            callbacks = @status.check_debug @mod.settings.id
+            expect(callbacks).to be(nil)
+
+            @controller.loaded = {}
+            @controller.add(@mod)
+
+            @reactor.run { |reactor|
+                callback = @status.debug_subscribe(@mod.settings.id, proc { })
+                callbacks = @status.check_debug @mod.settings.id
+
+                expect(callbacks.class).to be(Set)
+                expect(callbacks.size).to be(1)
+                expect(callbacks.include?(callback)).to be(true)
+
+                expect(@mod.logger.listeners.size).to be(1)
+                expect(@mod.logger.listeners.include?(callback)).to be(true)
+
+                @status.debug_unsubscribe(@mod.settings.id, callback)
+                expect(callbacks.empty?).to be(true)
+                callbacks = @status.check_debug @mod.settings.id
+                expect(callbacks).to be(nil)
+
+                expect(@mod.logger.listeners.size).to be(0)
+            }
+        end
+
+        it 'should subscribe to module when it loads if a subscription is pending' do
+            callbacks = @status.check_debug @mod.settings.id
+            expect(callbacks).to be(nil)
+
+            @reactor.run { |reactor|
+                callback = @status.debug_subscribe(@mod.settings.id, proc { })
+                callbacks = @status.check_debug @mod.settings.id
+
+                expect(callbacks.class).to be(Set)
+                expect(callbacks.size).to be(1)
+                expect(callbacks.include?(callback)).to be(true)
+
+                expect(@mod.logger.listeners.size).to be(0)
+                expect(@mod.logger.listeners.include?(callback)).to be(false)
+
+                @controller.loaded = {}
+                @controller.add(@mod)
+                # This is called when a module is loaded
+                @status.move(@mod.settings.id, reactor)
+
+                expect(@mod.logger.listeners.size).to be(1)
+                expect(@mod.logger.listeners.include?(callback)).to be(true)
+            }
         end
     end
 end

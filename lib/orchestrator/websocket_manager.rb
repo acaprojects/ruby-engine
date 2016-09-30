@@ -346,8 +346,18 @@ module Orchestrator
             index = index_s.to_i if index_s
 
             if @debug.nil?
-                @debug = method(:debug_update)
-                @inspecting = Set.new # modules
+                @debug = proc { |klass, mod_id, level, msg|
+                    @reactor.schedule {
+                        @ws.text(::JSON.generate({
+                            type: :debug,
+                            mod: mod_id,
+                            klass: klass,
+                            level: level,
+                            msg: msg
+                        }))
+                    }
+                }
+                @inspecting = Set.new
             end
 
             if index
@@ -426,29 +436,12 @@ module Orchestrator
             end
         end
 
-        def debug_update(klass, id, level, msg)
-            @ws.text(::JSON.generate({
-                type: :debug,
-                mod: id,
-                klass: klass,
-                level: level,
-                msg: msg
-            }))
-        end
-
-
         def ignore(params)
             id = params[:id]
             sys = params[:sys].to_sym
             mod_s = params[:mod]
             mod = mod_s.to_sym if mod_s
 
-            if @debug.nil?
-                @debug = method(:debug_update)
-                @inspecting = Set.new # modules
-            end
-
-            # Remove module level errors
             if @inspecting && @inspecting.include?(mod)
                 @inspecting.delete mod
                 # Stop logging all together if no more modules being watched

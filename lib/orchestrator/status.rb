@@ -143,14 +143,12 @@ module Orchestrator
             subs = @debugging[lookup]
             if subs
                 subs.delete(callback)
-                @debugging[lookup] if subs.empty?
+                @debugging.delete(lookup) if subs.empty?
             end
         end
 
         def debug_migrate(mod_id, callbacks)
             # NOTE:: This function is only called from move
-            return unless callbacks
-
             subs = @debugging[mod_id]
             if subs
                 subs.merge(callbacks)
@@ -169,8 +167,15 @@ module Orchestrator
             lookup = mod_id.to_sym
 
             # Re-register debug listeners
-            debug_migrate(lookup, @debugging.delete(lookup))
-            return if to_thread == @thread
+            debug_listeners = @debugging.delete(lookup)
+            if to_thread == @thread
+                debug_migrate(lookup, debug_listeners)
+                return # Status bindings don't need to be transferred
+            elsif debug_listeners
+                to_thread.schedule {
+                    to_thread.observer.debug_migrate(lookup, debug_listeners)
+                }
+            end
 
             statuses = @subscriptions.delete(lookup)
 
@@ -310,6 +315,10 @@ module Orchestrator
             end
 
             false
+        end
+
+        def check_debug(mod_id)
+            @debugging[mod_id.to_sym]
         end
         # ======================
 

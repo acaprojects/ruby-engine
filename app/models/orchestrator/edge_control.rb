@@ -370,12 +370,12 @@ module Orchestrator
                             if @boot_complete
                                 @control.threads.each do |thr|
                                     # Check if move is required before the schedule
-                                    thr.schedule { thr.observer.move(mod_id, thread) } unless thr == thread
+                                    thr.schedule { thr.observer.move(mod_id, mod_manager.thread) }
                                 end
 
                                 # run the module if it should be running
                                 if host_active? && mod_manager.settings.running
-                                    thread.schedule do
+                                    mod_manager.thread.schedule do
                                         mod_manager.start_local
                                     end
                                 end
@@ -400,7 +400,7 @@ module Orchestrator
 
         # This is only called from control.
         # The module should not be running at this time
-        # TODO:: Should employ some kind of locking (possible race condition here)
+        # NOTE:: possibility that update could be called twice before module started?
         def update(settings)
             # Eager load dependency data whilst not on the reactor thread
             mod_id = settings.id.to_sym
@@ -408,7 +408,9 @@ module Orchestrator
             # Start, stop, unload the module as required
             if should_run_on_this_host || is_failover_host
                 return load(settings).then do |mod|
-                    mod.start_local if host_active?
+                    if host_active?
+                        mod.thread.schedule { mod.start_local }
+                    end
                     mod
                 end
             end
