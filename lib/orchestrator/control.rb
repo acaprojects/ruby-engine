@@ -36,7 +36,7 @@ module Orchestrator
                 @ready = true
             end
 
-            if Rails.env.production? && ENV['ORC_NO_BOOT'].nil? && ENV['LOG_TO_STDOUT'].nil?
+            if Rails.env.production? && ENV['ORC_NO_BOOT'].nil? && ENV['RAILS_LOG_TO_STDOUT'].nil?
                 logger = ::Logger.new(::Rails.root.join('log/control.log').to_s, 10, 4194304)
             else
                 logger = ::Logger.new(STDOUT)
