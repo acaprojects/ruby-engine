@@ -55,7 +55,7 @@ module Orchestrator
                         @processor.buffer(result)
 
                         @manager.logger.debug {
-                            msg = "success #{cmd[:method]}: #{@settings.uri}#{cmd[:path]}\n"
+                            msg = String.new("success #{cmd[:method]}: #{@settings.uri}#{cmd[:path]}\n")
                             msg << "result: #{result}"
                             msg
                         }
@@ -77,7 +77,7 @@ module Orchestrator
                         end
 
                         @manager.logger.debug {
-                            msg = "failed #{cmd[:method]}: #{@settings.uri}#{cmd[:path]}\n"
+                            msg = String.new("failed #{cmd[:method]}: #{@settings.uri}#{cmd[:path]}\n")
                             msg << "req headers: #{cmd[:headers]}\n"
                             msg << "req body: #{cmd[:body]}\n"
                             msg << "result: #{failure}"
