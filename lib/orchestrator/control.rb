@@ -352,13 +352,9 @@ module Orchestrator
 
 
         def log_stats(*_)
-            @reactor.work do
-                begin
-                    Orchestrator::Stats.new.save
-                rescue => e
-                    @logger.warn "exception saving statistics #{e.message}"
-                end
-            end
+            Orchestrator::Stats.new.save
+        rescue => e
+            @logger.warn "exception saving statistics: #{e.message}"
         end
 
 
