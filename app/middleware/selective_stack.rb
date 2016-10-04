@@ -1,3 +1,8 @@
+
+# Based of code from
+# * http://stackoverflow.com/questions/26922343/omniauthnosessionerror-you-must-provide-a-session-to-use-omniauth-configur
+# * https://blog.codeship.com/building-a-json-api-with-rails-5/
+
 class SelectiveStack
     def initialize(app)
         @app = app
