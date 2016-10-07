@@ -241,7 +241,7 @@ module Orchestrator
                         if res.nil?
                             sys.zones.each do |zone|
                                 res = zone.settings[name]
-                                return res unless res.nil?
+                                return res.deep_dup if res
                             end
 
                             # Fallback to the dependency
@@ -252,7 +252,10 @@ module Orchestrator
                         res = @settings.dependency.settings[name]
                     end
                 end
-                res
+                # As we don't continually go to the database we should
+                # ensure that every module has a unique copy of settings
+                # as they may modify the hash
+                res ? res.deep_dup : nil
             end
 
             # Called from Core::Mixin on any thread
