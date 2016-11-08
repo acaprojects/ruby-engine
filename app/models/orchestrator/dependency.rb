@@ -3,37 +3,35 @@
 require 'set'
 
 module Orchestrator
-    class Dependency < Couchbase::Model
+    class Dependency < CouchbaseOrm::Base
         design_document :dep
-        include ::CouchbaseId::Generator
 
 
-        after_save    :update_modules
-        before_delete :cleanup_modules
+        after_save     :update_modules
+        before_destroy :cleanup_modules
 
 
         ROLES = Set.new([:device, :service, :logic])
 
 
-        attribute :name
-        attribute :role
-        attribute :description
-        attribute :default # default data (port or URI)
+        attribute :name,        type: String
+        attribute :role,        type: String
+        attribute :description, type: String
+        attribute :default      # default data (port or URI)
 
         # Override default role accessors
         def role
-            @role ||= self.attributes[:role].to_sym if self.attributes[:role]
+            @role ||= self[:role].to_sym if self[:role]
         end
         def role=(name)
             @role = name.to_sym
-            self.attributes[:role] = name
+            self[:role] = name
         end
 
-        attribute :class_name
-        attribute :module_name
-        attribute :settings,        default: lambda { {} }
-
-        attribute :created_at,      default: lambda { Time.now.to_i }
+        attribute :class_name,  type: String
+        attribute :module_name, type: String
+        attribute :settings,    type: Hash,    default: proc { {} }
+        attribute :created_at,  type: Integer, default: proc { Time.now }
 
 
         # Find the modules that rely on this dependency
@@ -73,7 +71,7 @@ module Orchestrator
         # Delete all the module references relying on this dependency
         def cleanup_modules
             modules.each do |mod|
-                mod.delete
+                mod.destroy!
             end
         end
 

@@ -4,9 +4,8 @@ require 'securerandom'
 require 'thread'
 
 module Orchestrator
-    class EdgeControl < Couchbase::Model
+    class EdgeControl < CouchbaseOrm::Base
         design_document :edge
-        include ::CouchbaseId::Generator
 
 
         StartOrder = Struct.new(:device, :logic, :trigger) do
@@ -98,38 +97,34 @@ module Orchestrator
         end
 
 
-        attribute :name
-        attribute :host_origin  # Control UI's need this for secure cross domain connections
-        attribute :description
+        attribute :name,          type: String
+        attribute :host_origin,   type: String  # Control UI's need this for secure cross domain connections
+        attribute :description,   type: String
 
         # Used to validate the connection is from a trusted edge node
-        attribute :password,    default: lambda { SecureRandom.hex }
+        attribute :password,      type: String,  default: lambda { SecureRandom.hex }
 
-        attribute :failover,    default: true     # should the master take over if this location goes down
-        attribute :timeout,     default: 20000   # Failover timeout, how long before we act on the failure? (20seconds default)
-        attribute :window_start   # CRON string for recovery windows (restoring edge control after failure)
-        attribute :window_length  # Time in seconds
+        attribute :failover,      type: Boolean, default: true     # should the master take over if this location goes down
+        attribute :timeout,       type: Integer, default: 20000   # Failover timeout, how long before we act on the failure? (20seconds default)
+        attribute :window_start,  type: String   # CRON string for recovery windows (restoring edge control after failure)
+        attribute :window_length, type: Integer  # Time in seconds
 
         # Status variables
-        attribute :online,          default: true
-        attribute :failover_active, default: false
-        attribute :failover_time,   default: 0  # Last time there was a failover event
-        attribute :startup_time,    default: 0  # Last known time the edge node booted up
+        attribute :online,          type: Boolean, default: true
+        attribute :failover_active, type: Boolean, default: false
+        attribute :failover_time,   type: Integer, default: 0  # Last time there was a failover event
+        attribute :startup_time,    type: Integer, default: 0  # Last known time the edge node booted up
 
-        attribute :settings,    default: lambda { {} }
-        attribute :admins,      default: lambda { [] }
+        attribute :settings,   type: Hash,    default: lambda { {} }
+        attribute :admins,     type: Array,   default: lambda { [] }
 
-        attribute :created_at,  default: lambda { Time.now.to_i }
+        attribute :created_at, type: Integer, default: lambda { Time.now }
 
 
         def self.all
-            by_master_id(stale: false)
+            by_master_id
         end
-
-        def self.salve_of(node_id)
-            by_master_id(key: node_id, stale: false)
-        end
-        view :by_master_id
+        index_view :master_id, find_method: :salve_of
 
 
         attr_reader :proxy

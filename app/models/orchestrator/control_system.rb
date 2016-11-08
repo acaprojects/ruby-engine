@@ -4,20 +4,16 @@ require 'set'
 require 'addressable/uri'
 
 module Orchestrator
-    class ControlSystem < Couchbase::Model
+    class ControlSystem < CouchbaseOrm::Base
         design_document :sys
-        include ::CouchbaseId::Generator
 
-        extend EnsureUnique
-        extend Index
 
-        
         # Allows us to lookup systems by names
-        after_save      :expire_cache
-        before_save     :update_features
+        after_save     :expire_cache
+        before_save    :update_features
 
-        before_delete   :cleanup_modules
-        after_delete    :expire_cache
+        before_destroy :cleanup_modules
+        after_destroy  :expire_cache
 
 
         # Defines the default affinity for modules in this system and triggers
@@ -25,28 +21,28 @@ module Orchestrator
         belongs_to :edge, class_name: 'Orchestrator::EdgeControl'
 
 
-        attribute :name
-        attribute :description
+        attribute :name,        type: String
+        attribute :description, type: String
 
         # Room search meta-data
         # Building + Level are both filtered using zones
-        attribute :email
-        attribute :capacity,    default: 0
-        attribute :features
-        attribute :bookable,    default: false
+        attribute :email,    type: String
+        attribute :capacity, type: Integer, default: 0
+        attribute :features, type: String
+        attribute :bookable, type: Boolean, default: false
 
         # The number of UI devices that are always available in the room
         # i.e. the number of iPads mounted on the wall
-        attribute :installed_ui_devices, default: 0
+        attribute :installed_ui_devices, type: Integer, default: 0
 
-        attribute :zones,       default: lambda { [] }
-        attribute :modules,     default: lambda { [] }
-        attribute :settings,    default: lambda { {} }
+        attribute :zones,       type: Array,   default: lambda { [] }
+        attribute :modules,     type: Array,   default: lambda { [] }
+        attribute :settings,    type: Hash,    default: lambda { {} }
 
-        attribute :created_at,  default: lambda { Time.now.to_i }
+        attribute :created_at,  type: Integer, default: lambda { Time.now }
 
         # Provide a field for simplifying support
-        attribute :support_url
+        attribute :support_url, type: String
 
 
         # Used in triggers::manager for accssing a system proxy
@@ -62,7 +58,7 @@ module Orchestrator
             @nodes[@node_id]
         end
 
-        ensure_unique :name, :name do |name|
+        ensure_unique :name do |name|
             "#{name.to_s.strip.downcase}"
         end
 
@@ -90,24 +86,13 @@ module Orchestrator
         end
 
 
+        index_view :modules, find_method: :using_module
+        index_view :zones,   find_method: :in_zone
+
         def self.all
-            by_node(stale: false)
+            by_edge_id
         end
-
-        def self.using_module(mod_id)
-            by_modules(key: mod_id, stale: false)
-        end
-        view :by_modules
-
-        def self.in_zone(zone_id)
-            by_zones(key: zone_id, stale: false)
-        end
-        view :by_zones
-
-        def self.on_node(edge_id)
-            by_node(key: edge_id, stale: false)
-        end
-        view :by_node
+        index_view :edge_id, find_method: :on_node
 
 
         # Methods for obtaining the modules and zones as objects

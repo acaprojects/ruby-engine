@@ -3,21 +3,21 @@
 require 'set'
 
 module Orchestrator
-    class Discovery < Couchbase::Model
+    class Discovery < CouchbaseOrm::Base
         design_document :disc
 
 
-        attribute :name
-        attribute :role
-        attribute :description
-        attribute :default
-        attribute :class_name
-        attribute :module_name
-        attribute :makebreak
-        attribute :settings,    default: lambda { {} }
+        attribute :name,        type: String
+        attribute :role,        type: String
+        attribute :description, type: String
+        attribute :default      # This can be a string (URL) or an integer (Port Number)
+        attribute :class_name,  type: String
+        attribute :module_name, type: String
+        attribute :makebreak,   type: Boolean
+        attribute :settings,    type: Hash,    default: lambda { {} }
 
-        attribute :created_at,  default: lambda { Time.now.to_i }
-        attribute :file_exists, default: true
+        attribute :created_at,  type: Integer, default: lambda { Time.now }
+        attribute :file_exists, type: Boolean, default: true
 
 
         def self.scan_for_modules

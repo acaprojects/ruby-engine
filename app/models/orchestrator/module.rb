@@ -3,9 +3,8 @@
 require 'addressable/uri'
 
 module Orchestrator
-    class Module < Couchbase::Model
+    class Module < CouchbaseOrm::Base
         design_document :mod
-        include ::CouchbaseId::Generator
 
 
         # The classes / files that this module requires to execute
@@ -19,31 +18,31 @@ module Orchestrator
         # Device module
         def hostname; ip; end
         def hostname=(host); ip = host; end
-        attribute :ip
-        attribute :tls
-        attribute :udp
-        attribute :port
-        attribute :makebreak,   default: false
+        attribute :ip,          type: String
+        attribute :tls,         type: Boolean
+        attribute :udp,         type: Boolean
+        attribute :port,        type: Integer
+        attribute :makebreak,   type: Boolean, default: false
 
         # HTTP Service module
-        attribute :uri
+        attribute :uri,         type: String
 
         # Custom module names (in addition to what is defined in the dependency)
-        attribute :custom_name
-        attribute :settings,    default: lambda { {} }
+        attribute :custom_name, type: String
+        attribute :settings,    type: Hash,    default: lambda { {} }
 
-        attribute :updated_at,  default: lambda { Time.now.to_i }
-        attribute :created_at,  default: lambda { Time.now.to_i }
+        attribute :updated_at,  type: Integer, default: lambda { Time.now }
+        attribute :created_at,  type: Integer, default: lambda { Time.now }
         attribute :role         # cache the dependency role locally for load order
 
         # Connected state in model so we can filter and search on it
-        attribute :connected,   default: true
-        attribute :running,     default: false
-        attribute :notes
+        attribute :connected,   type: Boolean, default: true
+        attribute :running,     type: Boolean, default: false
+        attribute :notes,       type: String
 
         # Don't include this module in statistics or disconnected searches
         # Might be a device that commonly goes offline (like a PC or Display that only supports Wake on Lan)
-        attribute :ignore_connected,   default: false
+        attribute :ignore_connected, type: Boolean, default: false
 
 
         # helper method for looking up the manager
@@ -62,23 +61,13 @@ module Orchestrator
         end
 
 
-        # Loads all the modules for this node
-        def self.all
-            # ascending order by default (device, service then logic)
-            by_module_type(stale: false)
-        end
-        view :by_module_type
+        # Loads all the modules for this node in ascending order by default
+        #  (device, service then logic)
+        view :all, emit_key: :role
 
         # Finds all the modules belonging to a particular dependency
-        def self.dependent_on(dep_id)
-            by_dependency({key: dep_id, stale: false})
-        end
-        view :by_dependency
-
-        def self.on_node(edge_id)
-            by_node({key: edge_id, stale: false})
-        end
-        view :by_node
+        index_view :dependency_id, find_method: :dependent_on
+        index_view :edge_id,       find_method: :on_node
 
         # The systems this module is in use
         def systems
@@ -142,13 +131,14 @@ module Orchestrator
             end
         end
 
-        before_delete :unload_module
+        before_destroy :unload_module
         def unload_module
             ::Orchestrator::Control.instance.unload(self.id)
+            
             # Find all the systems with this module ID and remove it
-            ControlSystem.using_module(self.id).each do |cs|
+            self.systems.each do |cs|
                 cs.modules.delete(self.id)
-                cs.save
+                cs.save!
             end
         end
     end

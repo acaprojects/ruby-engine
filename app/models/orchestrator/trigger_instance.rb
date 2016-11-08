@@ -1,25 +1,25 @@
 # frozen_string_literal: true
 
 module Orchestrator
-    class TriggerInstance < Couchbase::Model
+    class TriggerInstance < CouchbaseOrm::Base
         design_document :trig
-        include ::CouchbaseId::Generator
+
 
         belongs_to :control_system, :class_name => "Orchestrator::ControlSystem"
-        belongs_to :trigger, :class_name => "Orchestrator::Trigger"
+        belongs_to :trigger,        :class_name => "Orchestrator::Trigger"
 
-        attribute :created_at, default: lambda { Time.now.to_i }
-        attribute :updated_at, default: lambda { Time.now.to_i }
-        
-        attribute :enabled,    default: true
-        attribute :triggered,  default: false
-        attribute :important,  default: false
+        attribute :created_at, type: Integer, default: lambda { Time.now }
+        attribute :updated_at, type: Integer, default: lambda { Time.now }
 
-        attribute :override,   default: lambda { {} }
+        attribute :enabled,    type: Boolean, default: true
+        attribute :triggered,  type: Boolean, default: false
+        attribute :important,  type: Boolean, default: false
+
+        attribute :override,   type: Hash,    default: lambda { {} }
 
 
-        before_delete :unload
-        after_save    :load
+        before_destroy :unload
+        after_save     :load
 
 
         # ----------------
@@ -59,18 +59,12 @@ module Orchestrator
         # ------------
         # VIEWS ACCESS
         # ------------
-        # Finds all the instances belonging to a particular system
-        def self.for(sys_id)
-            by_system_id({key: sys_id, stale: false})
-        end
-        view :by_system_id
-
+        # Helper method: for(sys_id)
+        index_view :control_system_id, find_method: :for
 
         # Finds all the instances belonging to a particular trigger
-        def self.of(trig_id)
-            by_trigger_id({key: trig_id, stale: false})
-        end
-        view :by_trigger_id
+        # Helper method: of(trig_id)
+        index_view :trigger_id, find_method: :of
 
 
         # ---------------

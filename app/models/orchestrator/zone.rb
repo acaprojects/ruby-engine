@@ -1,31 +1,28 @@
 # frozen_string_literal: true
 
 module Orchestrator
-    class Zone < Couchbase::Model
+    class Zone < CouchbaseOrm::Base
         design_document :zone
-        include ::CouchbaseId::Generator
-
-        extend EnsureUnique
-        extend Index
 
 
-        attribute :name
-        attribute :description
-        attribute :settings,    default: lambda { {} }
+        attribute :name,        type: String
+        attribute :description, type: String
+        attribute :settings,    type: Hash,    default: lambda { {} }
 
-        attribute :created_at,  default: lambda { Time.now.to_i }
-
+        attribute :created_at,  type: Integer, default: lambda { Time.now }
 
 
         # Loads all the zones
-        def self.all
-            all(stale: false)
-        end
         view :all
 
 
-        ensure_unique :name, :name do |name|
+        ensure_unique :name do |name|
             "#{name.to_s.strip.downcase}"
+        end
+
+
+        def systems
+            ::Orchestrator::ControlSystem.in_zone(self.id)
         end
 
 
@@ -35,22 +32,26 @@ module Orchestrator
         validates :name,  presence: true
 
 
-        before_delete :remove_zone
+        before_destroy :remove_zone
         def remove_zone
-            ::Orchestrator::Control.instance.zones.delete(self.id)
-            ::Orchestrator::ControlSystem.in_zone(self.id).each do |cs|
+            zone_cache.delete(self.id)
+            systems.each do |cs|
                 cs.zones.delete(self.id)
-                cs.save
+                cs.save!
             end
         end
 
         # Expire both the zone cache and any systems that use the zone
         after_save :expire_caches
         def expire_caches
-            ::Orchestrator::Control.instance.zones[self.id] = self
-            ::Orchestrator::ControlSystem.in_zone(self.id).each do |cs|
+            zone_cache[self.id] = self
+            systems.each do |cs|
                 cs.expire_cache
             end
+        end
+
+        def zone_cache
+            ::Orchestrator::Control.instance.zones
         end
     end
 end

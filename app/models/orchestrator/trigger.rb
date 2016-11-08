@@ -1,36 +1,33 @@
 # frozen_string_literal: true
 
+# Prevent has_many load warning
+require File.expand_path('../trigger_instance', __FILE__)
 require 'set'
 
 module Orchestrator
-    class Trigger < Couchbase::Model
+    class Trigger < CouchbaseOrm::Base
         design_document :trigger
-        include ::CouchbaseId::Generator
 
-        attribute :name
-        attribute :description
-        attribute :created_at,  default: lambda { Time.now.to_i }
+        attribute :name,            type: String
+        attribute :description,     type: String
+        attribute :created_at,      type: Integer, default: lambda { Time.now }
 
-        attribute :conditions
-        attribute :actions,  default: lambda { [] }
+        attribute :conditions,      type: Array
+        attribute :actions,         type: Array,   default: lambda { [] }
 
         # in seconds
-        attribute :debounce_period, default: 0
+        attribute :debounce_period, type: Integer, default: 0
+
+
+        has_many :trigger_instances, dependent: :destroy, class_name: "Orchestrator::TriggerInstance"
 
 
         protected
 
 
-        before_delete :cleanup_instances
-        def cleanup_instances
-            TriggerInstance.of(self.id).each do |trig|
-                trig.delete
-            end
-        end
-
         after_save :reload_all
         def reload_all
-            TriggerInstance.of(self.id).each do |trig|
+            trigger_instances.each do |trig|
                 trig.load
             end
         end

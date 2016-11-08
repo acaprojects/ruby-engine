@@ -1,26 +1,25 @@
 # frozen_string_literal: true
 
 module Orchestrator
-    class Stats < Couchbase::Model
-
-        # zzz so
+    class Stats < CouchbaseOrm::Base
         design_document :zzz
-        include ::CouchbaseId::Generator
+
 
         # 29 days < couchbase basic TTL format limit
         TTL = Rails.env.production? ? 29.days.to_i : 1.day.to_i
 
-        attribute :modules_disconnected, default: 0
-        attribute :triggers_active,      default: 0
-        attribute :connections_active,   default: 0
-        attribute :fixed_connections,    default: 0
+
+        attribute :modules_disconnected, type: Integer, default: 0
+        attribute :triggers_active,      type: Integer, default: 0
+        attribute :connections_active,   type: Integer, default: 0
+        attribute :fixed_connections,    type: Integer, default: 0
 
         # TODO::
-        attribute :nodes_offline,        default: 0
+        attribute  :nodes_offline, type: Integer, default: 0
         belongs_to :edge, class_name: 'Orchestrator::EdgeControl'
 
         # Unique field in the index
-        attribute :stat_snapshot_at
+        attribute :stat_snapshot_at,     type: Integer
 
 
         def initialize(*args)
@@ -43,8 +42,7 @@ module Orchestrator
 
 
         def query_for_stats
-            self.stat_snapshot_at = Time.now.to_i
-            self.id = "zzz_#{CLUSTER_ID}-#{self.stat_snapshot_at}"
+            self.stat_snapshot_at = Time.now
             self.edge_id = Remote::NodeId  # Edge that recorded this statistic
 
             #----------------------
