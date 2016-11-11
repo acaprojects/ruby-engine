@@ -1,16 +1,11 @@
 # frozen_string_literal: true
 
 require 'set'
+require 'active_support/all'
 
 module Orchestrator
     class Engine < ::Rails::Engine
         isolate_namespace Orchestrator
-
-
-        # NOTE:: if we ever have any tasks
-        #rake_tasks do
-        #    load "tasks/orchestrator_tasks.rake"
-        #end
 
         #
         # Define the application configuration
@@ -51,12 +46,6 @@ module Orchestrator
         # Discover the possible module location paths after initialization is complete
         #
         config.after_initialize do |app|
-            require File.expand_path(File.join(File.expand_path("../", __FILE__), '../../app/models/user'))
-
-            # Increase the default observe timeout
-            # TODO:: We should really be writing our own DB adaptor
-            ::User.bucket.default_observe_timeout = 10000000
-            
             ActiveSupport::Dependencies.autoload_paths.each do |path|
                 Pathname.new(path).ascend do |v|
                     if ['app', 'vendor', 'lib'].include?(v.basename.to_s)
@@ -66,23 +55,7 @@ module Orchestrator
                     end
                 end
             end
-
             app.config.orchestrator.module_paths.uniq!
-
-            # Force design documents
-            temp = ::Couchbase::Model::Configuration.design_documents_paths
-
-            ::Couchbase::Model::Configuration.design_documents_paths = [File.expand_path(File.join(File.expand_path("../", __FILE__), '../../app/models/orchestrator'))]
-            ::Orchestrator::ControlSystem.ensure_design_document!
-            ::Orchestrator::Module.ensure_design_document!
-            ::Orchestrator::Zone.ensure_design_document!
-            ::Orchestrator::TriggerInstance.ensure_design_document!
-            ::Orchestrator::EdgeControl.ensure_design_document!
-
-            ::Couchbase::Model::Configuration.design_documents_paths = [File.expand_path(File.join(File.expand_path("../", __FILE__), '../../app/models'))]
-            ::User.ensure_design_document!
-
-            ::Couchbase::Model::Configuration.design_documents_paths = temp
 
             # Start the control system by initializing it
             ctrl = ::Orchestrator::Control.instance

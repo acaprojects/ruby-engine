@@ -1,11 +1,8 @@
 # frozen_string_literal: true
 
 # Gems
-require 'couchbase-id'
 require 'uv-rays'
 require 'co-elastic-query'
-#require 'coauth'
-#::Auth::CoStatus[:init] = true
 
 require 'orchestrator/engine'
 

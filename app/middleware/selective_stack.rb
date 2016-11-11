@@ -22,13 +22,13 @@ class SelectiveStack
 
 
     def middleware_stack
-        ActionDispatch::MiddlewareStack.new.tap do |middleware|
+        ::ActionDispatch::MiddlewareStack.new.tap do |middleware|
             # needed for OmniAuth
-            middleware.use ActionDispatch::Cookies
-            middleware.use Rails.application.config.session_store, Rails.application.config.session_options
-            middleware.use OmniAuth::Builder, &OmniAuthConfig
+            middleware.use ::ActionDispatch::Cookies
+            middleware.use ::Rails.application.config.session_store, ::Rails.application.config.session_options
+            middleware.use ::OmniAuth::Builder, &OmniAuthConfig if defined?(::OmniAuth)
             # needed for Doorkeeper /oauth views
-            middleware.use ActionDispatch::Flash
+            middleware.use ::ActionDispatch::Flash
         end
     end
 end

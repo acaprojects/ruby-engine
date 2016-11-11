@@ -21,7 +21,6 @@ Gem::Specification.new do |s|
     s.add_dependency 'uv-rays', '~> 2.0'    # Evented networking library
     s.add_dependency 'addressable',  '~> 2.4'       # IP address utilities
     s.add_dependency 'algorithms',   '~> 0.6'       # Priority queue
-    s.add_dependency 'couchbase-id', '~> 1.0'       # ID generation
     s.add_dependency 'co-elastic-query', '~> 3.0'   # Query builder
 
     s.add_development_dependency 'rspec','~> 3.5'   # Testing framework
