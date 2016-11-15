@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class Authority < Couchbase::Model
+class Authority < CouchbaseOrm::Base
 
     # Define configurable control features here
 

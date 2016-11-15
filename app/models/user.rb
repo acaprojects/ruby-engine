@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class User < Couchbase::Model
+class User < CouchbaseOrm::Base
     # Mostly defined in coauth
 
     # Protected attributes
