@@ -83,7 +83,7 @@ module Orchestrator
                         end
 
                         logger.debug 'init: Watchdog started'
-                    else    # We are either running no_ipc or process (unsupported for control)
+                    else    # We are running in no_ipc mode (or process mode, unsupported for control)
                         @threads = []
 
                         logger.debug 'init: Running in process mode (starting threads)'
@@ -124,7 +124,7 @@ module Orchestrator
                             zone = ::Orchestrator::Zone.find(zone_id)
                             @zones[zone.id] = zone
                             defer.resolve(zone)
-                        rescue Couchbase::Error::NotFound => e
+                        rescue Libcouchbase::Error::KeyNotFound => e
                             defer.reject(zone_id)
                         rescue => e
                             if tries <= 2
@@ -307,7 +307,7 @@ module Orchestrator
             defer.promise
         end
 
-        def log_unhandled_exception(error, context)
+        def log_unhandled_exception(error, context, trace = nil)
             @logger.print_error error, context
             ::Libuv::Q.reject(@reactor, error)
         end
@@ -365,8 +365,8 @@ module Orchestrator
             @threads << thread
 
             Thread.new do
-                thread.run do |promise|
-                    promise.notifier @exceptions
+                thread.notifier @exceptions
+                thread.run do |thread|
                     attach_watchdog thread
                 end
             end
@@ -388,6 +388,7 @@ module Orchestrator
             end
         end
 
+        IgnoreClasses = ['Libuv::', 'Concurrent::', 'UV::', 'Set', '#<Class:Bisect>', '#<Class:Libuv', 'IO', 'FSEvent', 'ActiveSupport', 'Listen::'].freeze
         # Monitors threads to make sure they continue to checkin
         # If a thread is hung then we log what it happening
         # If it still doesn't checked in then we raise an exception
@@ -395,12 +396,20 @@ module Orchestrator
         def start_watchdog
             thread = Libuv::Reactor.new
             @last_seen = {}
-            @watching = {}
+            @watching = false
+
+            if defined? ::TracePoint
+                @trace = ::TracePoint.new(:line, :call, :return, :raise) do |tp|
+                    klass = "#{tp.defined_class}"
+                    unless klass.start_with?(*IgnoreClasses)
+                        @logger.info "tracing #{tp.event} from #{tp.defined_class}##{tp.method_id}:#{tp.lineno} in #{tp.path}"
+                    end
+                end
+            end
 
             Thread.new do
-                thread.run do |promise|
-                    promise.notifier @exceptions
-
+                thread.notifier @exceptions
+                thread.run do |thread|
                     thread.scheduler.every 2000 do
                         check_threads
                     end
@@ -411,53 +420,29 @@ module Orchestrator
 
         def check_threads
             now = @watchdog.now
+            watching = false
 
             @threads.each do |thread|
                 difference = now - (@last_seen[thread] || 0)
-                thr_actual = nil
 
                 if difference > 5000
-                    # we want to start logging
-                    thr_actual = thread.reactor_thread
-
-                    if difference > 8000
-                        if @watching[thread]
-                            thr_actual = @watching.delete thread
-                            thr_actual.set_trace_func nil
-                        end
-
-                        # Kill the process if the system is unresponsive
-                        if difference > 10000
-                            @logger.fatal "SYSTEM UNRESPONSIVE - FORCING SHUTDOWN"
-                            Process.kill 'SIGKILL', Process.pid
-                            abort("SYSTEM UNRESPONSIVE - FORCING SHUTDOWN")
-                        else
-                            @logger.warn "WATCHDOG PERFORMING CPR"
-                            thr_actual.raise Error::WatchdogResuscitation.new("thread failed to checkin, performing CPR")
-                        end
+                    if difference > 10000
+                        @logger.fatal "SYSTEM UNRESPONSIVE - FORCING SHUTDOWN"
+                        Process.kill 'SIGKILL', Process.pid
+                        abort("SYSTEM UNRESPONSIVE - FORCING SHUTDOWN")
                     else
-                        if @watching[thread].nil?
-                            @logger.warn "WATCHDOG ACTIVATED"
-
-                            @watching[thread] = thr_actual
-
-                            thr_actual.set_trace_func proc { |event, file, line, id, binding, classname|
-                                watchdog_trace(event, file, line, id, binding, classname)
-                            }
-                        end
+                        # we want to start logging
+                        watching = true
                     end
-
-                elsif @watching[thread]
-                    thr_actual = @watching.delete thread
-                    thr_actual.set_trace_func nil
                 end
             end
-        end
 
-        TraceEvents = ['line', 'call', 'return', 'raise']
-        def watchdog_trace(event, file, line, id, binding, classname)
-            if TraceEvents.include?(event)
-                @logger.info "tracing #{event} from line #{line} in #{file}"
+            if !@watching && watching
+                @logger.warn "WATCHDOG ACTIVATED"
+                @watching = true
+                @trace.enable if defined? ::TracePoint
+            elsif @watching && !watching
+                @trace.disable if defined? ::TracePoint
             end
         end
         # =================
