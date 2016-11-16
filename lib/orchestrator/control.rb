@@ -112,33 +112,23 @@ module Orchestrator
         # The database etc
         # This function is thread safe
         def load_zone(zone_id)
-            defer = @reactor.defer
-            @reactor.schedule do
-                @reactor.work do
-                    @critical.synchronize {
-                        zone = @zones[zone.id]
-                        defer.resolve(zone) if zone
+            zone = @zones[zone.id]
+            return zone if zone
 
-                        tries = 0
-                        begin
-                            zone = ::Orchestrator::Zone.find(zone_id)
-                            @zones[zone.id] = zone
-                            defer.resolve(zone)
-                        rescue Libcouchbase::Error::KeyNotFound => e
-                            defer.reject(zone_id)
-                        rescue => e
-                            if tries <= 2
-                                sleep 1
-                                tries += 1
-                                retry
-                            else
-                                defer.reject(e)
-                            end
-                        end
-                    }
+            tries = 0
+            begin
+                zone = ::Orchestrator::Zone.find(zone_id)
+                @zones[zone.id] = zone
+                zone
+            rescue => e
+                if !e.is_a?(Libcouchbase::Error::KeyNotFound) && tries <= 2
+                    sleep 1
+                    tries += 1
+                    retry
+                else
+                    raise e
                 end
             end
-            defer.promise
         end
 
         # Loads the module requested
@@ -153,46 +143,41 @@ module Orchestrator
                 defer.resolve(mod)
             else
                 @reactor.schedule do
-                    # Grab database model in the thread pool
-                    res = @reactor.work do
-                        tries = 0
-                        begin
-                            ::Orchestrator::Module.find_by_id(mod_id)
-                        rescue => e
-                            tries += 1
-                            sleep 0.2
-                            retry if tries < 3
-                            raise e
-                        end
-                    end
+                    # Grab the database model
+                    tries = 0
+                    begin
+                        config = ::Orchestrator::Module.find(mod_id)
 
-                    # Load the module if model found
-                    res.then do |config|
-                        if config
-                            edge = @nodes[config.edge_id.to_sym]
-                            result = edge.update(config)
+                        # Load the module if model found
+                        edge = @nodes[config.edge_id.to_sym]
+                        result = edge.update(config)
 
-                            if result
-                                defer.resolve(result)
-                                result.then do |mod|
-                                    # Expire the system cache
-                                    @reactor.work do
-                                        ControlSystem.using_module(id).each do |sys|
-                                            sys.expire_cache(:no_update)
-                                        end
-                                    end
-
-                                    # Signal the remote node to load this module
-                                    mod.remote_node {|proxy| remote.load(mod_id) } if do_proxy
+                        if result
+                            defer.resolve(result)
+                            result.then do |mod|
+                                # Signal the remote node to load this module
+                                mod.remote_node {|proxy| remote.load(mod_id) } if do_proxy
+                                
+                                # Expire the system cache
+                                ControlSystem.using_module(id).each do |sys|
+                                    sys.expire_cache(:no_update)
                                 end
-                            else
-                                err = Error::ModuleUnavailable.new "module '#{mod_id}' not assigned to node #{edge.name} (#{edge.host_origin})"
-                                defer.reject(err)
                             end
                         else
-                            err = Error::ModuleNotFound.new "unable to start module '#{mod_id}', not found"
+                            err = Error::ModuleUnavailable.new "module '#{mod_id}' not assigned to node #{edge.name} (#{edge.host_origin})"
                             defer.reject(err)
                         end
+
+                    rescue Libcouchbase::Error::KeyNotFound => e
+                        err = Error::ModuleNotFound.new "unable to start module '#{mod_id}', not found"
+                        defer.reject(err)
+                    rescue => e
+                        tries += 1
+                        if tries < 3
+                            @reactor.sleep 200
+                            retry
+                        end
+                        raise e
                     end
                 end
             end

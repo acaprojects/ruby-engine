@@ -12,7 +12,6 @@ module Orchestrator
                 @conditions = {}    # State objects by trigger id
                 @debounce = {}
                 @subscriptions = {} # Reference to each subscription
-                @updating = Mutex.new
 
                 # In case an update occurs while writing the database
                 @pending = {}
@@ -44,19 +43,12 @@ module Orchestrator
             end
 
             def reload_id(id)
-                thread.work(proc {
-                    @updating.synchronize {
-                        model = ::Orchestrator::TriggerInstance.find id
-                        model.name  # Load the parent model
-                        model
-                    }
-                }).then(proc { |model|
-                    # Update the model if it was updated
-                    reload(model)
-                }, proc { |e|
-                    # report any errors updating the model
-                    logger.print_error(e, "error loading trigger #{id}")
-                })
+                model = ::Orchestrator::TriggerInstance.find id
+                model.name  # Load the parent model
+                reload(model)
+            rescue => e
+                # report any errors updating the model
+                logger.print_error(e, "error loading trigger #{id}")
             end
 
             def reload(trig)
@@ -189,29 +181,18 @@ module Orchestrator
                 end
             end
 
-            CAS = 'cas'.freeze
             def perform_update_model(id, state)
                 # Access the database in a non-blocking fashion
                 @writing[id] = true
 
-                thread.work(proc {
-                    @updating.synchronize {
-                        model = ::Orchestrator::TriggerInstance.find_by_id id
-
-                        if model
-                            model.ignore_update
-                            model.updated_at = Time.now.to_i
-                            model.triggered = state
-                            model.save!(CAS => model.meta[CAS])
-                            model.name  # Load the parent model
-                            model
-                        else
-                            nil
-                        end
-                    }
-                }).then(proc { |model|
-                    # Update the model if it was updated
+                begin
+                    model = ::Orchestrator::TriggerInstance.find_by_id id
                     if model
+                        model.ignore_update
+                        model.updated_at = Time.now.to_i
+                        model.triggered = state
+                        model.save!(CAS => model.meta[CAS])
+                        model.name  # Load the parent model
                         @triggers[id] = model
                         @trigger_names[model.name] = model
                         self[model.binding] = state
@@ -221,20 +202,20 @@ module Orchestrator
                         model.triggered = state
                         logger.warn "trigger #{model.id} not found: (#{model.name})"
                     end
-                }, proc { |e|
+                rescue => e
                     # report any errors updating the model
                     logger.print_error(e, 'error updating triggered state in database model')
-                }).finally do
-                    perform_trigger_actions(id) if state
+                end
 
-                    # If an update occured while we were processing
-                    # This means there is no more than a queue of 1 (good for memory)
-                    if @pending[id].nil?
-                        @writing.delete(id)
-                    else
-                        new_state = @pending.delete(id)
-                        perform_update_model(id, new_state) if new_state != state
-                    end
+                perform_trigger_actions(id) if state
+
+                # If an update occured while we were processing
+                # This means there is no more than a queue of 1 (good for memory)
+                if @pending[id].nil?
+                    @writing.delete(id)
+                else
+                    new_state = @pending.delete(id)
+                    perform_update_model(id, new_state) if new_state != state
                 end
             end
 
@@ -253,7 +234,7 @@ module Orchestrator
                         when :email
                             logger.debug { "sending email to: #{act[:emails]}" }
 
-                            # TODO:: we should use a different thread pool as emails might take some time to send
+                            # Send emails in the thread pool
                             thread.work {
                                 TriggerMailer.trigger_notice(system.name, system.id, model.name, model.description, act[:emails], act[:content]).deliver_now
                             }.catch do |e|

@@ -77,41 +77,37 @@ module Orchestrator
                 # Perform the security check in a nonblocking fashion
                 # (Database access is probably required)
                 sys_id = params[:sys].to_sym
-                result = @access_cache[sys_id]
-                if result.nil?
-                    result = @reactor.work do
-                        Rails.configuration.orchestrator.check_access.call(sys_id, @user)
+                access = @access_cache[sys_id]
+
+                if access.nil?
+                    begin
+                        access = Rails.configuration.orchestrator.check_access.call(sys_id, @user)
+                        @access_cache[sys_id] = access
+                        expire_access(sys_id)
+                    rescue => e
+                        @access_log.suspected = true
+                        @logger.print_error(e, 'security check failed for websocket request')
+                        error_response(params[:id], ERRORS[:access_denied], e.message)
                     end
-                    @access_cache[sys_id] = result
-                    expire_access(sys_id)
                 end
 
                 # The result should be an access level if these are implemented
-                result.then do |access|
-                    begin
-                        cmd = params[:cmd].to_sym
-                        if COMMANDS.include?(cmd)
-                            @accessed << sys_id         # Log the access
-                            self.__send__(cmd, params)  # Execute the request
+                begin
+                    cmd = params[:cmd].to_sym
+                    if COMMANDS.include?(cmd)
+                        @accessed << sys_id         # Log the access
+                        self.__send__(cmd, params)  # Execute the request
 
-                            # Start logging
-                            periodicly_update_logs unless @accessTimer
-                        else
-                            @access_log.suspected = true
-                            @logger.warn("websocket requested unknown command '#{params[:cmd]}'")
-                            error_response(params[:id], ERRORS[:unknown_command], "unknown command: #{params[:cmd]}")
-                        end
-                    rescue => e
-                        @logger.print_error(e, "websocket request failed: #{data}")
-                        error_response(params[:id], ERRORS[:request_failed], e.message)
+                        # Start logging
+                        periodicly_update_logs unless @accessTimer
+                    else
+                        @access_log.suspected = true
+                        @logger.warn("websocket requested unknown command '#{params[:cmd]}'")
+                        error_response(params[:id], ERRORS[:unknown_command], "unknown command: #{params[:cmd]}")
                     end
-                end
-
-                # Raise an error if access is not granted
-                result.catch do |e|
-                    @access_log.suspected = true
-                    @logger.print_error(e, 'security check failed for websocket request')
-                    error_response(params[:id], ERRORS[:access_denied], e.message)
+                rescue => e
+                    @logger.print_error(e, "websocket request failed: #{data}")
+                    error_response(params[:id], ERRORS[:request_failed], e.message)
                 end
             else
                 # log user information here (possible probing attempt)
@@ -140,9 +136,7 @@ module Orchestrator
 
             args = params[:args] || []
 
-            @reactor.work do
-                do_exec(id, sys, mod, index, name, args)
-            end
+            do_exec(id, sys, mod, index, name, args)
         end
 
         def do_exec(id, sys, mod, index, name, args)
@@ -224,9 +218,9 @@ module Orchestrator
             index = index_s.to_i
 
             # perform binding on the thread pool
-            @reactor.work(proc {
+            begin
                 check_binding(id, sys, mod, index, name)
-            }).catch do |err|
+            rescue => err
                 @logger.print_error(err, "websocket request failed: #{params}")
                 error_response(id, ERRORS[:unexpected_failure], err.message)
             end
@@ -361,29 +355,25 @@ module Orchestrator
             end
 
             if index
-                # Look up the module ID on the thread pool
-                @reactor.work(proc {
+                # Look up the module ID
+                begin
                     system = ::Orchestrator::System.get(sys)
                     if system
                         mod_man = system.get(mod, index)
                         if mod_man
-                            mod_man.settings.id.to_sym
+                            mod_id = mod_man.settings.id.to_sym
+                            do_debug(id, mod_id, sys, mod, index)
                         else
-                            ::Libuv::Q.reject(@reactor, "debug failed: module #{sys}->#{mod}_#{index} not found")
+                            @logger.info("debug failed: module #{sys}->#{mod}_#{index} not found")
+                            error_response(id, ERRORS[:module_not_found], err)
                         end
                     else
-                        ::Libuv::Q.reject(@reactor, "debug failed: system #{sys} lookup failed")
-                    end
-                }).then(proc { |mod_id|
-                    do_debug(id, mod_id, sys, mod, index)
-                }).catch do |err|
-                    if err.is_a? String
-                        @logger.info(err)
+                        @logger.info("debug failed: system #{sys} lookup failed")
                         error_response(id, ERRORS[:module_not_found], err)
-                    else
-                        @logger.print_error(err, "debug request failed: #{params}")
-                        error_response(id, ERRORS[:module_not_found], "debug request failed for: #{sys}->#{mod}_#{index}")
                     end
+                rescue => err
+                    @logger.print_error(err, "debug request failed: #{params}")
+                    error_response(id, ERRORS[:module_not_found], "debug request failed for: #{sys}->#{mod}_#{index}")
                 end
             else
                 do_debug(id, mod)
@@ -479,13 +469,9 @@ module Orchestrator
 
             if @accessTimer
                 @accessTimer.cancel
-                @reactor.work(proc {
-                    @accesslock.synchronize {
-                        @access_log.systems = @accessed.to_a
-                        @access_log.ended_at = Time.now.to_i
-                        @access_log.save
-                    }
-                })
+                @access_log.systems = @accessed.to_a
+                @access_log.ended_at = Time.now.to_i
+                @access_log.save
             end
 
             @access_timers.each do |timer|
@@ -499,31 +485,16 @@ module Orchestrator
 
 
         def update_accessed(*args)
-            if @accesslock.try_lock    # No blocking!
-                begin
-                    @access_log.systems = @accessed.to_a
-
-                    @reactor.work(proc {
-                        @access_log.save
-                    }).finally do
-                        @accesslock.unlock
-                    end
-                rescue => e
-                    @accesslock.unlock if @accesslock.locked?
-                    @logger.print_error(e, "unknown error writing access log")
-                end
-            end
+            @access_log.systems = @accessed.to_a
+            @access_log.save!
+        rescue => e
+            @logger.print_error(e, "unknown error writing access log")
         end
 
         def periodicly_update_logs
             @accessTimer = @reactor.scheduler.every(60000 + Random.rand(1000), method(:update_accessed))
-            @accesslock = Mutex.new
             @access_log.systems = @accessed.to_a
-            @reactor.work(proc {
-                @accesslock.synchronize {
-                    @access_log.save
-                }
-            })
+            @access_log.save
         end
 
         def expire_access(sys_id)

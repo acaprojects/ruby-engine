@@ -45,21 +45,16 @@ module Orchestrator
                 zone = zones[zone_id]
 
                 if zone.nil?
-                    # Try to load this zone!
-                    prom = @@ctrl.load_zone(zone_id)
-                    prom.then do |zone|
+                    begin
+                        @zones << @@ctrl.load_zone(zone_id)
                         @config.expire_cache
-                    end
-                    prom.catch do |err|
-                        if err == zone_id
-                            # The zone no longer exists
-                            @@ctrl.logger.warn "Stale zone, #{zone_id}, removed from system #{@config.id}"
-                            @config.zones.delete(zone_id)
-                            @config.save
-                        else
-                            # Failed to load due to an error
-                            @@ctrl.logger.print_error err, "Zone #{zone_id} failed to load. System #{@config.id} may not function"
-                        end
+                    rescue Libcouchbase::Error::KeyNotFound => e
+                        @@ctrl.logger.warn "Stale zone, #{zone_id}, removed from system #{@config.id}"
+                        @config.zones.delete(zone_id)
+                        @config.save
+                    rescue => e
+                        # Failed to load due to an error
+                        @@ctrl.logger.print_error err, "Zone #{zone_id} failed to load. System #{@config.id} may not function correctly"
                     end
                 else
                     @zones << zone

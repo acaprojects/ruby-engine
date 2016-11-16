@@ -16,7 +16,7 @@ Gem::Specification.new do |s|
 
     s.add_dependency 'rake',    '~> 11.2'
     s.add_dependency 'rails',   '~> 5.0'    # Web Framework
-    s.add_dependency 'libuv',   '~> 3.0'    # High performance IO reactor for ruby
+    s.add_dependency 'libuv',   '~> 3.1'    # High performance IO reactor for ruby
     s.add_dependency 'oauth',   '~> 0.5'    # OAuth protocol support
     s.add_dependency 'uv-rays', '~> 2.0'    # Evented networking library
     s.add_dependency 'addressable',  '~> 2.4'       # IP address utilities

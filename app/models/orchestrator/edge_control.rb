@@ -153,9 +153,7 @@ module Orchestrator
 
                 # TODO:: These saves should use the CAS method as per
                 # Module manager status values
-                @thread.work do
-                    self.save!
-                end
+                self.save!
             end
         end
 
@@ -180,9 +178,7 @@ module Orchestrator
 
                     # TODO:: These saves should use the CAS method as per
                     # Module manager status values
-                    @thread.work do
-                        self.save!
-                    end
+                    self.save!
 
                     start_modules
                 end
@@ -190,9 +186,7 @@ module Orchestrator
                 self.online = false
                 self.failover_active = false
 
-                @thread.work do
-                    self.save!
-                end
+                self.save!
             end
         end
 
@@ -491,16 +485,15 @@ module Orchestrator
             defer = @thread.defer
 
             # these are invisible to the system - never make it into the system cache
-            result = @thread.work method(:load_trig_system_info)
-            result.then do |systems|
-                wait_loading = []
-                systems.each do |sys|
-                    prom = load_triggers_for sys
-                    wait_loading << prom if prom
-                end
+            systems = load_trig_system_info
 
-                defer.resolve(@thread.finally(wait_loading))
+            wait_loading = []
+            systems.each do |sys|
+                prom = load_triggers_for sys
+                wait_loading << prom if prom
             end
+
+            defer.resolve(@thread.finally(wait_loading))
 
             # TODO:: Catch trigger load failure
 

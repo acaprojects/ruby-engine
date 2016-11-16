@@ -15,7 +15,6 @@ module Orchestrator
                 @stattrak = @thread.observer
                 @logger = ::Orchestrator::Logger.new(@thread, @settings)
 
-                @updating = Mutex.new
                 @nodes = Control.instance.nodes
             end
 
@@ -260,24 +259,15 @@ module Orchestrator
 
             # Called from Core::Mixin on any thread
             #
-            # Settings updates are done on the thread pool
             # We have to replace the structure as other threads may be
             # reading from the old structure and the settings hash is not
             # thread safe
             def define_setting(name, value)
-                defer = thread.defer
-                thread.schedule do
-                    defer.resolve(thread.work(proc {
-                        mod = Orchestrator::Module.find(@settings.id)
-                        mod.settings[name] = value
-                        mod.save!(CAS => mod.meta[CAS])
-                        mod
-                    }))
-                end
-                defer.promise.then do |db_model|
-                    @settings = db_model
-                    value # Don't leak direct access to the database model
-                end
+                mod = Orchestrator::Module.find(@settings.id)
+                mod.settings[name] = value
+                mod.save!(with_cas: true)
+                @settings = mod
+                value # Don't leak direct access to the database model
             end
 
 
@@ -295,79 +285,51 @@ module Orchestrator
             protected
 
 
-            CAS = 'cas'
-
             def update_connected_status(connected)
                 id = settings.id
 
-                # Access the database in a non-blocking fashion
-                # The update will not overwrite any user changes either
-                # (optimistic locking)
-                thread.work(proc {
-                    @updating.synchronize {
-                        model = ::Orchestrator::Module.find_by_id id
-
-                        if model && model.connected != connected
-                            tries = 0
-                            begin
-                                model.connected = connected
-                                model.updated_at = Time.now.to_i
-                                model.save!(CAS => model.meta[CAS])
-                                model
-                            rescue
-                                tries += 1
-                                retry if tries < 5
-                                nil
-                            end
-                        else
-                            nil
-                        end
-                    }
-                }).then(proc { |model|
-                    # Update the model if it was updated
-                    if model
+                model = ::Orchestrator::Module.find_by_id id
+                if model && model.connected != connected
+                    tries = 0
+                    begin
+                        model.connected = connected
+                        model.updated_at = Time.now.to_i
+                        model.save!(with_cas: true)
                         @settings = model
+                    rescue => e
+                        tries += 1
+                        retry if tries < 5
+                        
+                        # report any errors updating the model
+                        @logger.print_error(e, 'error updating connected state in database model')
+
+                        nil
                     end
-                }, proc { |e|
-                    # report any errors updating the model
-                    @logger.print_error(e, 'error updating connected state in database model')
-                })
+                else
+                    nil
+                end
             end
 
             def update_running_status(running)
-                id = settings.id
-
-                # Access the database in a non-blocking fashion
-                thread.work(proc {
-                    @updating.synchronize {
-                        model = ::Orchestrator::Module.find_by_id id
-
-                        if model && model.running != running
-                            tries = 0
-                            begin
-                                model.running = running
-                                model.connected = false if !running
-                                model.updated_at = Time.now.to_i
-                                model.save!(CAS => model.meta[CAS])
-                                model
-                            rescue
-                                tries += 1
-                                retry if tries < 5
-                                nil
-                            end
-                        else
-                            nil
-                        end
-                    }
-                }).then(proc { |model|
-                    # Update the model if it was updated
-                    if model
+                model = ::Orchestrator::Module.find_by_id settings.id
+                if model && model.running != running
+                    tries = 0
+                    begin
+                        model.running = running
+                        model.connected = false if !running
+                        model.updated_at = Time.now.to_i
+                        model.save!(with_cas: true)
                         @settings = model
+                    rescue => e
+                        tries += 1
+                        retry if tries < 5
+                        # report any errors updating the model
+                        @logger.print_error(e, 'error updating running state in database model')
+                        nil
                     end
-                }, proc { |e|
-                    # report any errors updating the model
-                    @logger.print_error(e, 'error updating running state in database model')
-                })
+                else
+                    nil
+                end
             end
         end
     end
