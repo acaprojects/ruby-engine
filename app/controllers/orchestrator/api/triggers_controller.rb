@@ -44,7 +44,7 @@ module Orchestrator
             # Better performance as don't need to create the object each time
             TRIGGER_PARAMS = [
                 :name, :description, :debounce_period
-            ]
+            ].freeze
             DECODE_OPTIONS = {
                 symbolize_names: true
             }.freeze
@@ -56,16 +56,14 @@ module Orchestrator
                 all = params.to_unsafe_hash
                 args = params.permit(TRIGGER_PARAMS).to_h
 
-                cond = all['conditions']
-                if cond
-                    cond = JSON.parse(all['conditions'], DECODE_OPTIONS)
-                    args[:conditions] = cond if cond.is_a?(::Array)
+                cond = all[:conditions]
+                if cond && cond.is_a?(::Array)
+                    args[:conditions] = cond
                 end
 
-                act = all['actions']
-                if act
-                    act = JSON.parse(all['actions'], DECODE_OPTIONS)
-                    args[:actions] = act if act.is_a?(::Array)
+                act = all[:actions]
+                if act && act.is_a?(::Array)
+                    args[:actions] = act
                 end
 
                 args

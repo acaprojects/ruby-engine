@@ -265,12 +265,14 @@ module Orchestrator
             @start_order = StartOrder.new @logger
 
             # Modules are not start until boot is complete
-            modules.each do |mod|
-                load(mod)
+            promises = []
+            modules.stream do |mod|
+                promises << load(mod)
             end
 
             # Mark system as ready on triggers are loaded
-            defer.resolve load_triggers
+            promises << load_triggers
+            defer.resolve @thread.all(promises)
 
             # Clear the system cache
             defer.promise.then do
@@ -339,7 +341,7 @@ module Orchestrator
                 defer.resolve(
                     @loader.load(mod_settings.dependency).then(proc { |klass|
                         # We will always be on the default thread here
-                        thread = @control.selector.next
+                        thread = @control.next_thread
 
                         # We'll resolve the promise if the module loads on the deferred thread
                         defer = @thread.defer
@@ -409,7 +411,7 @@ module Orchestrator
 
         # Returns the list of modules that should be running on this node
         def modules
-            Module.on_node(self.id)
+            ::Orchestrator::Module.on_node(self.id)
         end
 
         def load_triggers_for(system)
@@ -418,7 +420,7 @@ module Orchestrator
 
             defer = @thread.defer
 
-            thread = @control.selector.next
+            thread = @control.next_thread
             thread.schedule do
                 mod = Triggers::Manager.new(thread, Triggers::Module, system)
                 @loaded[sys_id] = mod  # NOTE:: Threadsafe
@@ -485,36 +487,20 @@ module Orchestrator
             defer = @thread.defer
 
             # these are invisible to the system - never make it into the system cache
-            systems = load_trig_system_info
-
             wait_loading = []
-            systems.each do |sys|
+            ControlSystem.on_node(self.id).stream do |sys|
                 prom = load_triggers_for sys
                 wait_loading << prom if prom
             end
 
             defer.resolve(@thread.finally(wait_loading))
-
-            # TODO:: Catch trigger load failure
-
             defer.promise
-        end
-
-        # These run like regular modules
-        # This function is always run from the thread pool
-        # Batch loads the system triggers on to the main thread
-        def load_trig_system_info
-            begin
-                systems = []
-                ControlSystem.on_node(self.id).each do |cs|
-                    systems << cs
-                end
-                systems
-            rescue => e
-                @logger.warn "exception starting triggers #{e.message}"
-                sleep 1  # Give it a bit of time
-                retry
-            end
+        rescue Exception => e
+            @logger.error "fatal error while loading triggers\n#{e.message}\n#{e.backtrace.join("\n")}"
+            @thread.sleep 200
+            Process.kill 'SIGKILL', Process.pid
+            @thread.sleep 200
+            abort("Failed to load. Killing process.")
         end
     end
 end

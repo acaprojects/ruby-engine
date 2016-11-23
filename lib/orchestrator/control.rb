@@ -29,6 +29,8 @@ module Orchestrator
             @reactor = ::Libuv::Reactor.default
             @exceptions = method(:log_unhandled_exception)
 
+            @next_thread = Concurrent::AtomicFixnum.new
+
             @ready = false
             @ready_defer = @reactor.defer
             @ready_promise = @ready_defer.promise
@@ -36,11 +38,7 @@ module Orchestrator
                 @ready = true
             end
 
-            if Rails.env.production? && ENV['ORC_NO_BOOT'].nil? && ENV['RAILS_LOG_TO_STDOUT'].nil?
-                logger = ::Logger.new(::Rails.root.join('log/control.log').to_s, 10, 4194304)
-            else
-                logger = ::Logger.new(STDOUT)
-            end
+            logger = ::Logger.new(STDOUT)
             logger.formatter = proc { |severity, datetime, progname, msg|
                 "#{datetime.strftime("%d/%m/%Y @ %I:%M%p")} #{severity}: #{msg}\n"
             }
@@ -48,7 +46,7 @@ module Orchestrator
         end
 
 
-        attr_reader :logger, :reactor, :ready, :ready_promise, :zones, :nodes, :threads, :selector
+        attr_reader :logger, :reactor, :ready, :ready_promise, :zones, :nodes, :threads
 
 
         # Start the control reactor
@@ -94,12 +92,21 @@ module Orchestrator
 
                         logger.debug 'init: Watchdog started'
                     end
-
-                    @selector = @threads.cycle
                 end
             }
 
             return promise
+        end
+
+        def next_thread
+            index = 0
+            @next_thread.update { |val|
+                index = val
+                next_val = val + 1
+                next_val = 0 if next_val >= @threads.length
+                next_val
+            }
+            @threads[index]
         end
 
         # Boot the control system, running all defined modules
@@ -373,7 +380,7 @@ module Orchestrator
             end
         end
 
-        IgnoreClasses = ['Libuv::', 'Concurrent::', 'UV::', 'Set', '#<Class:Bisect>', '#<Class:Libuv', 'IO', 'FSEvent', 'ActiveSupport', 'Listen::'].freeze
+        IgnoreClasses = ['Libuv::', 'Concurrent::', 'UV::', 'Set', '#<Class:Bisect>', '#<Class:Libuv', 'IO', 'FSEvent', 'ActiveSupport', 'Listen::', 'Orchestrator::Control#'].freeze
         # Monitors threads to make sure they continue to checkin
         # If a thread is hung then we log what it happening
         # If it still doesn't checked in then we raise an exception

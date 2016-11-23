@@ -3,9 +3,7 @@
 module Orchestrator
     class Base < ::ActionController::Base
         layout nil
-        rescue_from Couchbase::Error::NotFound,      with: :entry_not_found
-        rescue_from Couchbase::Error::RecordInvalid, with: :invalid_record
-
+        
 
         before_action :doorkeeper_authorize!
 

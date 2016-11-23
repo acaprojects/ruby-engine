@@ -34,17 +34,15 @@ module Orchestrator
             end
         end
 
-        def save
+        def save(*args, **options)
             self.last_checked_at = Time.now
             self.system_id = self.systems.first || :passive
             # Where passive means that a client authenticated with the websocket however
             # the user didn't connect to any systems. Not really the normal behaviour
 
-            if self.persisted
-                super
-            else
-                super(ttl: TTL)
-            end
+            options[:ttl] = TTL unless self.persisted
+
+            super(*args, **options)
         end
     end
 end

@@ -99,7 +99,7 @@ module Orchestrator
 
 
         # looks for the system in the database
-        # It's imperitive that this succeeds - sleeping on a reactor thread is preferable
+        # It's imperitive that this succeeds
         def self.load(id)
             tries = 0
 
@@ -119,7 +119,8 @@ module Orchestrator
                 }
             rescue => err
                 if tries <= 2
-                    sleep 0.5
+                    # Sleep the current reactor fiber
+                    reactor.sleep 200
                     tries += 1
                     retry
                 else

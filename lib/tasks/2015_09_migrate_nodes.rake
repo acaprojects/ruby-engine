@@ -18,7 +18,7 @@ namespace :migrate do
         end
 
         puts "Migrating modules"
-        ::Orchestrator::Module.all.each do |mod|
+        ::Orchestrator::Module.all.stream do |mod|
             if mod.edge_id.nil?
                 mod.edge_id = edge.id
                 mod.save!
@@ -26,7 +26,7 @@ namespace :migrate do
         end
 
         puts "Migrating systems"
-        ::Orchestrator::ControlSystem.all.each do |sys|
+        ::Orchestrator::ControlSystem.all.stream do |sys|
             if sys.edge_id.nil?
                 sys.edge_id = edge.id
                 sys.save!

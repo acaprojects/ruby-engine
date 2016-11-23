@@ -364,12 +364,14 @@ module Orchestrator
                             mod_id = mod_man.settings.id.to_sym
                             do_debug(id, mod_id, sys, mod, index)
                         else
-                            @logger.info("debug failed: module #{sys}->#{mod}_#{index} not found")
-                            error_response(id, ERRORS[:module_not_found], err)
+                            msg = "debug failed: module #{sys}->#{mod}_#{index} not found"
+                            @logger.info(msg)
+                            error_response(id, ERRORS[:module_not_found], msg)
                         end
                     else
-                        @logger.info("debug failed: system #{sys} lookup failed")
-                        error_response(id, ERRORS[:module_not_found], err)
+                        msg = "debug failed: system #{sys} lookup failed"
+                        @logger.info(msg)
+                        error_response(id, ERRORS[:module_not_found], msg)
                     end
                 rescue => err
                     @logger.print_error(err, "debug request failed: #{params}")
