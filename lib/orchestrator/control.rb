@@ -380,7 +380,7 @@ module Orchestrator
             end
         end
 
-        IgnoreClasses = ['Libuv::', 'Concurrent::', 'UV::', 'Set', '#<Class:Bisect>', '#<Class:Libuv', 'IO', 'FSEvent', 'ActiveSupport', 'Listen::', 'Orchestrator::Control#'].freeze
+        IgnoreClasses = ['Libuv::', 'Concurrent::', 'UV::', 'Set', '#<Class:Bisect>', '#<Class:Libuv', 'IO', 'FSEvent', 'ActiveSupport', 'Listen::', 'Orchestrator::Control'].freeze
         # Monitors threads to make sure they continue to checkin
         # If a thread is hung then we log what it happening
         # If it still doesn't checked in then we raise an exception
@@ -420,8 +420,7 @@ module Orchestrator
                 if difference > 5000
                     if difference > 10000
                         @logger.fatal "SYSTEM UNRESPONSIVE - FORCING SHUTDOWN"
-                        Process.kill 'SIGKILL', Process.pid
-                        abort("SYSTEM UNRESPONSIVE - FORCING SHUTDOWN")
+                        Process.kill 'INT', Process.pid
                     else
                         # we want to start logging
                         watching = true
@@ -431,9 +430,20 @@ module Orchestrator
 
             if !@watching && watching
                 @logger.warn "WATCHDOG ACTIVATED"
+
+                # Dump the thread bracktraces
+                Thread.list.each do |t|
+                    STDERR.puts "#" * 90
+                    STDERR.puts t.inspect
+                    STDERR.puts t.backtrace
+                    STDERR.puts "#" * 90
+                end
+                STDERR.flush
+
                 @watching = true
                 @trace.enable if defined? ::TracePoint
             elsif @watching && !watching
+                @watching = false
                 @trace.disable if defined? ::TracePoint
             end
         end
