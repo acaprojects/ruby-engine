@@ -69,8 +69,9 @@ module Orchestrator
                         # Issue would have been caused by a database error in the ctrl.mount function
                         # We really need the system to be in a clean state when it starts so our only
                         # option is to kill it and let the service manager restart it.
-                        Process.kill 'SIGKILL', Process.pid
-                        abort("Failed to load. Killing process.")
+                        STDERR.puts "Failed to load: #{e.message}\n#{e.backtrace.join("\n")}"
+                        STDERR.flush
+                        Process.kill 'INT', Process.pid
                     end
                 end
             end
