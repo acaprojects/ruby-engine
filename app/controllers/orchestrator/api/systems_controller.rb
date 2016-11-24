@@ -137,15 +137,23 @@ module Orchestrator
                         mod.thread.schedule do
                             perform_exec(defer, mod, para, user)
                         end
-                        result = defer.value
 
                         begin
-                            # Placed into an array so primitives values are returned as valid JSON
-                            render json: [prepare_json(result)]
-                        rescue Exception => e
-                            # respond with nil if object cannot be converted to JSON
-                            logger.info "failed to convert object #{result} to JSON"
-                            render json: ['response could not be rendered in JSON']
+                            result = nil
+                            ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
+                                result = defer.value
+                            end
+                            
+                            begin
+                                # Placed into an array so primitives values are returned as valid JSON
+                                render json: [prepare_json(result)]
+                            rescue Exception => e
+                                # respond with nil if object cannot be converted to JSON
+                                logger.info "failed to convert object #{result} to JSON"
+                                render json: ['response could not be rendered in JSON']
+                            end
+                        rescue => e
+                            render json: [e.message], status: :internal_server_error
                         end
                     else
                         head :not_found
