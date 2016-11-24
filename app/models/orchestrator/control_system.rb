@@ -86,7 +86,7 @@ module Orchestrator
         end
 
 
-        index_view :modules, find_method: :using_module
+        index_view :modules, find_method: :using_module, validate: false
         index_view :zones,   find_method: :in_zone
 
         def self.all
@@ -128,8 +128,6 @@ module Orchestrator
 
         # Zones and settings are only required for confident coding
         validates :name,        presence: true
-        validates :zones,       presence: true
-        validates :edge_id,     presence: true
 
         validates :capacity, numericality: { only_integer: true }
         validates :bookable, inclusion:    { in: [true, false]  }
