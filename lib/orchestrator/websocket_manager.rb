@@ -134,7 +134,7 @@ module Orchestrator
             index_s = params[:index] || 1
             index = index_s.to_i
 
-            args = params[:args] || []
+            args = Array(params[:args])
 
             do_exec(id, sys, mod, index, name, args)
         end

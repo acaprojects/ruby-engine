@@ -78,7 +78,7 @@ module Orchestrator
         end
 
         def all(mod)
-            @modules[mod] || []
+            Array(@modules[mod])
         end
 
         def count(name)

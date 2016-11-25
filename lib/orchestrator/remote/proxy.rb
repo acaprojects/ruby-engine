@@ -133,7 +133,7 @@ module Orchestrator
                 case msg[:type].to_sym
                 when :cmd
                     puts "\nexec #{msg[:mod]}.#{msg[:func]} -> as #{msg[:user]}"
-                    exec(msg[:id], msg[:mod], msg[:func], msg[:args] || [], msg[:user])
+                    exec(msg[:id], msg[:mod], msg[:func], Array(msg[:args]), msg[:user])
                 when :stat
                     get_status(msg[:id], msg[:mod], msg[:stat])
                 when :resp

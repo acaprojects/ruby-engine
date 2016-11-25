@@ -76,7 +76,7 @@ module Orchestrator
                 end
 
                 # Reload the running modules
-                (::Orchestrator::Module.find_by_id(self.modules) || []).each do |mod|
+                Array(::Orchestrator::Module.find_by_id(self.modules)).each do |mod|
                     if mod.control_system_id
                         manager = ctrl.loaded? mod.id
                         manager.reloaded(mod) if manager
@@ -97,7 +97,7 @@ module Orchestrator
 
         # Methods for obtaining the modules and zones as objects
         def module_data
-            (::Orchestrator::Module.find_by_id(modules) || []).collect do |mod| 
+            Array(::Orchestrator::Module.find_by_id(modules)).collect do |mod| 
                 mod.as_json({
                     include: {
                         dependency: {
@@ -109,7 +109,7 @@ module Orchestrator
         end
 
         def zone_data
-            ::Orchestrator::Zone.find_by_id(zones) || []
+            Array(::Orchestrator::Zone.find_by_id(zones))
         end
 
 

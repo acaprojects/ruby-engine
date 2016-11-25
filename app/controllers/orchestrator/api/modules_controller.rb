@@ -35,7 +35,7 @@ module Orchestrator
                 if filters[:system_id]
                     cs = ControlSystem.find(filters[:system_id])
 
-                    results = ::Orchestrator::Module.find_by_id(cs.modules) || [];
+                    results = Array(::Orchestrator::Module.find_by_id(cs.modules));
                     render json: {
                         total: results.length,
                         results: results

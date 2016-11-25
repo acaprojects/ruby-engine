@@ -27,7 +27,7 @@ module Orchestrator
 
                 results = @@elastic.search(query) do |entry|
                     entry.as_json.tap do |json|
-                        json[:systems] = ControlSystem.find_by_id(json[:systems]).as_json(only: [:id, :name]) || []
+                        json[:systems] = Array(ControlSystem.find_by_id(json[:systems]).as_json(only: [:id, :name]))
                     end
                 end
                 render json: results
@@ -140,7 +140,7 @@ module Orchestrator
                 body[:size] = 10_000  # Elastic search max
                 result = ::Elastic.search(search_json)
 
-                system_ids = result[::Elastic::HITS][::Elastic::HITS].map {|entry| entry[::Elastic::ID]} || []
+                system_ids = result[::Elastic::HITS][::Elastic::HITS].map {|entry| entry[::Elastic::ID]}
                 missing = {}
 
                 if not system_ids.empty?

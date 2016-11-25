@@ -125,7 +125,7 @@ module Orchestrator
                 sys = System.get(id)
                 if sys
                     para = params.permit(:module, :index, :method, {args: []}).tap do |whitelist|
-                        whitelist[:args] = params[:args] || []
+                        whitelist[:args] = Array(params[:args])
                     end
                     index = para[:index]
                     mod = sys.get(para[:module].to_sym, index.nil? ? 1 : index.to_i)
@@ -297,7 +297,7 @@ module Orchestrator
             # Called on the module thread
             def perform_exec(defer, mod, para, user)
                 req = Core::RequestProxy.new(mod.thread, mod, user)
-                args = para[:args] || []
+                args = Array(para[:args])
                 result = req.method_missing(para[:method].to_sym, *args)
 
                 # timeout in case message is queued
