@@ -420,7 +420,7 @@ module Orchestrator
                 if difference > 5000
                     if difference > 10000
                         @logger.fatal "SYSTEM UNRESPONSIVE - FORCING SHUTDOWN"
-                        Process.kill 'INT', Process.pid
+                        Process.kill 'SIGKILL', Process.pid
                     else
                         # we want to start logging
                         watching = true
