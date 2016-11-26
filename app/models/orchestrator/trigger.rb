@@ -61,6 +61,8 @@ module Orchestrator
                 if not valid
                     errors.add(:conditions, 'are not all valid')
                 end
+            else
+                self.conditions = []
             end
         end
 
@@ -90,6 +92,8 @@ module Orchestrator
                 if not valid
                     errors.add(:actions, 'are not all valid')
                 end
+            else
+                self.actions = []
             end
         end
 

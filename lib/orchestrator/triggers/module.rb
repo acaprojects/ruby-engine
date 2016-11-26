@@ -189,12 +189,12 @@ module Orchestrator
                     model = ::Orchestrator::TriggerInstance.find_by_id id
                     if model
                         model.ignore_update
-                        model.updated_at = Time.now.to_i
+                        model.updated_at = Time.now
                         model.triggered = state
-                        model.save!(CAS => model.meta[CAS])
-                        model.name  # Load the parent model
-                        @triggers[id] = model
+                        model.save!(with_cas: true)
+
                         @trigger_names[model.name] = model
+                        @triggers[id] = model
                         self[model.binding] = state
                         logger.info "trigger model updated: #{model.name} (#{model.id}) -> #{state}"
                     else

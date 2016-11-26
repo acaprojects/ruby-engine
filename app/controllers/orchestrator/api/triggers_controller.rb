@@ -43,7 +43,7 @@ module Orchestrator
 
             # Better performance as don't need to create the object each time
             TRIGGER_PARAMS = [
-                :name, :description, :debounce_period
+                :name, :description, :debounce_period, :conditions, :actions
             ].freeze
             DECODE_OPTIONS = {
                 symbolize_names: true
@@ -53,19 +53,9 @@ module Orchestrator
             # work around safe params as per 
             # http://guides.rubyonrails.org/action_controller_overview.html#outside-the-scope-of-strong-parameters
             def safe_params
-                all = params.to_unsafe_hash
                 args = params.permit(TRIGGER_PARAMS).to_h
-
-                cond = all[:conditions]
-                if cond && cond.is_a?(::Array)
-                    args[:conditions] = cond
-                end
-
-                act = all[:actions]
-                if act && act.is_a?(::Array)
-                    args[:actions] = act
-                end
-
+                args[:conditions] = JSON.parse(args[:conditions], DECODE_OPTIONS) if args[:conditions].present?
+                args[:actions] = JSON.parse(args[:actions], DECODE_OPTIONS) if args[:actions].present?
                 args
             end
 
