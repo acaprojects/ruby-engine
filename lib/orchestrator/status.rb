@@ -169,7 +169,7 @@ module Orchestrator
             # Re-register debug listeners
             debug_listeners = @debugging.delete(lookup)
             if to_thread == @thread
-                debug_migrate(lookup, debug_listeners)
+                debug_migrate(lookup, debug_listeners) if debug_listeners
                 return # Status bindings don't need to be transferred
             elsif debug_listeners
                 to_thread.schedule {
