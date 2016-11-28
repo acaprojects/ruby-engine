@@ -99,14 +99,14 @@ module Orchestrator
                 :enabled, :important, :control_system_id, :trigger_id
             ]
             def safe_create
-                params.permit(CREATE_PARAMS)
+                params.permit(CREATE_PARAMS).to_h
             end
             
             UPDATE_PARAMS = [
                 :enabled, :important
             ]
             def safe_update
-                params.permit(UPDATE_PARAMS)
+                params.permit(UPDATE_PARAMS).to_h
             end
 
             def find_instance
