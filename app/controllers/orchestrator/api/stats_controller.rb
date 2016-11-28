@@ -114,7 +114,7 @@ module Orchestrator
             def set_period
                 args = params.permit(SAFE_PARAMS)
                 @pname = (args[:period] || :day).to_sym
-                @period = PERIODS[@pname]
+                @period = PERIODS[@pname] || PERIODS[:day]
                 @period_start = @period[1].call
             end
 
