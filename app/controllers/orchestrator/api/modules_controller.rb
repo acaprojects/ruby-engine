@@ -15,6 +15,9 @@ module Orchestrator
             # Constant for performance
             MOD_INCLUDE = {
                 include: {
+                    # Provide the server information
+                    edge: {only: [:name, :description]},
+
                     # Most human readable module data is contained in dependency
                     dependency: {only: [:name, :description, :module_name, :settings]},
 

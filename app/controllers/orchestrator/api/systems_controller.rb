@@ -36,11 +36,13 @@ module Orchestrator
                 render json: @@elastic.search(query)
             end
 
+            SYS_INCLUDE = {
+                include: {edge: {only: [:name, :description]}},
+                methods: [:module_data, :zone_data]
+            }
             def show
                 if params.has_key? :complete
-                    render json: @cs.as_json({
-                        methods: [:module_data, :zone_data]
-                    })
+                    render json: @cs.as_json(SYS_INCLUDE)
                 else
                     render json: @cs
                 end
