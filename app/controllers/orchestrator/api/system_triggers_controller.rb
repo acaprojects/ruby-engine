@@ -21,7 +21,12 @@ module Orchestrator
                     }
                 }
             }
+            # Support users cannot access webhook links
+            SUPPORT_ONLY = { except: [:webhook_secret] }
+            SYS_INCLUDE_SUPPORT = SYS_INCLUDE.merge(SUPPORT_ONLY)
+
             QUERY_PARAMS = [:sys_id, :trigger_id, :as_of]
+
             def index
                 query = @@elastic.query(params)
                 safe_query = params.permit(QUERY_PARAMS)
@@ -63,15 +68,27 @@ module Orchestrator
                 # Include parent documents in the search
                 query.has_parent :trigger
                 results = @@elastic.search(query)
+
+                user = current_user
                 if safe_query.has_key? :trigger_id
-                    render json: results.as_json(SYS_INCLUDE)
+                    if user.support && !user.sys_admin
+                        render json: results.as_json(SYS_INCLUDE_SUPPORT)
+                    else
+                        render json: results.as_json(SYS_INCLUDE)
+                    end
+                elsif user.support && !user.sys_admin
+                    render json: results.as_json(SUPPORT_ONLY)
                 else
                     render json: results
                 end
             end
 
             def show
-                respond_with @trig
+                if user.support && !user.sys_admin
+                    render json: @trig.as_json(SUPPORT_ONLY)
+                else
+                    render json: @trig
+                end
             end
 
             def update

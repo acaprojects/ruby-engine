@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'securerandom'
+
 module Orchestrator
     class TriggerInstance < CouchbaseOrm::Base
         design_document :trig
@@ -15,7 +17,9 @@ module Orchestrator
         attribute :triggered,  type: Boolean, default: false
         attribute :important,  type: Boolean, default: false
 
-        attribute :override,   type: Hash,    default: lambda { {} }
+        attribute :override,       type: Hash,    default: lambda { {} }
+        attribute :webhook_secret, type: String,  default: lambda { SecureRandom.hex }
+        attribute :trigger_count,  type: Integer, default: 0
 
 
         before_destroy :unload
@@ -70,17 +74,18 @@ module Orchestrator
         # ---------------
         # JSON SERIALISER
         # ---------------
-        DEFAULT_JSON_METHODS = [
-            :name,
-            :description,
-            :conditions,
-            :actions,
-            :binding
-        ].freeze
+        DEFAULT_JSON_METHODS = {
+            methods: [
+                :name,
+                :description,
+                :conditions,
+                :actions,
+                :binding
+            ].freeze
+        }.freeze
         def serializable_hash(options = {})
-            options = options || {}
-            options[:methods] = DEFAULT_JSON_METHODS
-            super
+            options = DEFAULT_JSON_METHODS.merge(options)
+            super(options)
         end
 
 

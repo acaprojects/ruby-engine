@@ -61,8 +61,12 @@ Orchestrator::Engine.routes.draw do
         end
 
         resources :discovery do
-            post 'scan',        on: :collection
+            post 'scan',   on: :collection
         end
+        resources :webhooks do
+            post 'notify', on: :member
+        end
+        get 'webhooks/:id/notify', to: 'webhooks#show'
     end
 
     # These are non-restful endpoints

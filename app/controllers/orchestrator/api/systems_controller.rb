@@ -120,13 +120,16 @@ module Orchestrator
                 head :ok
             end
 
+            EXEC_PARAMS = [:module, :index, :method, {
+                args: []
+            }]
             def exec
                 # Run a function in a system module (async request)
                 params.require(:module)
                 params.require(:method)
                 sys = System.get(id)
                 if sys
-                    para = params.permit(:module, :index, :method, {args: []}).tap do |whitelist|
+                    para = params.permit(EXEC_PARAMS).tap do |whitelist|
                         whitelist[:args] = Array(params[:args])
                     end
                     index = para[:index]

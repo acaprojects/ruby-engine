@@ -25,9 +25,11 @@ module Orchestrator
                 @id = trigger.id
                 @triggered = trigger.triggered
                 @override = trigger.override
+                @webhook_secret = trigger.webhook_secret
+
                 conditions = trigger.conditions
-                conditions.each_index do |index|
-                    extract_condition(conditions[index], index)
+                conditions.each_with_index do |cond, index|
+                    extract_condition(cond, index)
                 end
             end
 
@@ -73,12 +75,26 @@ module Orchestrator
                 result
             end
 
-
             # Called once this state isn't needed anymore
             # Cancels the schedules
             def destroy
                 @schedules.each_value(&:cancel)
                 @enabled = false
+            end
+
+            # Triggered by a call from the API
+            def webhook
+                return if @schedules[@webhook_secret] || !@enabled
+
+                @values[@webhook_secret] = true
+                check_conditions
+
+                # 1min window of value high
+                @schedules[@webhook_secret] = @scheduler.in(59000) do
+                    @schedules.delete(@webhook_secret)
+                    @values[@webhook_secret] = false
+                    check_conditions if @enabled
+                end
             end
 
 
@@ -87,14 +103,18 @@ module Orchestrator
 
             def extract_condition(cond, index)
                 if cond.length < 3
-                    # Schedule type
-                    lookup = :"schedule_#{index}"
+                    cond_type = cond[0].to_sym
+                    if cond_type == :webhook
+                        lookup = @webhook_secret
+                    else # Schedule type
+                        lookup = :"schedule_#{index}"
 
-                    # cond == [at|cron, value]
-                    cond1 = cond[1]
-                    id = cond1[:value_id]
-                    cond1 = @override[id] || cond1 if id
-                    __send__(cond[0].to_sym, lookup, cond1)
+                        # cond == [at|cron, value]
+                        cond1 = cond[1]
+                        id = cond1[:value_id]
+                        cond1 = @override[id] || cond1 if id
+                        __send__(cond_type, lookup, cond1)
+                    end
 
                     value1 = {lookup: lookup}
                     comparison = :equal

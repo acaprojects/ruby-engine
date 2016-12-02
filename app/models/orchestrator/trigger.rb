@@ -45,7 +45,7 @@ module Orchestrator
             :equal, :not_equal, :greater_than, :greater_than_or_equal,
             :less_than, :less_than_or_equal, :and, :or, :exclusive_or
         ])
-        CONST_KEYS =  Set.new([:at, :cron])
+        CONST_KEYS =  Set.new([:at, :cron, :webhook])
         def condition_list
             if self.conditions
                 valid = true

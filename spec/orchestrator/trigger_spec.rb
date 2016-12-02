@@ -4,7 +4,7 @@ require 'rails'
 require 'orchestrator'
 
 describe "trigger state" do
-    MockTrig = Struct.new(:id, :triggered, :conditions, :override)
+    MockTrig = Struct.new(:id, :triggered, :conditions, :override, :webhook_secret)
     MockStat = Struct.new(:mod_name, :index, :status, :val) do
         def value
             val
@@ -16,6 +16,7 @@ describe "trigger state" do
         @result = nil
         @trig = MockTrig.new("test", false)
         @trig.override = {}
+        @trig.webhook_secret = SecureRandom.hex
         @callback = proc do |name, new_state|
             @result = new_state
         end
@@ -134,6 +135,21 @@ describe "trigger state" do
         expect(state.triggered).to eq(false)
 
         state.set_value MockStat.new(:Display, 1, :running_time, {lamp: {hours: 300}})
+
+        expect(@result).to eq(true)
+        expect(state.triggered).to eq(true)
+    end
+
+    it "should execute on a webhook trigger" do
+        @trig.conditions = [[:webhook, :ignore]]
+
+        state = ::Orchestrator::Triggers::State.new(@trig, @sched, @callback)
+        state.enabled(true)
+
+        expect(@result).to eq(nil)
+        expect(state.triggered).to eq(false)
+
+        state.webhook
 
         expect(@result).to eq(true)
         expect(state.triggered).to eq(true)

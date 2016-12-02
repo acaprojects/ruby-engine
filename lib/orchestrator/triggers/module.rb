@@ -106,6 +106,10 @@ module Orchestrator
                 perform_trigger_actions(trig.id)
             end
 
+            def webhook(trig_id)
+                @conditions[trig_id].webhook
+            end
+
 
             protected
 
@@ -191,11 +195,13 @@ module Orchestrator
                         model.ignore_update
                         model.updated_at = Time.now
                         model.triggered = state
+                        model.trigger_count += 1 if state
                         model.save!(with_cas: true)
 
                         @trigger_names[model.name] = model
                         @triggers[id] = model
                         self[model.binding] = state
+                        self["#{model.binding}_count"] = model.trigger_count
                         logger.info "trigger model updated: #{model.name} (#{model.id}) -> #{state}"
                     else
                         model = @triggers[id]
