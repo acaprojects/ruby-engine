@@ -127,45 +127,43 @@ module Orchestrator
                 # Run a function in a system module (async request)
                 params.require(:module)
                 params.require(:method)
-                sys = System.get(id)
-                if sys
-                    para = params.permit(EXEC_PARAMS).tap do |whitelist|
-                        whitelist[:args] = Array(params[:args])
-                    end
-                    index = para[:index]
-                    mod = sys.get(para[:module].to_sym, index.nil? ? 1 : index.to_i)
-                    if mod
-                        user = current_user
-
-                        # Execute request on appropriate thread
-                        defer = reactor.defer
-                        mod.thread.schedule do
-                            perform_exec(defer, mod, para, user)
-                        end
-
-                        begin
-                            result = nil
-                            ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
-                                result = defer.value
-                            end
-                            
-                            begin
-                                # Placed into an array so primitives values are returned as valid JSON
-                                render json: [prepare_json(result)]
-                            rescue Exception => e
-                                # respond with nil if object cannot be converted to JSON
-                                logger.info "failed to convert object #{result} to JSON"
-                                render json: ['response could not be rendered in JSON']
-                            end
-                        rescue => e
-                            render json: [e.message], status: :internal_server_error
-                        end
-                    else
-                        head :not_found
-                    end
-                else
-                    head :not_found
+                para = params.permit(EXEC_PARAMS).tap do |whitelist|
+                    whitelist[:args] = Array(params[:args])
                 end
+
+                reactor = ::Libuv.reactor
+
+                defer = reactor.defer
+                sys  = ::Orchestrator::Core::SystemProxy.new(reactor, id)
+                mod = sys.get(para[:module], para[:index] || 1)
+
+                result = mod.method_missing(para[:method], *para[:args])
+
+                # timeout in case message is queued
+                timeout = reactor.scheduler.in(5000) do
+                    defer.resolve('Wait time exceeded. Command may have been queued.')
+                end
+
+                result.finally do
+                    timeout.cancel # if we have our answer
+                    defer.resolve(result)
+                end
+
+                value = nil
+                ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
+                    value = defer.promise.value
+                end
+
+                begin
+                    # Placed into an array so primitives values are returned as valid JSON
+                    render json: [prepare_json(value)]
+                rescue Exception => e
+                    # respond with nil if object cannot be converted to JSON
+                    logger.info "failed to convert object #{value} to JSON"
+                    render json: ['response could not be rendered in JSON']
+                end
+            rescue => e
+                render json: ["#{e.message}\n#{e.backtrace.join("\n")}"], status: :internal_server_error
             end
 
             def state
@@ -297,23 +295,6 @@ module Orchestrator
                 # Find will raise a 404 (not found) if there is an error
                 sys = ::Orchestrator::ControlSystem.bucket.get("sysname-#{id.downcase}", {quiet: true}) || id
                 @cs = ControlSystem.find(sys)
-            end
-
-            # Called on the module thread
-            def perform_exec(defer, mod, para, user)
-                req = Core::RequestProxy.new(mod.thread, mod, user)
-                args = Array(para[:args])
-                result = req.method_missing(para[:method].to_sym, *args)
-
-                # timeout in case message is queued
-                timeout = mod.thread.scheduler.in(5000) do
-                    defer.resolve('Wait time exceeded. Command may have been queued.')
-                end
-
-                result.finally do
-                    timeout.cancel # if we have our answer
-                    defer.resolve(result)
-                end
             end
         end
     end
