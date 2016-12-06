@@ -19,12 +19,13 @@ Gem::Specification.new do |s|
     s.add_dependency 'libuv',   '~> 3.1'    # High performance IO reactor for ruby
     s.add_dependency 'oauth',   '~> 0.5'    # OAuth protocol support
     s.add_dependency 'uv-rays', '~> 2.0'    # Evented networking library
-    s.add_dependency 'addressable',  '~> 2.4'       # IP address utilities
-    s.add_dependency 'algorithms',   '~> 0.6'       # Priority queue
-    s.add_dependency 'co-elastic-query', '~> 3.0'   # Query builder
+    s.add_dependency 'addressable',  '~> 2.4'     # IP address utilities
+    s.add_dependency 'algorithms',   '~> 0.6'     # Priority queue
+    s.add_dependency 'couchbase-orm','~> 0'       # Database adaptor
+    s.add_dependency 'co-elastic-query', '~> 3.0' # Query builder
 
-    s.add_development_dependency 'rspec','~> 3.5'   # Testing framework
-    s.add_development_dependency 'yard', '~> 0.9'   # Comment based documentation generation
+    s.add_development_dependency 'rspec','~> 3.5' # Testing framework
+    s.add_development_dependency 'yard', '~> 0.9' # Comment based documentation generation
 
 
     s.files = Dir["{lib,app,config}/**/*"] + %w(Rakefile orchestrator.gemspec README.md LICENSE.md)

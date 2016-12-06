@@ -17,6 +17,7 @@ module Orchestrator
 
         # in seconds
         attribute :debounce_period, type: Integer, default: 0
+        attribute :important,       type: Boolean, default: false
 
 
         has_many :trigger_instances, dependent: :destroy, class_name: "Orchestrator::TriggerInstance"

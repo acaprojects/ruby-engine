@@ -124,7 +124,7 @@ module Orchestrator
         def self.all
             by_master_id
         end
-        index_view :master_id, find_method: :salve_of
+        index_view :master_id, find_method: :salve_of, validate: false
 
 
         attr_reader :proxy

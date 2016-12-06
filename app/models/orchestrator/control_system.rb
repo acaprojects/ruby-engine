@@ -193,5 +193,58 @@ module Orchestrator
                 end
             end
         end
+
+
+        # =======================
+        # Zone Trigger Management
+        # =======================
+        before_save :check_zones
+        def check_zones
+            if self.zones_changed?
+                previous = Array(self.zones_was)
+                current  = self.zones
+
+                @remove_zones = previous - current
+                @add_zones = current - previous
+
+                @update_triggers = @remove_zones.present? || @add_zones.present?
+            else
+                @update_triggers = false
+            end
+            nil
+        end
+
+        after_save :update_triggers
+        def update_triggers
+            return unless @update_triggers
+
+            if @remove_zones.present?
+                trigs = triggers.to_a
+
+                @remove_zones.collect { |zone_id|
+                    ::Orchestrator::Zone.find(zone_id)
+                }.each do |zone|
+                    zone.triggers.each do |trig_id|
+                        trigs.each do |trig|
+                            if trig.trigger_id == trig_id && trig.zone_id == zone.id
+                                trig.destroy
+                            end
+                        end
+                    end
+                end
+            end
+
+            @add_zones.each do |zone_id|
+                zone = ::Orchestrator::Zone.find(zone_id)
+                zone.triggers.each do |trig_id|
+                    inst = ::Orchestrator::TriggerInstance.new
+                    inst.control_system = self
+                    inst.trigger_id = trig_id
+                    inst.zone_id = zone.id
+                    inst.save
+                end
+            end
+            nil
+        end
     end
 end

@@ -8,8 +8,11 @@ module Orchestrator
         attribute :name,        type: String
         attribute :description, type: String
         attribute :settings,    type: Hash,    default: lambda { {} }
+        attribute :triggers,    type: Array,   default: lambda { [] }
 
         attribute :created_at,  type: Integer, default: lambda { Time.now }
+
+        has_many :trigger_instances, dependent: :destroy, class_name: "Orchestrator::TriggerInstance"
 
 
         # Loads all the zones
@@ -52,6 +55,49 @@ module Orchestrator
 
         def zone_cache
             ::Orchestrator::Control.instance.zones
+        end
+
+
+        # =======================
+        # Zone Trigger Management
+        # =======================
+        before_save :check_triggers
+        def check_triggers
+            if self.triggers_changed?
+                previous = Array(self.triggers_was)
+                current  = self.triggers
+
+                @remove_triggers = previous - current
+                @add_triggers = current - previous
+
+                @update_systems = @remove_triggers.present? || @add_triggers.present?
+            else
+                @update_systems = false
+            end
+            nil
+        end
+
+        after_save :update_triggers
+        def update_triggers
+            return unless @update_systems
+            if @remove_triggers.present?
+                self.trigger_instances.stream do |trig|
+                    trig.destroy if @remove_triggers.include?(trig.trigger_id)
+                end
+            end
+
+            if @add_triggers.present?
+                systems.stream do |sys|
+                    @add_triggers.each do |trig_id|
+                        inst = ::Orchestrator::TriggerInstance.new
+                        inst.control_system = sys
+                        inst.trigger_id = trig_id
+                        inst.zone_id = self.id
+                        inst.save
+                    end
+                end
+            end
+            nil
         end
     end
 end

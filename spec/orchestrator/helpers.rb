@@ -1,6 +1,24 @@
 require 'rails'
 require 'orchestrator'
 
+
+# Require models
+require File.expand_path('../../../app/models/orchestrator/discovery', __FILE__)
+require File.expand_path('../../../app/models/orchestrator/dependency', __FILE__)
+require File.expand_path('../../../app/models/orchestrator/module', __FILE__)
+require File.expand_path('../../../app/models/orchestrator/trigger', __FILE__)
+require File.expand_path('../../../app/models/orchestrator/trigger_instance', __FILE__)
+require File.expand_path('../../../app/models/orchestrator/zone', __FILE__)
+require File.expand_path('../../../app/models/orchestrator/control_system', __FILE__)
+require File.expand_path('../../../app/models/orchestrator/access_log', __FILE__)
+require File.expand_path('../../../app/models/orchestrator/stats', __FILE__)
+require File.expand_path('../../../app/models/orchestrator/edge_control', __FILE__)
+
+::CouchbaseOrm::Base.descendants.each do |model|
+    model.ensure_design_document!
+end
+
+
 class MockController
     def initialize(log)
         @log = log

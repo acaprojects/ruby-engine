@@ -9,6 +9,7 @@ module Orchestrator
 
         belongs_to :control_system, :class_name => "Orchestrator::ControlSystem"
         belongs_to :trigger,        :class_name => "Orchestrator::Trigger"
+        belongs_to :zone,           :class_name => "Orchestrator::Zone"
 
         attribute :created_at, type: Integer, default: lambda { Time.now }
         attribute :updated_at, type: Integer, default: lambda { Time.now }
@@ -131,6 +132,12 @@ module Orchestrator
 
         def get_module_manager
             ::Orchestrator::Control.instance.loaded?(self.control_system_id)
+        end
+
+        before_create :set_importance
+        def set_importance
+            self.important = self.trigger.important
+            nil
         end
 
 

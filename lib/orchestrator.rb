@@ -3,7 +3,7 @@
 # Gems
 require 'uv-rays'
 require 'co-elastic-query'
-
+require 'couchbase-orm'
 require 'orchestrator/engine'
 
 # Optional utility modules
