@@ -139,6 +139,7 @@ module Orchestrator
         end
 
         def print_error(e, msg = '')
+            msg = String.new(msg)
             msg << "\n#{e.message}"
             msg << "\n#{e.backtrace.join("\n")}" if e.respond_to?(:backtrace) && e.backtrace.respond_to?(:join)
             @logger.error(msg)
