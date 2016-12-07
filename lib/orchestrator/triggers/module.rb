@@ -64,7 +64,7 @@ module Orchestrator
                     @triggers[trig.id] = trig
                     @trigger_names[trig.name] = trig
 
-                    state = State.new(trig, schedule, method(:callback))
+                    state = State.new(trig, schedule, method(:callback), logger)
                     @conditions[trig.id] = state
 
                     subs = []
@@ -141,7 +141,7 @@ module Orchestrator
                     @triggers[trig.id] = trig
                     @trigger_names[trig.name] = trig
 
-                    state = State.new(trig, schedule, callback)
+                    state = State.new(trig, schedule, callback, logger)
                     @conditions[trig.id] = state
 
                     # subscribe to status variables and

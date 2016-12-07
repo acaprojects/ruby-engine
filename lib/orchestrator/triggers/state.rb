@@ -6,9 +6,10 @@ module Orchestrator
             include ::Orchestrator::Constants
 
 
-            def initialize(trigger, scheduler, callback)
+            def initialize(trigger, scheduler, callback, logger = nil)
                 @scheduler = scheduler
                 @callback = callback
+                @logger = logger
                 @enabled  = false
 
                 # condition = [:value, :comparison, :value]
@@ -66,7 +67,8 @@ module Orchestrator
                         break unless result
                     end
                 rescue => e
-                    # TODO:: warn of potential issue here
+                    # warn of potential issue here
+                    @logger.warn "#{e.message}\nerror comparing values for trigger #{@id}" if @logger
                     result = false
                 end
 
@@ -174,7 +176,8 @@ module Orchestrator
                             value = value[key] || value[key.to_sym]
                         end
                     rescue => e
-                        # TODO:: warn of potential issue here
+                        # warn of potential issue here
+                        @logger.warn "#{e.message}\nsubkey not found for trigger #{@id}: #{val_key}" if @logger
                         value = nil
                     end
                 end
