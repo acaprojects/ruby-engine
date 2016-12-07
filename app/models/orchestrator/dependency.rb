@@ -33,6 +33,10 @@ module Orchestrator
         attribute :settings,    type: Hash,    default: proc { {} }
         attribute :created_at,  type: Integer, default: proc { Time.now }
 
+        # Don't include this module in statistics or disconnected searches
+        # Might be a device that commonly goes offline (like a PC or Display that only supports Wake on Lan)
+        attribute :ignore_connected, type: Boolean, default: false
+
 
         # Find the modules that rely on this dependency
         def modules

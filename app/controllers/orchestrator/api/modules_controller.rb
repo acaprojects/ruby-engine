@@ -55,6 +55,21 @@ module Orchestrator
                         connected = filters[:connected] == 'true'
                         filter['doc.ignore_connected'] = [false]
                         filter['doc.connected'] = [connected]
+
+                        if not connected
+                            query.raw_filter({
+                                has_parent: {
+                                    type: Dependency.design_document,
+                                    filter: {
+                                        or: [{
+                                            term: {'doc.ignore_connected' => false}
+                                        },{
+                                            missing: { field: 'doc.ignore_connected' }
+                                        }]
+                                    }
+                                }
+                            })
+                        end
                     end
 
                     if filters[:running]
