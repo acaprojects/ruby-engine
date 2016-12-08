@@ -102,7 +102,7 @@ module Orchestrator
             DEP_PARAMS = [
                 :name, :description, :role,
                 :class_name, :module_name,
-                :default
+                :default, :ignore_connected
             ]
             def safe_params
                 settings = params[:settings]
