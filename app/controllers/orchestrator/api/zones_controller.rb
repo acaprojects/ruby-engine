@@ -20,7 +20,11 @@ module Orchestrator
             end
 
             def show
-                render json: @zone
+                if params.has_key? :complete
+                    render json: @zone.as_json(methods: [:trigger_data])
+                else
+                    render json: @zone
+                end
             end
 
             def update
@@ -45,7 +49,7 @@ module Orchestrator
 
             ZONE_PARAMS = [
                 :name, :description,
-                {groups: []}
+                {triggers: []}
             ]
             def safe_params
                 settings = params[:settings]

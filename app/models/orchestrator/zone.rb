@@ -28,6 +28,14 @@ module Orchestrator
             ::Orchestrator::ControlSystem.in_zone(self.id)
         end
 
+        def trigger_data
+            if triggers.empty?
+                []
+            else
+                Array(::Orchestrator::Trigger.find_by_id(triggers))
+            end
+        end
+
 
         protected
 
