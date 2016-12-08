@@ -54,7 +54,7 @@ module Orchestrator
                     if cond.length < 3
                         valid = CONST_KEYS.include?(cond[0].to_sym)
                     else
-                        valid = value?(cond[0]) && cond[1] && KEYS.include?(cond[1].to_sym) && value?(cond[2])
+                        valid = value?(cond[0]) && KEYS.include?(cond[1].to_sym) && value?(cond[2])
                     end
                     break if not valid
                 end
@@ -68,7 +68,6 @@ module Orchestrator
         end
 
         STATUS_KEYS = Set.new([:mod, :index, :status, :keys])
-        # TODO:: Should also check types
         def value?(strong_val)
             val = strong_val.to_h.deep_symbolize_keys
             if val.has_key?(:const)
@@ -77,8 +76,10 @@ module Orchestrator
                 true
             else
                 # Should be a status variable
-                val.keep_if { |k, _| STATUS_KEYS.include? k }
-                val[:index].is_a?(Integer) && val.has_key?(:mod) && val.has_key?(:status)
+                val.delete(:keys) unless val[:keys].is_a?(Array)
+                val.keep_if { |k, v| STATUS_KEYS.include?(k) && v.present? }
+                val[:keys].map { |v| v.strip }.delete_if { |v| v.empty? } if val[:keys]
+                val[:index].is_a?(Integer) && val[:mod].is_a?(String) && val[:status].is_a?(String)
             end
         end
 
@@ -101,7 +102,7 @@ module Orchestrator
         ACTION_KEYS = Set.new([:type, :mod, :index, :func, :args, :emails, :content])
         def check_action(strong_act)
             act = strong_act.to_h.deep_symbolize_keys
-            act.keep_if { |k, _| ACTION_KEYS.include? k }
+            act.keep_if { |k, v| ACTION_KEYS.include?(k) && v.present? }
 
             return false if act.empty? || act[:type].nil?
 
@@ -110,8 +111,9 @@ module Orchestrator
                 act[:index].is_a?(Integer) && act.has_key?(:mod) && act.has_key?(:func) && act[:args].is_a?(Array)
             when :email
                 if act[:emails]
-                    mail = act[:emails] = act[:emails].gsub(/\s+/, '')
-                    result = mail.split(",").map { |email| email.strip }.reject { |email| email.empty? }
+                    mail = act[:emails].gsub(/\s+/, '')
+                    result = mail.split(",").reject { |email| email.empty? }
+                    act[:emails] = result.join(',')
                     !result.empty?
                 else
                     false

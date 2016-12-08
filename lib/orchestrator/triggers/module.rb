@@ -210,7 +210,11 @@ module Orchestrator
                     end
                 rescue => e
                     # report any errors updating the model
-                    logger.print_error(e, 'error updating triggered state in database model')
+                    if e.respond_to? :record
+                        logger.print_error(e, "error updating triggered state: #{e.record.id} - #{e.record.errors.messages}")
+                    else
+                        logger.print_error(e, 'error updating triggered state in database model')
+                    end
                 end
 
                 perform_trigger_actions(id) if state
