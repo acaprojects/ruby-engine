@@ -380,7 +380,7 @@ module Orchestrator
             end
         end
 
-        IgnoreClasses = ['Libuv::', 'Concurrent::', 'UV::', 'Set', '#<Class:Bisect>', '#<Class:Libuv', 'IO', 'FSEvent', 'ActiveSupport', 'Listen::', 'Orchestrator::Control'].freeze
+        IgnoreClasses = ['Libuv::', 'Concurrent::', 'UV::', 'Set', '#<Class:Bisect>', '#<Class:Libuv', 'IO', 'FSEvent', 'ActiveSupport', 'Listen::', 'Orchestrator::Control', 'Rails::BacktraceCleaner'].freeze
         # Monitors threads to make sure they continue to checkin
         # If a thread is hung then we log what it happening
         # If it still doesn't checked in then we raise an exception
