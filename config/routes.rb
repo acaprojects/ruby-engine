@@ -2,8 +2,6 @@
 
 Orchestrator::Engine.routes.draw do
 
-    match '/*path' => 'api#options', :via => :options
-
     # Restful access to services
     namespace :api do
         # Allows multiple routes to resolve to the one controller
