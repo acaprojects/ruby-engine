@@ -21,7 +21,16 @@ module Orchestrator
 
             attr_reader :thread, :settings, :running, :klass
             attr_reader :status, :stattrak, :logger
-            attr_accessor :current_user
+
+
+            # Use fiber local variables for storing the current user
+            def current_user=(user)
+                Thread.current[:user] = user
+            end
+
+            def current_user
+                Thread.current[:user]
+            end
 
 
             # Looks up the remote edge, if any for the module.
