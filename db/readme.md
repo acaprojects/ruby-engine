@@ -10,8 +10,8 @@
 
 ```shell
 
-./plugin -install mobz/elasticsearch-head
-./plugin -install transport-couchbase -url http://packages.couchbase.com.s3.amazonaws.com/releases/elastic-search-adapter/2.0.0/elasticsearch-transport-couchbase-2.0.0.zip
+./plugin install mobz/elasticsearch-head
+./plugin install -b https://github.com/couchbaselabs/elasticsearch-transport-couchbase/releases/download/2.2.4.0-update1/elasticsearch-transport-couchbase-2.2.4.0-update1.zip
 
 ```
 

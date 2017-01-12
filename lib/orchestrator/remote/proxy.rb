@@ -29,6 +29,9 @@ module Orchestrator
             end
 
 
+            attr_reader :thread
+
+
             # ---------------------------------
             # Send commands to the remote node:
             # ---------------------------------

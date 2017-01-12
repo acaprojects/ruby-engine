@@ -128,8 +128,8 @@ module Orchestrator
                 @zones[zone.id] = zone
                 zone
             rescue => e
-                if !e.is_a?(Libcouchbase::Error::KeyNotFound) && tries <= 2
-                    sleep 1
+                if !e.is_a?(Libcouchbase::Error::KeyNotFound) && tries <= 3
+                    @reactor.sleep 200
                     tries += 1
                     retry
                 else
@@ -328,16 +328,13 @@ module Orchestrator
                 this_node   = @nodes[Remote::NodeId]
                 master_node = @nodes[this_node.node_master_id]
                 connect_to_master(this_node, master_node) if master_node
+                start_server
 
-                if master_node.nil? || this_node.is_failover_host || (master_node && master_node.is_failover_host)
-                    start_server
-
-                    # Save a statistics snapshot every 5min on the master server
-                    @reactor.scheduler.every(300_000, method(:log_stats))
-                end
+                # Save a statistics snapshot every 5min on the master server
+                # TODO:: we could have this auto-negotiated in the future
+                @reactor.scheduler.every(300_000, method(:log_stats)) if ENV['COLLECT_STATS'] == 'true'
 
                 logger.debug 'init: Init complete'
-
                 @ready_defer.resolve(true)
             end
         end

@@ -2,8 +2,14 @@
 
 require 'thread'
 
+
+# NOTE:: Changes here should have corresponding changes made to the remote version
+# See class ::Orchestrator::Remote::System
+
+
 module Orchestrator
     class System
+        @@remote_modules = Concurrent::Map.new
         @@systems = Concurrent::Map.new
         @@critical = Mutex.new
         @@ctrl = ::Orchestrator::Control.instance
@@ -33,7 +39,7 @@ module Orchestrator
             @modules = {}
             
             # Index triggers (exposed as __Triggers__)
-            index_module control_system.id
+            index_module control_system.id, true
 
             # Index the real modules
             @config.modules.each &method(:index_module)
@@ -106,19 +112,18 @@ module Orchestrator
             begin
                 @@critical.synchronize {
                     system = @@systems[id]
-                    return system unless system.nil?
+                    return system if system
 
                     sys = ControlSystem.find_by_id(id.to_s)
-                    if sys.nil?
-                        return nil
-                    else
-                        system = System.new(sys)
-                        @@systems[id] = system
-                    end
+                    return nil unless sys
+
+                    system = System.new(sys)
+
+                    @@systems[id] = system
                     return system
                 }
             rescue => err
-                if tries <= 2
+                if tries <= 3
                     # Sleep the current reactor fiber
                     reactor.sleep 200
                     tries += 1
@@ -131,8 +136,25 @@ module Orchestrator
             end
         end
 
-        def index_module(mod_id)
+        def index_module(mod_id, trigger = false)
             manager = @@ctrl.loaded?(mod_id)
+            manager = @@remote_modules[mod_id] unless manager
+
+            if manager.nil?
+                if trigger && !((node.should_run_on_this_host || node.is_failover_host) && (node.is_only_master? || node.host_active?))
+                    manager = Remote::Manager.new(@config)
+                    @@remote_modules[mod_id] = manager
+                else
+                    settings = ::Orchestrator::Module.find_by_id(mod_id)
+                    node = @@ctrl.get_node(settings.edge_id)
+
+                    if !((node.should_run_on_this_host || node.is_failover_host) && (node.is_only_master? || node.host_active?))
+                        manager = Remote::Manager.new(settings)
+                        @@remote_modules[mod_id] = manager
+                    end
+                end
+            end
+
             if manager
                 mod_name = if manager.settings.custom_name.nil?
                     manager.settings.dependency.module_name.to_sym
@@ -141,6 +163,8 @@ module Orchestrator
                 end
                 @modules[mod_name] ||= []
                 @modules[mod_name] << manager
+            else
+                @@ctrl.logger.warn "unable to index module #{mod_id}, system may not function as expected"
             end
         end
     end
