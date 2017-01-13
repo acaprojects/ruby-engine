@@ -140,15 +140,21 @@ module Orchestrator
             manager = @@ctrl.loaded?(mod_id)
             manager = @@remote_modules[mod_id] unless manager
 
+            # Failover hosts have a local copy of the remote hosts status variables
+            # So binding and monitoring is simplified.
             if manager.nil?
-                if trigger && !((node.should_run_on_this_host || node.is_failover_host) && (node.is_only_master? || node.host_active?))
-                    manager = Remote::Manager.new(@config)
-                    @@remote_modules[mod_id] = manager
-                else
+                if trigger
+                    node = @@ctrl.get_node(@config.edge_id)
+
+                    unless node.should_run_on_this_host || node.is_failover_host
+                        manager = Remote::Manager.new(@config)
+                        @@remote_modules[mod_id] = manager
+                    end
+                elsif !trigger
                     settings = ::Orchestrator::Module.find_by_id(mod_id)
                     node = @@ctrl.get_node(settings.edge_id)
 
-                    if !((node.should_run_on_this_host || node.is_failover_host) && (node.is_only_master? || node.host_active?))
+                    unless node.should_run_on_this_host || node.is_failover_host
                         manager = Remote::Manager.new(settings)
                         @@remote_modules[mod_id] = manager
                     end
