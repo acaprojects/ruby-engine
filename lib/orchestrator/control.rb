@@ -305,6 +305,20 @@ module Orchestrator
             ::Libuv::Q.reject(@reactor, error)
         end
 
+        def expire_cache(sys, remote = true)
+            loaded = []
+            sys.expire_cache
+
+            if remote
+                nodes.values.each do |node|
+                    promise = node.proxy&.expire_cache(sys.id)
+                    loaded << promise if promise
+                end
+            end
+
+            reactor.finally(*loaded)
+        end
+
 
         protected
 

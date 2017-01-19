@@ -54,10 +54,11 @@ require 'orchestrator/triggers/state'
 require 'orchestrator/triggers/manager'
 require 'orchestrator/triggers/module'
 
-# Trigger logic
+# Remote system logic
 require 'orchestrator/remote/proxy'
 require 'orchestrator/remote/edge'
 require 'orchestrator/remote/master'
+require 'orchestrator/remote/manager'
 
 
 module Orchestrator

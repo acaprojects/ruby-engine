@@ -69,7 +69,7 @@ module Orchestrator
             if File.exists?(file)
                 begin
                     @critical.synchronize {
-                        load file
+                        ::Kernel.load file
                     }
                     defer.resolve(file)
                 rescue Exception => e
