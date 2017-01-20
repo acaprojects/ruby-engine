@@ -93,6 +93,7 @@ module Orchestrator
             end
 
             def set_status(mod_id, status_name, value)
+                # TODO:: use Marshal in the future
                 case value
                 when String, Array, Hash, Float, Integer, Fixnum, Bignum
                     msg = {
@@ -115,11 +116,12 @@ module Orchestrator
                 send_with_id(msg)
             end
 
-            def expire_cache(sys_id)
+            def expire_cache(sys_id, no_update = false)
                 msg = {
                     type: :expire,
                     sys: sys_id
                 }
+                msg[:no_update] = true if no_update
                 send_with_id(msg)
             end
 
@@ -150,13 +152,8 @@ module Orchestrator
                         send_rejection msg[:id], e
                     end
                 when :expire
-                    sys = ControlSystem.find_by_id msg[:sys]
-                    if sys
-                        @ctrl.expire_cache sys, false
-                        send_resolution msg[:id], true
-                    else
-                        send_rejection msg[:id], 'system not found in database'
-                    end
+                    @ctrl.expire_cache msg[:sys], false, no_update: msg[:no_update]
+                    send_resolution msg[:id], true
                 end
             end
 

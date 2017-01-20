@@ -37,7 +37,7 @@ module Orchestrator
         def initialize(control_system)
             @config = control_system
             @modules = {}
-            
+
             # Index triggers (exposed as __Triggers__)
             index_module control_system.id, true
 

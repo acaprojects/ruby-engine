@@ -41,8 +41,8 @@ class MockCtrl
         defer.promise
     end
 
-    def expire_cache(sys, remote = true)
-        @log << [:expire_cache, sys.id, remote]
+    def expire_cache(sys, remote = true, no_update: nil)
+        @log << [:expire_cache, sys, remote]
     end
 
     def reactor

@@ -71,7 +71,7 @@ module Orchestrator
                         end
                     end
 
-                    mod.delete if remove
+                    mod.destroy if remove
                 end
                 head :ok
             end
@@ -82,7 +82,20 @@ module Orchestrator
             end
 
             def destroy
-                @cs.delete # expires the cache in after callback
+                sys_id = @cs.id
+
+                # Stop all modules in the system
+                wait = @cs.cleanup_modules
+
+                ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
+                    co reactor.finally(*wait).then {
+                        @cs.destroy
+                    }
+
+                    # Clear the cache
+                    co control.expire_cache(sys_id)
+                end
+
                 head :ok
             end
 

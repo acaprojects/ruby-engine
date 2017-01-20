@@ -56,8 +56,9 @@ module Orchestrator
         after_save :expire_caches
         def expire_caches
             zone_cache[self.id] = self
+            ctrl = ::Orchestrator::Control.instance
             systems.each do |cs|
-                cs.expire_cache
+                ctrl.expire_cache cs.id
             end
         end
 

@@ -168,7 +168,7 @@ module Orchestrator
                                 
                                 # Expire the system cache
                                 ControlSystem.using_module(id).each do |sys|
-                                    sys.expire_cache(:no_update)
+                                    expire_cache sys.id, no_update: true
                                 end
                             end
                         else
@@ -305,15 +305,21 @@ module Orchestrator
             ::Libuv::Q.reject(@reactor, error)
         end
 
-        def expire_cache(sys, remote = true)
+        def expire_cache(sys_id, remote = true, no_update: nil)
             loaded = []
-            sys.expire_cache
 
             if remote
                 nodes.values.each do |node|
-                    promise = node.proxy&.expire_cache(sys.id)
+                    promise = node.proxy&.expire_cache(sys_id)
                     loaded << promise if promise
                 end
+            end
+
+            sys = ControlSystem.find_by_id(sys_id)
+            if sys
+                sys.expire_cache(no_update)
+            else
+                System.expire(sys_id)
             end
 
             reactor.finally(*loaded)
