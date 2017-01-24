@@ -14,9 +14,7 @@ module Orchestrator
             data.prepend('0') if data.length % 2 > 0
 
             # Breaks string into an array of characters
-            output = []
-            data.scan(/.{2}/) { |byte| output << byte.hex}
-            output.pack('c*')
+            [data].pack('H*')
         end
 
         # Converts a binary string into a hex encoded string
@@ -25,14 +23,7 @@ module Orchestrator
         # @return [String]
         def byte_to_hex(data)
             data = array_to_str(data) if data.is_a? Array
-
-            output = String.new
-            data.each_byte { |c|
-                s = c.to_s(16)
-                s.prepend('0') if s.length % 2 > 0
-                output << s
-            }
-            return output
+            data.unpack('H*')[0]
         end
 
         # Converts a string into an array of bytes
