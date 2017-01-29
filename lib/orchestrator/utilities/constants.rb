@@ -48,10 +48,9 @@ module Orchestrator
                 config = {}.merge!(@config || {})
 
                 if @tokenize
-                    cb = @tokenize[:callback]
-
                     # Check for abstract tokenizer
-                    if cb && @tokenize[:indicator]
+                    cb = @tokenize[:callback]
+                    if cb
                         token = {}.merge!(@tokenize)
 
                         # Were we passed a proc?
@@ -116,7 +115,7 @@ module Orchestrator
 
             def tokenize(opts)
                 if opts[:delimiter].nil?
-                    if opts[:msg_length].nil? && (opts[:indicator].nil? || opts[:callback].nil?)
+                    if opts[:msg_length].nil? && opts[:callback].nil?
                         raise ArgumentError, 'no delimiter provided'
                     end
                 end
