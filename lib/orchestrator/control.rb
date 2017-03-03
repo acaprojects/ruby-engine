@@ -300,11 +300,6 @@ module Orchestrator
             defer.promise
         end
 
-        def log_unhandled_exception(error, context, trace = nil)
-            @logger.print_error error, context
-            ::Libuv::Q.reject(@reactor, error)
-        end
-
         def expire_cache(sys_id, remote = true, no_update: nil)
             loaded = []
 
@@ -323,6 +318,11 @@ module Orchestrator
             end
 
             reactor.finally(*loaded)
+        end
+
+        def log_unhandled_exception(error, context, trace = nil)
+            @logger.print_error error, context
+            ::Libuv::Q.reject(@reactor, error)
         end
 
 
@@ -349,7 +349,7 @@ module Orchestrator
                 this_node   = @nodes[Remote::NodeId]
 
                 start_server
-                @nodes.each do |remote_node|
+                @nodes.each_value do |remote_node|
                     connect_to_node(this_node, remote_node) unless this_node == remote_node
                 end
 
@@ -389,35 +389,21 @@ module Orchestrator
         # WATCHDOG CODE
         # =============
         def attach_watchdog(thread)
-            @watchdog.schedule do
-                @last_seen[thread] = @watchdog.now
-            end
+            @last_seen[thread] = @watchdog.now
 
             thread.scheduler.every 1000 do
-                @watchdog.schedule do
-                    @last_seen[thread] = @watchdog.now
-                end
+                @last_seen[thread] = @watchdog.now
             end
         end
 
-        IgnoreClasses = ['Libuv::', 'Concurrent::', 'UV::', 'Set', '#<Class:Bisect>', '#<Class:Libuv', 'IO', 'FSEvent', 'ActiveSupport', 'Listen::', 'Orchestrator::Control', 'Rails::BacktraceCleaner'].freeze
         # Monitors threads to make sure they continue to checkin
         # If a thread is hung then we log what it happening
         # If it still doesn't checked in then we raise an exception
         # If it still doesn't checkin then we shutdown
         def start_watchdog
             thread = Libuv::Reactor.new
-            @last_seen = {}
+            @last_seen = ::Concurrent::Map.new
             @watching = false
-
-            if defined? ::TracePoint
-                @trace = ::TracePoint.new(:line, :call, :return, :raise) do |tp|
-                    klass = "#{tp.defined_class}"
-                    unless klass.start_with?(*IgnoreClasses)
-                        @logger.info "tracing #{tp.event} from #{tp.defined_class}##{tp.method_id}:#{tp.lineno} in #{tp.path}"
-                    end
-                end
-            end
 
             Thread.new do
                 thread.notifier @exceptions
@@ -432,39 +418,39 @@ module Orchestrator
 
         def check_threads
             now = @watchdog.now
+            should_kill = false
             watching = false
 
             @threads.each do |thread|
                 difference = now - (@last_seen[thread] || 0)
 
-                if difference > 5000
-                    if difference > 10000
-                        @logger.fatal "SYSTEM UNRESPONSIVE - FORCING SHUTDOWN"
-                        Process.kill 'SIGKILL', Process.pid
-                    else
-                        # we want to start logging
-                        watching = true
-                    end
+                if difference > 12000
+                    should_kill = true
+                    watching = true
+                elsif difference > 3000
+                    watching = true
                 end
             end
 
-            if !@watching && watching
-                @logger.warn "WATCHDOG ACTIVATED"
+            if watching
+                @logger.error "WATCHDOG ACTIVATED" if !@watching
 
                 # Dump the thread bracktraces
                 Thread.list.each do |t|
+                    backtrace = t.backtrace
                     STDERR.puts "#" * 90
                     STDERR.puts t.inspect
-                    STDERR.puts t.backtrace
+                    STDERR.puts backtrace ? backtrace.join("\n") : 'no backtrace'
                     STDERR.puts "#" * 90
                 end
                 STDERR.flush
+            end
 
-                @watching = true
-                @trace.enable if defined? ::TracePoint
-            elsif @watching && !watching
-                @watching = false
-                @trace.disable if defined? ::TracePoint
+            @watching = watching
+
+            if should_kill
+                @logger.fatal "SYSTEM UNRESPONSIVE - FORCING SHUTDOWN"
+                Process.kill 'SIGKILL', Process.pid
             end
         end
         # =================
