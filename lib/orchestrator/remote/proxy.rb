@@ -29,26 +29,23 @@ module Orchestrator
             end
 
 
+            attr_reader :thread
+
+
             # ---------------------------------
             # Send commands to the remote node:
             # ---------------------------------
             def execute(mod_id, func, args = nil, user_id = nil)
-                defer = @thread.defer
-
                 msg = {
                     type: :cmd,
                     mod: mod_id,
                     func: func
                 }
 
-                msg[:args] = args if args
+                msg[:args] = Array(args) if args
                 msg[:user] = user_id if user_id
 
-                @thread.schedule do
-                    id = send_with_id(msg, defer)
-                end
-
-                defer.promise
+                send_with_id(msg)
             end
 
             def status(mod_id, status_name)
@@ -60,11 +57,7 @@ module Orchestrator
                     stat: status_name
                 }
 
-                @thread.schedule do
-                    id = send_with_id(msg, defer)
-                end
-
-                defer.promise
+                send_with_id(msg)
             end
 
             def shutdown
@@ -85,7 +78,7 @@ module Orchestrator
                     push: :reload,
                     dep: dep_id
                 }
-                send_direct(msg)
+                send_with_id(msg)
             end
 
             [:load, :start, :stop, :unload].each do |cmd|
@@ -95,12 +88,14 @@ module Orchestrator
                         push: cmd,
                         mod: mod_id
                     }
-                    send_direct(msg)
+                    send_with_id(msg)
                 end
             end
 
             def set_status(mod_id, status_name, value)
-                begin
+                # TODO:: use Marshal in the future
+                case value
+                when String, Array, Hash, Float, Integer, Fixnum, Bignum
                     msg = {
                         type: :push,
                         push: :status,
@@ -108,12 +103,9 @@ module Orchestrator
                         stat: status_name,
                         val: value
                     }
-                    send_direct(msg)
-                rescue => e
-                    # TODO:: Log this status value serialisation failure
-                    puts "Status value failed to send #{mod_id} -> #{status_name}=#{value}"
-                    puts e.message
-                    puts e.backtrace.join("\n")
+                    send_with_id(msg)
+                else
+                    ::Libuv::Q.reject(@thread, 'unable to serialise status value')
                 end
             end
 
@@ -121,7 +113,16 @@ module Orchestrator
                 msg = {
                     type: :restore
                 }
-                send_direct(msg)
+                send_with_id(msg)
+            end
+
+            def expire_cache(sys_id, no_update = false)
+                msg = {
+                    type: :expire,
+                    sys: sys_id
+                }
+                msg[:no_update] = true if no_update
+                send_with_id(msg)
             end
 
 
@@ -132,7 +133,7 @@ module Orchestrator
             def process(msg)
                 case msg[:type].to_sym
                 when :cmd
-                    puts "\nexec #{msg[:mod]}.#{msg[:func]} -> as #{msg[:user]}"
+                    puts "\nexec #{msg[:mod]}.#{msg[:func]} -> as #{msg[:user] || 'anonymous'}"
                     exec(msg[:id], msg[:mod], msg[:func], Array(msg[:args]), msg[:user])
                 when :stat
                     get_status(msg[:id], msg[:mod], msg[:stat])
@@ -144,7 +145,15 @@ module Orchestrator
                     command(msg)
                 when :restore
                     puts "\nServer requested we restore control"
-                    @ctrl.nodes[NodeId].slave_control_restored
+                    begin
+                        @ctrl.nodes[NodeId].slave_control_restored
+                        send_resolution msg[:id], true
+                    rescue => e
+                        send_rejection msg[:id], e
+                    end
+                when :expire
+                    @ctrl.expire_cache msg[:sys], false, no_update: msg[:no_update]
+                    send_resolution msg[:id], true
                 end
             end
 
@@ -229,32 +238,39 @@ module Orchestrator
                 when :reload
                     dep = Dependency.find_by_id(msg[:dep])
                     if dep
-                        @dep_man.load(dep, :force).catch do |err|
-                            # TODO:: Log the error here
-                        end
+                        result = @dep_man.load(dep, :force)
+                        promise_response(msg[:id], result)
                     else
-                        # TODO:: Log the dependency not found
+                        send_rejection(msg[:id], "dependency #{msg[:dep]} not found")
                     end
 
                 when :load
-                    @ctrl.update(msg[:mod], false)
+                    result = @ctrl.update(msg[:mod], false)
+                    promise_response(msg[:id], result)
 
                 when :start, :stop
-                    @ctrl.__send__(msg_type, msg[:mod], false)
+                    result = @ctrl.__send__(msg_type, msg[:mod], false)
+                    promise_response(msg[:id], result)
 
                 when :unload
-                    @ctrl.unload(msg[:mod], false)
+                    result = @ctrl.unload(msg[:mod], false)
+                    promise_response(msg[:id], result)
 
                 when :status
                     mod_id = msg[:mod]
                     mod = @ctrl.loaded?(mod_id)
 
                     if mod
-                        # The false indicates "don't send this update back to the remote node"
-                        mod.trak(msg[:stat].to_sym, msg[:val], false)
-                        puts "Received status #{msg[:stat]} = #{msg[:val]}"
+                        begin
+                            # The false indicates "don't send this update back to the remote node"
+                            mod.trak(msg[:stat].to_sym, msg[:val], false)
+                            send_resolution(msg[:id], true)
+                            puts "Received status #{msg[:stat]} = #{msg[:val]}"
+                        rescue => e
+                            send_rejection(msg[:id], e)
+                        end
                     else
-                        # TODO:: warn that the module isn't known
+                        send_rejection(msg[:id], 'module not loaded')
                     end
                 end
             end
@@ -264,23 +280,33 @@ module Orchestrator
             # IO Transport
             # ------------
 
-            def send_with_id(msg, defer)
-                id = next_id
-                begin
-                    msg[:id] = id
-                    @sent[id] = defer
-                    output = ::JSON.generate(msg)
-                    @tcp.write "\x02#{output}\x03"
-                    id
-                rescue => e
-                    @sent.delete id
-                    defer.reject e
+            def send_with_id(msg, defer = @thread.defer)
+                @thread.schedule do
+                    begin
+                        id = next_id
+                        msg[:id] = id
+                        @sent[id] = defer
+                        output = ::JSON.generate(msg)
+                        @tcp.write "\x02#{output}\x03"
+                    rescue => e
+                        @sent.delete id
+                        defer.reject e
+                    end
                 end
+                defer.promise
             end
 
             def send_direct(msg)
                 output = ::JSON.generate(msg)
                 @tcp.write "\x02#{output}\x03"
+            end
+
+            def promise_response(msg_id, promise)
+                promise.then(proc {|success|
+                    send_resolution msg_id, success
+                }, proc { |failure|
+                    send_rejection msg_id, failure
+                })
             end
 
             # Reply to Requests
@@ -304,7 +330,9 @@ module Orchestrator
                     output = ::JSON.generate(response)
                 end
 
-                @tcp.write "\x02#{output}\x03"
+                @thread.schedule {
+                    @tcp.write "\x02#{output}\x03"
+                }
             end
 
             def send_rejection(req_id, msg)
@@ -323,7 +351,9 @@ module Orchestrator
 
                 output = ::JSON.generate(response)
 
-                @tcp.write "\x02#{output}\x03"
+                @thread.schedule {
+                    @tcp.write "\x02#{output}\x03"
+                }
             end
         end
     end

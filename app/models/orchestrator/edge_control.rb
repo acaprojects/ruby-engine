@@ -114,6 +114,7 @@ module Orchestrator
         attribute :failover_active, type: Boolean, default: false
         attribute :failover_time,   type: Integer, default: 0  # Last time there was a failover event
         attribute :startup_time,    type: Integer, default: 0  # Last known time the edge node booted up
+        attribute :server_port,     type: Integer, default: 17400
 
         attribute :settings,   type: Hash,    default: lambda { {} }
         attribute :admins,     type: Array,   default: lambda { [] }
@@ -136,7 +137,7 @@ module Orchestrator
                 @failover_timer = nil
             end
             
-            if is_failover_host || is_only_master?
+            if is_failover_host
                 self.online = true
                 self.startup_time = started_at
 
@@ -219,7 +220,7 @@ module Orchestrator
             # We don't wait for any recover windows.
             # If the master is down then we should be taking control
             @proxy = nil
-            slave_control_restored
+            slave_control_restored if should_run_on_this_host
         end
 
 
@@ -230,12 +231,10 @@ module Orchestrator
 
         def should_run_on_this_host
             @run_here ||= Remote::NodeId == self.node_id
-            @run_here
         end
 
         def is_failover_host
             @fail_here ||= Remote::NodeId == self.node_master_id
-            @fail_here
         end
 
         def is_only_master?

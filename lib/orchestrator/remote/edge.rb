@@ -2,12 +2,16 @@
 
 require 'set'
 
+
+# This is used to grab the default edge node
+require File.expand_path('../../../app/models/orchestrator/edge_control.rb', File.dirname(__FILE__))
+
+
 module Orchestrator
     module Remote
         begin
-            # edge_1-10 is common for development
             # export ENGINE_NODE_ID=edge_1-10
-            NodeId = ENV['ENGINE_NODE_ID'].to_sym
+            NodeId = (ENV['ENGINE_NODE_ID'] || ::Orchestrator::EdgeControl.all.first.id).to_sym
         rescue => e
             puts "\nENGINE_NODE_ID env var not set\n"
             raise e
@@ -15,9 +19,9 @@ module Orchestrator
 
 
         class Edge < ::UV::OutboundConnection
-            def post_init(this_node, master)
+            def post_init(this_node, remote_node)
                 @node = this_node
-                @master_node = master
+                @remote_node = remote_node
                 @boot_time = Time.now.to_i
 
                 # Delay retry by default if connection fails on load
@@ -50,7 +54,7 @@ module Orchestrator
 
 
                 ip, _ = transport.peername
-                @logger.info "Connection made to master: #{ip}"
+                @logger.info "Connection made to node #{@remote_node.id} (#{ip})"
 
                 # Authenticate with the remote server
                 write("\x02#{NodeId} #{@boot_time} #{@node.password}\x03")
@@ -103,19 +107,19 @@ module Orchestrator
                             # Message is: 'hello password'
                             # This very basic auth gives us some confidence that the remote is who they claim to be
                             _, pass, time = msg.split(' ')
-                            if @master_node.password == pass
+                            if @remote_node.password == pass
                                 @validated = true
                                 @node.master_connected(@proxy, @boot_time, time ? time.to_i : nil)
                             else
                                 ip, _ = @transport.peername
                                 close_connection
-                                @logger.warn "Connection to #{ip} was closed due to bad credentials"
+                                @logger.warn "Connection to node #{@remote_node.id} (#{ip}) was closed due to bad credentials"
                             end
                         end
                     rescue => e
                         ip, _ = @transport.peername
                         close_connection
-                        @logger.warn "Connection from #{ip} was closed due to bad data"
+                        @logger.warn "Connection to node #{@remote_node.id} (#{ip}) was closed due to bad data"
                     end
                 end
             end

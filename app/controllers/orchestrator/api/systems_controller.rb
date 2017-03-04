@@ -71,7 +71,7 @@ module Orchestrator
                         end
                     end
 
-                    mod.delete if remove
+                    mod.destroy if remove
                 end
                 head :ok
             end
@@ -82,7 +82,20 @@ module Orchestrator
             end
 
             def destroy
-                @cs.delete # expires the cache in after callback
+                sys_id = @cs.id
+
+                # Stop all modules in the system
+                wait = @cs.cleanup_modules
+
+                ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
+                    co reactor.finally(*wait).then {
+                        @cs.destroy
+                    }
+
+                    # Clear the cache
+                    co control.expire_cache(sys_id)
+                end
+
                 head :ok
             end
 
@@ -97,16 +110,19 @@ module Orchestrator
                 # Start all modules in the system
                 @cs.modules.each do |mod_id|
                     promise = control.start mod_id
+                    loaded << promise
                 end
 
-                # TODO:: This needs to be done on the remote as well
+                # This needs to be done on the remote as well
                 # Clear the system cache once the modules are loaded
                 # This ensures the cache is accurate
-                control.reactor.finally(*loaded).then do
-                    # Might as well trigger update behaviour.
-                    # Ensures logic modules that interact with other logic modules
-                    # are accurately informed
-                    @cs.expire_cache   # :no_update
+                ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
+                    co control.reactor.finally(*loaded).then do
+                        # Might as well trigger update behaviour.
+                        # Ensures logic modules that interact with other logic modules
+                        # are accurately informed
+                        control.expire_cache(@cs)
+                    end
                 end
 
                 head :ok

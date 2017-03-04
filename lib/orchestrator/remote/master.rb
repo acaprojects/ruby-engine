@@ -6,8 +6,6 @@ require 'set'
 
 module Orchestrator
     module Remote
-        SERVER_PORT = 17400
-
         Connection = Struct.new(:tokeniser, :edge, :parser, :node_id, :timeout, :io, :poll) do
             def validated?
                 !!self.node_id
@@ -41,20 +39,20 @@ module Orchestrator
 
             attr_reader :thread
 
-            
+
             protected
 
 
             def start_server
                 # Bind the socket
                 @tcp = @thread.tcp
-                        .bind('0.0.0.0', SERVER_PORT, method(:new_connection))
+                        .bind('0.0.0.0', @node.server_port, method(:new_connection))
                         .listen(64) # smallish backlog is all we need
 
                 # Delegate errors
                 @tcp.catch @bind_error
 
-                @logger.info "Node server on tcp://0.0.0.0:#{SERVER_PORT}"
+                @logger.info "Node server on tcp://0.0.0.0:#{@node.server_port}"
             end
 
             def new_connection(client)

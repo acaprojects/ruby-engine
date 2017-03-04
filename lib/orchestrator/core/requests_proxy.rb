@@ -7,11 +7,7 @@ module Orchestrator
         # This class exists so that we can access regular kernel methods
         class RequestsForward
             def initialize(thread, modules, user)
-                if modules.nil?
-                    @modules = []
-                else
-                    @modules = modules.is_a?(Array) ? modules : [modules]
-                end
+                @modules = Array(modules)
                 @thread = thread
                 @user = user
                 @trace = []
@@ -158,6 +154,28 @@ module Orchestrator
 
             def method_missing(name, *args, &block)
                 @forward.request(name.to_sym, args, &block)
+            end
+
+            # Add support for inspecting the object
+            def inspect
+                if @user
+                    "#{@modules.inspect} as user: #{@user.id}"
+                else
+                    @modules.inspect
+                end
+            end
+
+            def hash
+                inspect.hash
+            end
+
+            def ==(other)
+                case other
+                when RequestsProxy
+                    hash == other.hash
+                else
+                    false
+                end
             end
         end
     end

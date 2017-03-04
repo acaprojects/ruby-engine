@@ -26,6 +26,7 @@ module Orchestrator
             @loaded = ::Concurrent::Map.new
             @zones = ::Concurrent::Map.new
             @nodes = ::Concurrent::Map.new
+            @connections = ::Concurrent::Map.new
             @reactor = ::Libuv::Reactor.default
             @exceptions = method(:log_unhandled_exception)
 
@@ -128,8 +129,8 @@ module Orchestrator
                 @zones[zone.id] = zone
                 zone
             rescue => e
-                if !e.is_a?(Libcouchbase::Error::KeyNotFound) && tries <= 2
-                    sleep 1
+                if !e.is_a?(Libcouchbase::Error::KeyNotFound) && tries <= 3
+                    @reactor.sleep 200
                     tries += 1
                     retry
                 else
@@ -167,7 +168,7 @@ module Orchestrator
                                 
                                 # Expire the system cache
                                 ControlSystem.using_module(id).each do |sys|
-                                    sys.expire_cache(:no_update)
+                                    expire_cache sys.id, no_update: true
                                 end
                             end
                         else
@@ -299,6 +300,26 @@ module Orchestrator
             defer.promise
         end
 
+        def expire_cache(sys_id, remote = true, no_update: nil)
+            loaded = []
+
+            if remote
+                nodes.values.each do |node|
+                    promise = node.proxy&.expire_cache(sys_id)
+                    loaded << promise if promise
+                end
+            end
+
+            sys = ControlSystem.find_by_id(sys_id)
+            if sys
+                sys.expire_cache(no_update)
+            else
+                System.expire(sys_id)
+            end
+
+            reactor.finally(*loaded)
+        end
+
         def log_unhandled_exception(error, context, trace = nil)
             @logger.print_error error, context
             ::Libuv::Q.reject(@reactor, error)
@@ -326,18 +347,20 @@ module Orchestrator
 
                 # Determine if we are the master node (either single master or load balanced masters)
                 this_node   = @nodes[Remote::NodeId]
-                master_node = @nodes[this_node.node_master_id]
-                connect_to_master(this_node, master_node) if master_node
 
-                if master_node.nil? || this_node.is_failover_host || (master_node && master_node.is_failover_host)
-                    start_server
+                start_server
+                @nodes.each_value do |remote_node|
+                    connect_to_node(this_node, remote_node) unless this_node == remote_node
+                end
 
-                    # Save a statistics snapshot every 5min on the master server
+                # Save a statistics snapshot every 5min on the master server
+                # TODO:: we could have this auto-negotiated in the future
+                unless ENV['COLLECT_STATS'] == 'false'
+                    logger.debug 'init: Collecting cluster statistics'
                     @reactor.scheduler.every(300_000, method(:log_stats))
                 end
 
                 logger.debug 'init: Init complete'
-
                 @ready_defer.resolve(true)
             end
         end
@@ -369,35 +392,21 @@ module Orchestrator
         # WATCHDOG CODE
         # =============
         def attach_watchdog(thread)
-            @watchdog.schedule do
-                @last_seen[thread] = @watchdog.now
-            end
+            @last_seen[thread] = @watchdog.now
 
             thread.scheduler.every 1000 do
-                @watchdog.schedule do
-                    @last_seen[thread] = @watchdog.now
-                end
+                @last_seen[thread] = @watchdog.now
             end
         end
 
-        IgnoreClasses = ['Libuv::', 'Concurrent::', 'UV::', 'Set', '#<Class:Bisect>', '#<Class:Libuv', 'IO', 'FSEvent', 'ActiveSupport', 'Listen::', 'Orchestrator::Control', 'Rails::BacktraceCleaner'].freeze
         # Monitors threads to make sure they continue to checkin
         # If a thread is hung then we log what it happening
         # If it still doesn't checked in then we raise an exception
         # If it still doesn't checkin then we shutdown
         def start_watchdog
             thread = Libuv::Reactor.new
-            @last_seen = {}
+            @last_seen = ::Concurrent::Map.new
             @watching = false
-
-            if defined? ::TracePoint
-                @trace = ::TracePoint.new(:line, :call, :return, :raise) do |tp|
-                    klass = "#{tp.defined_class}"
-                    unless klass.start_with?(*IgnoreClasses)
-                        @logger.info "tracing #{tp.event} from #{tp.defined_class}##{tp.method_id}:#{tp.lineno} in #{tp.path}"
-                    end
-                end
-            end
 
             Thread.new do
                 thread.notifier @exceptions
@@ -412,39 +421,39 @@ module Orchestrator
 
         def check_threads
             now = @watchdog.now
+            should_kill = false
             watching = false
 
             @threads.each do |thread|
                 difference = now - (@last_seen[thread] || 0)
 
-                if difference > 5000
-                    if difference > 10000
-                        @logger.fatal "SYSTEM UNRESPONSIVE - FORCING SHUTDOWN"
-                        Process.kill 'SIGKILL', Process.pid
-                    else
-                        # we want to start logging
-                        watching = true
-                    end
+                if difference > 12000
+                    should_kill = true
+                    watching = true
+                elsif difference > 3000
+                    watching = true
                 end
             end
 
-            if !@watching && watching
-                @logger.warn "WATCHDOG ACTIVATED"
+            if watching
+                @logger.error "WATCHDOG ACTIVATED" if !@watching
 
                 # Dump the thread bracktraces
                 Thread.list.each do |t|
+                    backtrace = t.backtrace
                     STDERR.puts "#" * 90
                     STDERR.puts t.inspect
-                    STDERR.puts t.backtrace
+                    STDERR.puts backtrace ? backtrace.join("\n") : 'no backtrace'
                     STDERR.puts "#" * 90
                 end
                 STDERR.flush
+            end
 
-                @watching = true
-                @trace.enable if defined? ::TracePoint
-            elsif @watching && !watching
-                @watching = false
-                @trace.disable if defined? ::TracePoint
+            @watching = watching
+
+            if should_kill
+                @logger.fatal "SYSTEM UNRESPONSIVE - FORCING SHUTDOWN"
+                Process.kill 'SIGKILL', Process.pid
             end
         end
         # =================
@@ -457,8 +466,8 @@ module Orchestrator
             @node_server = Remote::Master.new
         end
 
-        def connect_to_master(this_node, master)
-            @connection = ::UV.connect master.host, Remote::SERVER_PORT, Remote::Edge, this_node, master
+        def connect_to_node(this_node, remote_node)
+            @connections[remote_node.id] = ::UV.connect remote_node.host, remote_node.server_port, Remote::Edge, this_node, remote_node
         end
     end
 end

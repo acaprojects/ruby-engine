@@ -211,12 +211,6 @@ module Orchestrator
                 # Find will raise a 404 (not found) if there is an error
                 @mod = ::Orchestrator::Module.find(id)
             end
-
-            def expire_system_cache(mod_id)
-                ControlSystem.using_module(mod_id).each do |cs|
-                    cs.expire_cache :no_update
-                end
-            end
         end
     end
 end
