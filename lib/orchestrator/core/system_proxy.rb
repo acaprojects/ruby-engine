@@ -212,6 +212,14 @@ module Orchestrator
                 defer.promise
             end
 
+            def inspect
+                if @user
+                    "#<SystemProxy:#{"0x00%x" % (self.__id__ << 1)} @system=#{@system} @user=#{@user.id}>"
+                else
+                    "#<SystemProxy:#{"0x00%x" % (self.__id__ << 1)} @system=#{@system}>"
+                end
+            end
+
 
             protected
 

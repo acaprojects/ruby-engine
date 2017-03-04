@@ -56,7 +56,7 @@ module Orchestrator
                 @trace = []
             end
 
-            attr_reader :trace
+            attr_reader :trace, :user
 
             def request(name, args, &block)
                 defer = @thread.defer
@@ -183,6 +183,31 @@ module Orchestrator
             # All other method calls are wrapped in a promise
             def method_missing(name, *args, &block)
                 @forward.request(name.to_sym, args, &block)
+            end
+
+            # Add support for inspecting the object
+            def inspect
+                return nil.inspect if @mod.nil?
+
+                user = @forward.user
+                if user
+                    "#{@mod.instance.inspect} as user: #{user.id}"
+                else
+                    @mod.instance.inspect
+                end
+            end
+
+            def hash
+                inspect.hash
+            end
+
+            def ==(other)
+                case other
+                when RequestProxy
+                    hash == other.hash
+                else
+                    false
+                end
             end
         end
     end
