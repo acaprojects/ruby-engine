@@ -4,6 +4,26 @@ namespace :migrate do
 
     desc 'Upgrades models to support distributed control'
     task :nodes => :environment do
+        # Ensure all the Couchbase Views are in place
+        ::Orchestrator::AccessLog
+        ::Orchestrator::ControlSystem
+        ::Orchestrator::Dependency
+        ::Orchestrator::Discovery
+        ::Orchestrator::EdgeControl
+        ::Orchestrator::Module
+        ::Orchestrator::Stats
+        ::Orchestrator::Trigger
+        ::Orchestrator::TriggerInstance
+        ::Orchestrator::Zone
+
+        begin
+            ::CouchbaseOrm::Base.descendants.each do |model|
+                model.ensure_design_document!
+            end
+        rescue ::Libcouchbase::Error::Timedout, ::Libcouchbase::Error::ConnectError, ::Libcouchbase::Error::NetworkError
+            puts "error ensuring couchbase views"
+        end
+
         # This adds support for statistics collection via elasticsearch
         edges = ::Orchestrator::EdgeControl.all.to_a
         edge = if edges[0]
