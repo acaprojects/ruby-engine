@@ -177,12 +177,16 @@ module Orchestrator
                     options[:mod] = mod_man
                     thread = mod_man.thread
                     thread.schedule do
-                        defer.resolve (
-                            thread.observer.subscribe(options)
-                        )
+                        begin
+                            defer.resolve (
+                                thread.observer.subscribe(options)
+                            )
+                        rescue => e
+                            defer.reject(e)
+                        end
                     end
 
-                    defer.promise
+                    co defer.promise
                 else
                     @thread.observer.subscribe(options)
                 end

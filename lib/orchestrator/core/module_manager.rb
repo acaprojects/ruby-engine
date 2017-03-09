@@ -215,24 +215,14 @@ module Orchestrator
 
             # Called from Core::Mixin always on the module thread
             def unsubscribe(sub)
-                if sub.is_a? ::Libuv::Q::Promise
-                    # Promise recursion?
-                    sub.then method(:unsubscribe)
-                else
-                    @subsciptions.delete sub
-                    @stattrak.unsubscribe(sub)
-                end
+                @subsciptions.delete sub
+                @stattrak.unsubscribe(sub)
             end
 
             # Called from subscribe and SystemProxy.subscribe always on the module thread
             def add_subscription(sub)
-                if sub.is_a? ::Libuv::Q::Promise
-                    # Promise recursion?
-                    sub.then method(:add_subscription)
-                else
-                    @subsciptions ||= Set.new
-                    @subsciptions.add sub
-                end
+                @subsciptions ||= Set.new
+                @subsciptions.add sub
             end
 
             # Called from Core::Mixin on any thread
