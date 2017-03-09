@@ -75,7 +75,7 @@ module Orchestrator
         # ---------------
         # JSON SERIALISER
         # ---------------
-        DEFAULT_JSON_METHODS = {
+        DEFAULT_JSON_METHODS ||= {
             methods: [
                 :name,
                 :description,
