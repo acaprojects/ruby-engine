@@ -138,7 +138,7 @@ module Orchestrator
             wait = []
 
             self.modules.each do |mod_id|
-                systems = ControlSystem.using_module(mod_id).fetch_all
+                systems = ControlSystem.using_module(mod_id).to_a
 
                 if systems.length <= 1
                     # We don't use the model's delete method as it looks up control systems
