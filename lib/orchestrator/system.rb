@@ -152,11 +152,16 @@ module Orchestrator
                     end
                 elsif !trigger
                     settings = ::Orchestrator::Module.find_by_id(mod_id)
-                    node = @@ctrl.get_node(settings.edge_id)
 
-                    unless node.should_run_on_this_host || node.is_failover_host
-                        manager = Remote::Manager.new(settings)
-                        @@remote_modules[mod_id] = manager
+                    if settings
+                        node = @@ctrl.get_node(settings.edge_id)
+
+                        unless node.should_run_on_this_host || node.is_failover_host
+                            manager = Remote::Manager.new(settings)
+                            @@remote_modules[mod_id] = manager
+                        end
+                    else
+                        @@ctrl.logger.error "unable to index module #{mod_id}, module not found!"
                     end
                 end
             end
