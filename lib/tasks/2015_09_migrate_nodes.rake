@@ -39,17 +39,29 @@ namespace :migrate do
 
         puts "Migrating modules"
         ::Orchestrator::Module.all.stream do |mod|
-            if mod.edge_id.nil?
-                mod.edge_id = edge.id
-                mod.save!
+            begin
+                if mod.edge_id.nil?
+                    mod.edge_id = edge.id
+                    mod.save!
+                end
+            rescue => e
+                puts e.message
+                puts mod.errors.messages if mod.errors
+                puts e.backtrace.join("\n")
             end
         end
 
         puts "Migrating systems"
         ::Orchestrator::ControlSystem.all.stream do |sys|
-            if sys.edge_id.nil?
-                sys.edge_id = edge.id
-                sys.save!
+            begin
+                if sys.edge_id.nil?
+                    sys.edge_id = edge.id
+                    sys.save!
+                end
+            rescue => e
+                puts e.message
+                puts sys.errors.messages if sys.errors
+                puts e.backtrace.join("\n")
             end
         end
     end
