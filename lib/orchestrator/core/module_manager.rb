@@ -301,7 +301,10 @@ module Orchestrator
                         @settings = model
                     rescue => e
                         tries += 1
-                        retry if tries < 5
+                        if tries < 5
+                            model = ::Orchestrator::Module.find_by_id id
+                            retry
+                        end
                         
                         # report any errors updating the model
                         @logger.print_error(e, 'error updating connected state in database model')
@@ -325,7 +328,10 @@ module Orchestrator
                         @settings = model
                     rescue => e
                         tries += 1
-                        retry if tries < 5
+                        if tries < 5
+                            model = ::Orchestrator::Module.find_by_id settings.id
+                            retry
+                        end
                         # report any errors updating the model
                         @logger.print_error(e, 'error updating running state in database model')
                         nil
