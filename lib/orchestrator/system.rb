@@ -125,12 +125,15 @@ module Orchestrator
                     system = @@systems[id]
                     return system if system
 
-                    sys = ControlSystem.find_by_id(id.to_s)
-                    return nil unless sys
-
                     @@loading[id] = wait.promise
-                    system = System.new(sys)
+                    sys = ControlSystem.find_by_id(id.to_s)
+                    if sys.nil?
+                        @@loading.delete id
+                        wait.resolve(nil)
+                        return nil
+                    end
 
+                    system = System.new(sys)
                     @@systems[id] = system
                     @@loading.delete id
                     wait.resolve(system)
