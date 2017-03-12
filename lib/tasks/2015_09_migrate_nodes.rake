@@ -45,6 +45,7 @@ namespace :migrate do
                     mod.save!
                 end
             rescue => e
+                puts "Error saving #{mod.id}"
                 puts e.message
                 puts mod.errors.messages if mod.errors
                 puts e.backtrace.join("\n")
@@ -59,6 +60,7 @@ namespace :migrate do
                     sys.save!
                 end
             rescue => e
+                puts "Error saving #{sys.id}"
                 puts e.message
                 puts sys.errors.messages if sys.errors
                 puts e.backtrace.join("\n")
