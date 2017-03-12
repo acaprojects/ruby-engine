@@ -161,7 +161,7 @@ module Orchestrator
                             @@remote_modules[mod_id] = manager
                         end
                     else
-                        @@ctrl.logger.error "unable to index module #{mod_id}, module not found!"
+                        @@ctrl.logger.error "unable to index module #{mod_id} in system #{@config.id}, module not found!"
                     end
                 end
             end
@@ -175,7 +175,7 @@ module Orchestrator
                 @modules[mod_name] ||= []
                 @modules[mod_name] << manager
             else
-                @@ctrl.logger.warn "unable to index module #{mod_id}, system may not function as expected"
+                @@ctrl.logger.warn "unable to index module #{mod_id}, system #{@config.id} may not function as expected"
             end
         end
     end
