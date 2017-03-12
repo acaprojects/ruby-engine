@@ -135,13 +135,15 @@ module Orchestrator
                     # pass in any updated settings
                     @settings = mod
 
-                    apply_config
+                    if @instance
+                        apply_config
 
-                    if @instance.respond_to? :on_update, true
-                        begin
-                            @instance.__send__(:on_update)
-                        rescue => e
-                            @logger.print_error(e, 'error in module update callback')
+                        if @instance.respond_to? :on_update, true
+                            begin
+                                @instance.__send__(:on_update)
+                            rescue => e
+                                @logger.print_error(e, 'error in module update callback')
+                            end
                         end
                     end
                 end
