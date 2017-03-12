@@ -115,10 +115,12 @@ module Orchestrator
                 apply_config
 
                 if @instance.respond_to? :on_load, true
-                    begin
-                        @instance.__send__(:on_load)
-                    rescue => e
-                        @logger.print_error(e, 'error in module load callback')
+                    @thread.next_tick do
+                        begin
+                            @instance.__send__(:on_load)
+                        rescue => e
+                            @logger.print_error(e, 'error in module load callback')
+                        end
                     end
                 end
             end
