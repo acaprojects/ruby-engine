@@ -80,7 +80,7 @@ module Orchestrator
                         }.to_json
                     rescue => e
                         # Let user know about any post reload issues
-                        message = "Warning! Reloaded successfully however some modules were not informed. It is safe to reload again.\nError was: #{e.message}"
+                        message = "Warning! Reloaded successfully however some modules were not informed. It is safe to reload again.\nError was: #{e.message}\n#{e.backtrace.join("\n")}"
                         status = :internal_server_error
                         content = {
                             message: message
