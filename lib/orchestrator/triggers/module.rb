@@ -32,13 +32,13 @@ module Orchestrator
                         begin
                             trig.name
                         rescue => e
-                            logger.print_error(e, "error loading trigger instance #{trig.id}")
+                            logger.error "error loading trigger instance #{trig.id}"
                             raise e
                         end
                     end
                     load_all triggers
                 rescue => e
-                    logger.print_error(e, 'error loading system triggers - retrying...')
+                    logger.print_error(e, 'system triggers failed to load - retrying...')
 
                     # Random period retry so we don't overwhelm the database
                     schedule.in(3000 + (1 + rand(2500))) do
