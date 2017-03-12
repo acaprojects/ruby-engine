@@ -11,6 +11,7 @@ module Orchestrator
     class System
         @@remote_modules = Concurrent::Map.new
         @@systems = Concurrent::Map.new
+        @@loading = Concurrent::Map.new
         @@critical = Mutex.new
         @@ctrl = ::Orchestrator::Control.instance
 
@@ -109,6 +110,16 @@ module Orchestrator
         def self.load(id)
             tries = 0
 
+            system = @@systems[id]
+            return system if system
+
+            loading = @@loading[id]
+            if loading
+                return co(loading)
+            end
+
+            wait = reactor.defer
+
             begin
                 @@critical.synchronize {
                     system = @@systems[id]
@@ -117,9 +128,12 @@ module Orchestrator
                     sys = ControlSystem.find_by_id(id.to_s)
                     return nil unless sys
 
+                    @@loading[id] = wait.promise
                     system = System.new(sys)
 
                     @@systems[id] = system
+                    @@loading.delete id
+                    wait.resolve(system)
                     return system
                 }
             rescue => err
@@ -131,6 +145,8 @@ module Orchestrator
                 else
                     error = "System #{id} failed to load. System #{id} may not function properly"
                     @@ctrl.logger.print_error err, error
+                    @@loading.delete id
+                    wait.reject(error)
                     raise error
                 end
             end
