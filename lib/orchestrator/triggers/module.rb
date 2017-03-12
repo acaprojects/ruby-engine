@@ -23,15 +23,21 @@ module Orchestrator
             def reload_all
                 return if @reloading
                 @reloading = true
-
                 sys_id = system.id
-                result = task {
+
+                begin
                     triggers = TriggerInstance.for(sys_id).to_a
-                    triggers.each(&:name) # Load the parent model
-                    triggers
-                }
-                result.then method(:load_all)
-                result.catch do |e|
+                    # Load the parent model
+                    triggers.each do |trig|
+                        begin
+                            trig.name
+                        rescue => e
+                            logger.print_error(e, "error loading trigger instance #{trig.id}")
+                            raise e
+                        end
+                    end
+                    load_all triggers
+                rescue => e
                     logger.print_error(e, 'error loading system triggers - retrying...')
 
                     # Random period retry so we don't overwhelm the database
