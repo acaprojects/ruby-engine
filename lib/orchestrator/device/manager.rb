@@ -58,6 +58,8 @@ module Orchestrator
                     @processor.config = cfg
                     @processor.send_options(opts)
                 end
+            rescue => e
+                @logger.print_error(e, 'error applying config, driver may not function correctly')
             end
 
             def notify_connected
