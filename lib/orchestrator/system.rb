@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'thread'
+require 'monitor'
 
 
 # NOTE:: Changes here should have corresponding changes made to the remote version
@@ -12,7 +13,7 @@ module Orchestrator
         @@remote_modules = Concurrent::Map.new
         @@systems = Concurrent::Map.new
         @@loading = Concurrent::Map.new
-        @@critical = Mutex.new
+        @@critical = Monitor.new
         @@ctrl = ::Orchestrator::Control.instance
 
 
