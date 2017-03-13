@@ -140,13 +140,18 @@ module Orchestrator
                 # merge in the defaults
                 options = @defaults.merge(options)
 
-                if @transport.delaying
-                    @transport.transmit(options)
+                if @transport
+                    if @transport.delaying
+                        @transport.transmit(options)
+                    else
+                        @queue.push(options, options[:priority] + @bonus)
+                    end
+
+                    @queue.pop if @queue.length > 0
                 else
+                    @logger.warn 'command sent before transport ready. This may lead to undesirable behaviour'
                     @queue.push(options, options[:priority] + @bonus)
                 end
-
-                @queue.pop if @queue.length > 0
             rescue => e
                 options[:defer].reject(e)
                 @logger.print_error(e, 'error queuing command')
