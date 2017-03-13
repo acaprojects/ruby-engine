@@ -5,6 +5,9 @@ require 'uv-rays'
 require 'co-elastic-query'
 require 'couchbase-orm'
 require 'orchestrator/engine'
+require 'coauth'
+require File.expand_path("../../app/models/user", __FILE__)
+require File.expand_path("../../app/models/authority", __FILE__)
 
 # Optional utility modules
 require 'orchestrator/utilities/transcoder' # functions for data manipulation
