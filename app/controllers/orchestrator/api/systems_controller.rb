@@ -309,8 +309,8 @@ module Orchestrator
 
             def find_system
                 # Find will raise a 404 (not found) if there is an error
-                sys = ::Orchestrator::ControlSystem.bucket.get("sysname-#{id.downcase}", {quiet: true}) || id
-                @cs = ControlSystem.find(sys)
+                sys_id = id
+                @cs = ControlSystem.find_by_id(sys_id) || ControlSystem.find(ControlSystem.bucket.get("sysname-#{id.downcase}", quiet: true))
             end
         end
     end
