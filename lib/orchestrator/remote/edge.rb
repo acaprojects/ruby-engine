@@ -5,7 +5,6 @@ require 'set'
 
 # This is used to grab the default edge node
 require File.expand_path('../../../app/models/orchestrator/edge_control.rb', File.dirname(__FILE__))
-::Orchestrator::EdgeControl.ensure_design_document!
 
 
 module Orchestrator
@@ -13,7 +12,7 @@ module Orchestrator
         begin
             # export ENGINE_NODE_ID=edge_1-10
 
-            NodeId = (ENV['ENGINE_NODE_ID'] || ::Orchestrator::EdgeControl.all.first.id).to_sym
+            NodeId = ENV['ENGINE_NODE_ID'].to_sym
         rescue => e
             puts "\nENGINE_NODE_ID env var not set\n"
             NodeId = :run_migrations_and_reboot
