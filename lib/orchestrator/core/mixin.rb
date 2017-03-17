@@ -128,7 +128,7 @@ module Orchestrator
                     end
                 end
 
-                stats[:time_now] = @__config__.thread.now
+                stats[:time_now] = Time.now.to_i
                 stats[:schedules] = schedule.schedules.to_a
 
                 logger.debug stats

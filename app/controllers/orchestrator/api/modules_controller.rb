@@ -178,7 +178,11 @@ module Orchestrator
                             defer.reject(err)
                         end
                     end
-                    render json: defer.promise.value
+                    val = nil
+                    ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
+                        val = defer.promise.value
+                    end
+                    render body: val.inspect
                 end
             end
 
