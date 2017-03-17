@@ -11,3 +11,6 @@ Free for non-commercial use.
 
 ACA Engine is an IoT, Internet of Things, manager that lends itself to HTML5 based user interfaces.
 
+## Documentation
+
+[Check the wiki](https://github.com/acaprojects/ruby-engine/wiki)
