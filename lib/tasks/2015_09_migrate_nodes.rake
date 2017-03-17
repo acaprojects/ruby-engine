@@ -27,6 +27,7 @@ namespace :migrate do
         # This adds support for statistics collection via elasticsearch
         edges = ::Orchestrator::EdgeControl.all.to_a
         edge = if edges[0]
+            puts "Edge node exists with id #{edges.map(&:id)}"
             edges[0]
         else
             tmp = ::Orchestrator::EdgeControl.new
