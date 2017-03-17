@@ -1,5 +1,4 @@
-# encoding: ASCII-8BIT
-# frozen_string_literal: true
+# frozen_string_literal: true, encoding: ASCII-8BIT
 
 namespace :eddystone do
 
