@@ -194,6 +194,9 @@ module Orchestrator
                         if para.has_key?(:lookup)
                             render json: mod.status[para[:lookup].to_sym]
                         else
+                            mod.thread.next_tick do
+                                mod.instance.__STATS__
+                            end
                             render json: mod.status.marshal_dump
                         end
                     else
