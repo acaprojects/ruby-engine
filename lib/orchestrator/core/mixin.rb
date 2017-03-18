@@ -122,16 +122,14 @@ module Orchestrator
                     stats[:last_send] = @__config__.processor.last_sent_at
                     stats[:last_receive] = @__config__.processor.last_receive_at
                     if @__config__.processor.timeout
-                        stats[:timeout_created] = @__config__.processor.timeout.created
-                        stats[:timeout_triggered] = @__config__.processor.timeout.trigger_count
-                        stats[:timeout_scheduled] = @__config__.processor.timeout.next_scheduled
+                        stats[:timeout] = @__config__.processor.timeout
                     end
                 end
 
                 stats[:time_now] = Time.now.to_i
                 stats[:schedules] = schedule.schedules.to_a
 
-                logger.debug stats
+                logger.debug stats.inspect
                 stats
             end
         end
