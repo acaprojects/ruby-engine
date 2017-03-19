@@ -95,7 +95,7 @@ module Orchestrator
             def set_status(mod_id, status_name, value)
                 # TODO:: use Marshal in the future
                 case value
-                when String, Array, Hash, Float, Integer, Fixnum, Bignum
+                when String, Array, Hash, Float, Integer
                     msg = {
                         type: :push,
                         push: :status,
