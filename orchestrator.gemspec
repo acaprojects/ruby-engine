@@ -14,7 +14,7 @@ Gem::Specification.new do |s|
     s.summary     = 'A distributed system for building automation'
     s.description = 'A building and Internet of Things automation system'
 
-    s.add_dependency 'rake',    '~> 11.2'
+    s.add_dependency 'rake',    '~> 12'
     s.add_dependency 'rails',   '~> 5.0'    # Web Framework
     s.add_dependency 'libuv',   '~> 3.1'    # High performance IO reactor for ruby
     s.add_dependency 'oauth',   '~> 0.5'    # OAuth protocol support
