@@ -27,7 +27,7 @@ module Orchestrator
 
                 results = @@elastic.search(query) do |entry|
                     entry.as_json.tap do |json|
-                        json[:systems] = Array(ControlSystem.find_by_id(json[:systems]).as_json(only: [:id, :name]))
+                        json[:systems] = Array(ControlSystem.find_by_id(entry.systems)).as_json(only: [:id, :name])
                     end
                 end
                 render json: results
@@ -223,7 +223,7 @@ module Orchestrator
                     end
 
                     systems = ControlSystem.find_by_id system_ids
-                    systems.each do |sys|
+                    Array(systems).each do |sys|
                         connection = connections[sys.id]
 
                         if connection.nil? 
