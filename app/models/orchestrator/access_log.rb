@@ -5,7 +5,7 @@ module Orchestrator
         design_document :alog
 
 
-        TTL = Rails.env.production? ? 2.weeks.to_i : 480
+        TTL = Rails.env.production? ? 4.weeks.to_i : 4.hours.to_i
 
 
         belongs_to :user,    class_name: "::User"
