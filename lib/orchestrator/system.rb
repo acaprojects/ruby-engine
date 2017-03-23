@@ -117,14 +117,12 @@ module Orchestrator
             if loading
                 return co(loading)
             else
-                catch(:loaded) {
-                    @@critical.synchronize {
-                        loading = @@loading[id]
-                        throw :loaded if loading
-
+                @@critical.synchronize {
+                    loading = @@loading[id]
+                    if loading.nil?
                         wait = reactor.defer
                         @@loading[id] = wait.promise
-                    }
+                    end
                 }
                 return co(loading) if loading
             end
