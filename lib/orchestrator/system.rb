@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'thread'
-require 'monitor'
 
 
 # NOTE:: Changes here should have corresponding changes made to the remote version
@@ -13,7 +12,7 @@ module Orchestrator
         @@remote_modules = Concurrent::Map.new
         @@systems = Concurrent::Map.new
         @@loading = Concurrent::Map.new
-        @@critical = Monitor.new
+        @@critical = Mutex.new
         @@ctrl = ::Orchestrator::Control.instance
 
 
@@ -27,9 +26,7 @@ module Orchestrator
         end
 
         def self.clear_cache
-            @@critical.synchronize {
-                @@systems = Concurrent::Map.new
-            }
+            @@systems = Concurrent::Map.new
         end
 
 
@@ -114,32 +111,40 @@ module Orchestrator
             system = @@systems[id]
             return system if system
 
+            wait = nil
             loading = @@loading[id]
+
             if loading
                 return co(loading)
+            else
+                catch(:loaded) {
+                    @@critical.synchronize {
+                        loading = @@loading[id]
+                        throw :loaded if loading
+
+                        wait = reactor.defer
+                        @@loading[id] = wait.promise
+                    }
+                }
+                return co(loading) if loading
             end
 
-            wait = reactor.defer
-
             begin
-                @@critical.synchronize {
-                    system = @@systems[id]
-                    return system if system
-
-                    @@loading[id] = wait.promise
-                    sys = ControlSystem.find_by_id(id.to_s)
-                    if sys.nil?
-                        @@loading.delete id
-                        wait.resolve(nil)
-                        return nil
-                    end
-
-                    system = System.new(sys)
-                    @@systems[id] = system
+                system = @@systems[id]
+                return system if system
+                
+                sys = ControlSystem.find_by_id(id.to_s)
+                if sys.nil?
                     @@loading.delete id
-                    wait.resolve(system)
-                    return system
-                }
+                    wait.resolve(nil)
+                    return nil
+                end
+
+                system = System.new(sys)
+                @@loading.delete id
+                wait.resolve(system)
+                @@systems[id] = system
+                return system
             rescue => err
                 if tries <= 3
                     # Sleep the current reactor fiber
