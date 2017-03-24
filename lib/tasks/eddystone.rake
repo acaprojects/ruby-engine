@@ -57,7 +57,7 @@ EDDYSTONE
             eddystone_template = args[:eddystone_template]
             ::Orchestrator::ControlSystem.in_zone(args[:zone_id]).each do |system|
                 if system.modules.length < min_devices
-                    puts " -- skip '#{file_name}'\t#{system_id}: #{system_name}"
+                    puts " -- skip \t#{system.id}: #{system.name}"
                     next
                 end
 
