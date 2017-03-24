@@ -33,7 +33,7 @@ EDDYSTONE
     # Usage: rake eddystone:build['zone_1-10','a','../eddystone','https://control.path/ui/#/?ctrl=${system_id}','https://aca.im/pwc/${eddystone_id}']
 
     desc 'Generates eddystone compatible pages for accessing control systems'
-    task :build, [:zone_id, :start, :directory, :url_template, :eddystone_template] => [:environment] do |task, args|
+    task :build, [:zone_id, :start, :directory, :url_template, :eddystone_template, :min_devices] => [:environment] do |task, args|
         # Ensure directory exists
         require 'fileutils'
         dir = File.expand_path(args[:directory], Rails.root)
@@ -46,6 +46,8 @@ EDDYSTONE
         zone_id = args[:zone_id]
         puts "Building files in #{dir}\nfor zone #{zone_id} with id starting at #{start}:\n"
 
+        min_devices = (args[:min_devices] || 0).to_i
+
         # Generate a summary file
         File.open(File.expand_path("summary_#{zone_id}.csv", dir), 'w') do |summary|
             summary.write("eddystone URI,system name,system id")
@@ -54,6 +56,11 @@ EDDYSTONE
             url_template = args[:url_template]
             eddystone_template = args[:eddystone_template]
             ::Orchestrator::ControlSystem.in_zone(args[:zone_id]).each do |system|
+                if system.modules.length < min_devices
+                    puts " -- skip '#{file_name}'\t#{system_id}: #{system_name}"
+                    next
+                end
+
                 start += 1
 
                 system_name = system.settings[:room_name] || system.name
