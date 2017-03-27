@@ -14,9 +14,6 @@ module Orchestrator
             app.config.orchestrator = ActiveSupport::OrderedOptions.new
             app.config.orchestrator.module_paths = []
 
-            # Authentication stack is different
-            app.config.middleware.insert_after Rack::Runtime, SelectiveStack
-
             # This is for trigger emails
             app.config.orchestrator.backoffice_url = 'https://example.domain/backoffice'
 
