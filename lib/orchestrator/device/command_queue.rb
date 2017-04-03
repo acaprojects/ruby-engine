@@ -38,6 +38,26 @@ module Orchestrator
                 @reactor.next_tick @perform_pop if blk
             end
 
+            # Dump the current list of commands in order
+            def to_a
+                finished = Set.new
+                cmds = []
+                while @pending_commands.length > 0
+                    cmds << @pending_commands.pop
+                end
+                cmds.collect { |next_cmd|
+                    if next_cmd.is_a?(Symbol)
+                        if finished.include?(next_cmd)
+                            nil
+                        else
+                            @named_commands[next_cmd][1]
+                        end
+                    else
+                        next_cmd
+                    end
+                }.reject { |cmd| cmd.nil? }
+            end
+
             # Adds a command to the queue and performs a pop if there
             # is a callback waiting and this is the only item in the
             # queue. (i.e. a pop is not already in progress)
