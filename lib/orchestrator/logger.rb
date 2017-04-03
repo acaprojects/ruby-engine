@@ -124,17 +124,23 @@ module Orchestrator
         def log(level, msg)
             @reactor.schedule do
                 if LEVEL[level] >= DEFAULT_LEVEL
+                    tags = [@klass, @mod_id]
+
+                    mod = ::Orchestrator::Control.instance.loaded?(@mod_id)
+                    tags << mod.current_user.id if mod && mod.current_user
+
                     @reactor.work do
-                        @logger.tagged(@klass, @mod_id) {
+                        @logger.tagged(*tags) {
                             @logger.send(level, msg)
                         }
                     end
-                end
-                @listeners.each do |listener|
-                    begin
-                        listener.call(@klass, @mod_id, level, msg)
-                    rescue Exception => e
-                        @logger.error "logging to remote #{listener}\n#{e.message}\n#{e.backtrace.join("\n")}"
+
+                    @listeners.each do |listener|
+                        begin
+                            listener.call(@klass, @mod_id, level, msg)
+                        rescue Exception => e
+                            @logger.error "logging to remote #{listener}\n#{e.message}\n#{e.backtrace.join("\n")}"
+                        end
                     end
                 end
             end
