@@ -67,7 +67,9 @@ module Orchestrator
                 rescue => e
                     puts "ERROR: #{e.message}\n#{e.backtrace.join("\n")}"
                 ensure
-                    reactor.stop
+                    reactor.next_tick do
+                        reactor.stop 
+                    end
                 end
             end
         end
@@ -80,11 +82,13 @@ module Orchestrator
             def initialize(role, klass, settings, thread)
                 @role = role
                 @manager = Testing::DeviceManager.new(thread, klass, settings)
+                @manager.logger.level = :debug
+                @manager.logger.use_blocking_writes = true
                 @manager.start_local
                 @thread = thread
             end
 
-            attr_reader :thread
+            attr_reader :thread, :manager, :role
 
             # Sends data to the module - emulating the remote device
             def transmit(raw, hex_string: false)
@@ -203,6 +207,18 @@ module Orchestrator
                     defer.resolve(true)
                 end
                 co defer.promise
+            end
+
+            def temporary_disconnect
+                @manager.connection.disconnect
+            end
+
+            def device_offline
+                @manager.connection.force_offline
+            end
+
+            def device_online
+                @manager.connection.force_online
             end
 
             def self.raise_error(message)
