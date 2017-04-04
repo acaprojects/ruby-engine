@@ -13,8 +13,6 @@ class ::Logger
     end
 end
 
-# Note:: We should be logging the User id in the log
-# see: http://pastebin.com/Wrjp8b8e (rails log_tags)
 module Orchestrator
     class Logger
         LEVEL = {
