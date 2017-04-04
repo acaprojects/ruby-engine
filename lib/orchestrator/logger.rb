@@ -39,7 +39,12 @@ module Orchestrator
             @level = DEFAULT_LEVEL
             @listeners = Set.new
             @logger = ::Orchestrator::Control.instance.logger
+
+            @use_blocking_writes = false
         end
+
+        attr_accessor :use_blocking_writes
+
 
         def level=(level)
             @level = LEVEL[level] || level
@@ -121,24 +126,31 @@ module Orchestrator
 
         def log(level, msg)
             @reactor.schedule do
-                if LEVEL[level] >= DEFAULT_LEVEL
-                    tags = [@klass, @mod_id]
+                tags = [@klass, @mod_id]
 
-                    mod = ::Orchestrator::Control.instance.loaded?(@mod_id)
-                    tags << mod.current_user.id if mod && mod.current_user
+                mod = ::Orchestrator::Control.instance.loaded?(@mod_id)
+                tags << mod.current_user.id if mod && mod.current_user
 
+                # Writing to STDOUT is blocking hence doing this in a worker thread
+                # http://nodejs.org/dist/v0.10.26/docs/api/process.html#process_process_stdout
+                if @use_blocking_writes
+                    @logger.tagged(*tags) {
+                        @logger.send(level, msg)
+                    }
+                else
                     @reactor.work do
                         @logger.tagged(*tags) {
                             @logger.send(level, msg)
                         }
                     end
+                end
 
-                    @listeners.each do |listener|
-                        begin
-                            listener.call(@klass, @mod_id, level, msg)
-                        rescue Exception => e
-                            @logger.error "logging to remote #{listener}\n#{e.message}\n#{e.backtrace.join("\n")}"
-                        end
+                # Listeners are any attached remote debuggers
+                @listeners.each do |listener|
+                    begin
+                        listener.call(@klass, @mod_id, level, msg)
+                    rescue Exception => e
+                        @logger.error "logging to remote #{listener}\n#{e.message}\n#{e.backtrace.join("\n")}"
                     end
                 end
             end
