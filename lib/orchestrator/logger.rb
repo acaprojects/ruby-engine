@@ -137,7 +137,8 @@ module Orchestrator
                     @logger.tagged(*tags) {
                         @logger.send(level, msg)
                     }
-                else
+                elsif level >= DEFAULT_LEVEL
+                    # We never write debug logs to the main log
                     @reactor.work do
                         @logger.tagged(*tags) {
                             @logger.send(level, msg)
