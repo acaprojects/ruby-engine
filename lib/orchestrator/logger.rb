@@ -80,35 +80,35 @@ module Orchestrator
         def debug(msg = nil)
             if @level <= 0
                 msg = yield if msg.nil? && block_given?
-                log(0, msg)
+                log(:debug, msg)
             end
         end
 
         def info(msg = nil)
             if @level <= 1
                 msg = yield if msg.nil? && block_given?
-                log(1, msg)
+                log(:info, msg)
             end
         end
 
         def warn(msg = nil)
             if @level <= 2
                 msg = yield if msg.nil? && block_given?
-                log(2, msg)
+                log(:warn, msg)
             end
         end
 
         def error(msg = nil)
             if @level <= 3
                 msg = yield if msg.nil? && block_given?
-                log(3, msg)
+                log(:error, msg)
             end
         end
 
         def fatal(msg = nil)
             if @level <= 4
                 msg = yield if msg.nil? && block_given?
-                log(4, msg)
+                log(:fatal, msg)
             end
         end
 
