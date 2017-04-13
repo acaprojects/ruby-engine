@@ -23,7 +23,6 @@ module Orchestrator
             fatal: 4
         }.freeze
 
-        # TODO:: Make this a config item
         DEFAULT_LEVEL = 1
 
         def initialize(reactor, mod)
@@ -137,7 +136,7 @@ module Orchestrator
                     @logger.tagged(*tags) {
                         @logger.send(level, msg)
                     }
-                elsif level >= DEFAULT_LEVEL
+                elsif level != :debug
                     # We never write debug logs to the main log
                     @reactor.work do
                         @logger.tagged(*tags) {
