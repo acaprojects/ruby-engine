@@ -155,6 +155,19 @@ module Orchestrator
 
                 raise 'callback required' unless callback.respond_to? :call
 
+                # We want the subscriptions to provide debug information on the
+                # the subscribing module
+                if @origin
+                    cb = callback
+                    callback = proc { |val|
+                        begin
+                            cb.call(val)
+                        rescue => e
+                            @origin.logger.print_error(e, 'in subscription callback')
+                        end
+                    }
+                end
+
                 # We need to get the system to schedule threads
                 sys = system
                 options = {

@@ -65,12 +65,24 @@ module Orchestrator
                 callback ||= block
                 raise 'callback required' unless callback.respond_to? :call
 
+                cb = proc { |val|
+                    begin
+                        callback.call(val)
+                    rescue => e
+                        logger.print_error(e, 'in subscription callback')
+                    end
+                }
+
                 thread = @__config__.thread
-                defer = thread.defer
-                thread.schedule do
-                    defer.resolve(@__config__.subscribe(status, callback))
+                if thread.reactor_thread?
+                    @__config__.subscribe(status, cb)
+                else
+                    defer = thread.defer
+                    thread.schedule do
+                        defer.resolve(@__config__.subscribe(status, cb))
+                    end
+                    co defer.promise
                 end
-                defer.promise
             end
 
             # thread safe unsubscribe
