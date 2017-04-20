@@ -27,9 +27,7 @@ module Orchestrator
             # @param id [String] the name of the system to lookup
             # @return [::Libuv::Q::Promise] Returns a single promise
             def lookup_system(name)
-                task {
-                    ::Orchestrator::ControlSystem.bucket.get("sysname-#{name.downcase}", {quiet: true})
-                }.value
+                ::Orchestrator::ControlSystem.bucket.get("sysname-#{name.downcase}", quiet: true)
             end
 
             # Performs a long running task on a thread pool in parallel.
