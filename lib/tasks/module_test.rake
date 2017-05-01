@@ -4,7 +4,7 @@ require 'orchestrator/testing/mock_device'
 
 namespace :module do
 
-    # Usage: rake test:module['/Users/steve/Documents/projects/aca-device-modules/modules/extron/switcher/dxp_test.rb']
+    # Usage: rake module:test['/Users/steve/Documents/projects/aca-device-modules/modules/extron/switcher/dxp_spec.rb']
 
     desc 'runs the test for a logic, device or service module'
     task :test, [:filename] => [:environment] do |task, args|
