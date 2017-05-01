@@ -18,9 +18,9 @@ module Orchestrator
                 !system.nil?
             end
 
-            # Alias for get
+            # Alias for get_implicit
             def [](mod)
-                get mod
+                get_implicit mod
             end
 
             # Returns the system database model
@@ -35,9 +35,12 @@ module Orchestrator
             # @param module [String, Symbol] the name of the module in the system
             # @param index [Integer] the index of the desired module (starting at 1)
             # @return [::Orchestrator::Core::RequestsProxy] proxies requests to a single module
-            def get(mod, index = 1)
-                name = mod.to_sym
-                RequestProxy.new(@thread, system.get(name, index), @user)
+            def get(mod, index = nil)
+                if index
+                    RequestProxy.new(@thread, system.get(mod.to_sym, index.to_i), @user)
+                else
+                    get_implicit(mod)
+                end
             end
 
             # Provides a proxy to a module for a safe way to communicate across threads
@@ -45,11 +48,9 @@ module Orchestrator
             # @param module [String, Symbol] the name of the module in the system suffixed with the index. i.e. ModuleName_IndexNumber
             # @return [::Orchestrator::Core::RequestsProxy] proxies requests to a single module
             def get_implicit(mod_id)
-                res = mod_id.to_s.split(/_(?=[^_]+$)/)
-                mod = res[0].to_sym
-                id = res.length > 1 ? res[-1].to_i : 1
-                
-                get(mod, id)
+                get_parts(mod_id) do |name, i|
+                    RequestProxy.new(@thread, system.get(name, i), @user)
+                end
             end
 
             # Checks for the existence of a particular module
@@ -57,9 +58,14 @@ module Orchestrator
             # @param module [String, Symbol] the name of the module in the system
             # @param index [Integer] the index of the desired module (starting at 1)
             # @return [true, false] does the module exist?
-            def exists?(mod, index = 1)
-                name = mod.to_sym
-                !system.get(name, index).nil?
+            def exists?(mod, index = nil)
+                if index
+                    !!system.get(mod.to_sym, index.to_i)
+                else
+                    get_parts(mod) do |name, i|
+                        !!system.get(name, i)
+                    end
+                end
             end
 
             # Provides a proxy to multiple modules. A simple way to send commands to multiple devices
@@ -243,6 +249,23 @@ module Orchestrator
 
             def system
                 ::Orchestrator::System.get(@system)
+            end
+
+            def get_parts(mod_id)
+                mod_name, match, index = mod_id.to_s.rpartition('_')
+
+                if match.empty?
+                    yield(mod_id.to_sym, 1)
+                else
+                    id = index.to_i
+
+                    # Index start at 1 and to_i returns 0 for anything that is not a number
+                    if id == 0
+                        yield(mod_id.to_sym, 1)
+                    else
+                        yield(mod_name.to_sym, id)
+                    end
+                end
             end
         end
     end
