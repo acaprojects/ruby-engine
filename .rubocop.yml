@@ -38,4 +38,4 @@ Lint/UnusedBlockArgument:
   Enabled: false
 
 Lint/EndAlignment:
-  EnforcedStyleAlignWith: variable
+  EnforcedStyleAlignWith: start_of_line
