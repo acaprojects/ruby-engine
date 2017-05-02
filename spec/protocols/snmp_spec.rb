@@ -41,6 +41,6 @@ describe "SNMP protocol helper" do
             result = @client.get(oid: "1.3.6.1.2.1.1.1.0")
         }
 
-        expect(result).to eq(result)
+        expect(result).to eq('Device description')
     end
 end
