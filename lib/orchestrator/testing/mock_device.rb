@@ -169,7 +169,7 @@ class Orchestrator::Testing::MockDevice
             insp
         end
 
-        msg <<  if queued.empty?
+        msg << if queued.empty?
             'send queue is empty'
         else
             "send queue contains: \n#{queued.join("\n")}"
@@ -184,10 +184,10 @@ class Orchestrator::Testing::MockDevice
     def result
         res = @last_executed
         @last_executed = nil
-        if res.respond_to? :then
-            actual = co(res)
+        actual = if res.respond_to? :then
+            co(res)
         else
-            actual = res
+            res
         end
 
         puts "INFO: execute result was #{actual.inspect}"
