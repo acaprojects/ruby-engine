@@ -28,12 +28,21 @@ Metrics/ModuleLength:
 Metrics/ParameterLists:
   Max: 8
 
-Style/IndentationWidth:
-  Width: 4
-  Enabled: false
-
 Metrics/LineLength:
   Max: 110
+
+# Let's allow empty lines, whitespace == good
+Style/EmptyLines:
+  Enabled: false
+
+Style/EmptyLinesAroundClassBody:
+  Enabled: false
+
+Style/EmptyLinesAroundModuleBody:
+  Enabled: false
+
+Style/EmptyLinesAroundMethodBody:
+  Enabled: false
 
 Style/ClassAndModuleChildren:
   EnforcedStyle: 'compact'
@@ -44,8 +53,14 @@ Lint/UnusedMethodArgument:
 Lint/UnusedBlockArgument:
   Enabled: false
 
+# TODO:: resolve indentation width issue once issue is resolved
+# https://github.com/bbatsov/rubocop/issues/4105
 Lint/EndAlignment:
   AlignWith: start_of_line
 
 Style/ElseAlignment:
+  Enabled: false
+
+Style/IndentationWidth:
+  Width: 4
   Enabled: false
