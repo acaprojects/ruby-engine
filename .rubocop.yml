@@ -43,7 +43,5 @@ Lint/UnusedMethodArgument:
 Lint/UnusedBlockArgument:
   Enabled: false
 
-# Couldn't make this work as expected
 Lint/EndAlignment:
-  EnforcedStyleAlignWith: start_of_line
-  Enabled: false
+  AlignWith: start_of_line
