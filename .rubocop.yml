@@ -30,6 +30,7 @@ Metrics/ParameterLists:
 
 Style/IndentationWidth:
   Width: 4
+  Enabled: false
 
 Metrics/LineLength:
   Max: 110
@@ -47,7 +48,4 @@ Lint/EndAlignment:
   AlignWith: start_of_line
 
 Style/ElseAlignment:
-  Enabled: false
-
-Style/IndentAssignment:
   Enabled: false
