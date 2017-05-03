@@ -2,10 +2,16 @@ AllCops:
   TargetRubyVersion: 2.2
 
 Metrics/AbcSize:
-  Max: 40
+  Max: 60
+
+Metrics/CyclomaticComplexity:
+  Max: 15
+
+Metrics/PerceivedComplexity:
+  Max: 15
 
 Metrics/BlockNesting:
-  Max: 4
+  Max: 5
 
 Metrics/BlockLength:
   Max: 60
@@ -37,5 +43,7 @@ Lint/UnusedMethodArgument:
 Lint/UnusedBlockArgument:
   Enabled: false
 
+# Couldn't make this work as expected
 Lint/EndAlignment:
   EnforcedStyleAlignWith: start_of_line
+  Enabled: false
