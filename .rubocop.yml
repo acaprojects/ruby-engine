@@ -45,3 +45,6 @@ Lint/UnusedBlockArgument:
 
 Lint/EndAlignment:
   AlignWith: start_of_line
+
+Style/ElseAlignment:
+  Enabled: false
