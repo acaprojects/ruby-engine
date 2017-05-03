@@ -48,3 +48,6 @@ Lint/EndAlignment:
 
 Style/ElseAlignment:
   Enabled: false
+
+Style/IndentAssignment:
+  Enabled: false
