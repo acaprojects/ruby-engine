@@ -106,7 +106,7 @@ class Orchestrator::Testing::MockDevice
         self
     end
 
-    alias_method :responds, :transmit
+    alias responds transmit
 
     # Executes a function in the module
     def exec(function, *args)
