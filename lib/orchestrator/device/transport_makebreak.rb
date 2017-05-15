@@ -101,7 +101,7 @@ module Orchestrator
                             close_connection
                             @manager.notify_disconnected
                         end
-                        @delaying = ''
+                        @delaying = String.new
                     else
                         init_connection
                     end
