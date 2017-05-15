@@ -1,5 +1,4 @@
-# encoding: ASCII-8BIT
-# frozen_string_literal: true
+# frozen_string_literal: true, encoding: ASCII-8BIT
 
 module Protocols; end
 
@@ -88,7 +87,7 @@ class Protocols::Telnet
         @write = block || blk
         @binary_mode = false
         @suppress_go_ahead = false
-        @buffer = ''
+        @buffer = String.new
     end
 
     def preprocess(string)
@@ -155,7 +154,7 @@ class Protocols::Telnet
             @buffer = data[pt .. -1]
         else
             msg = preprocess(data)
-            @buffer = ''
+            @buffer = String.new
         end
 
         msg
