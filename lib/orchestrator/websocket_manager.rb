@@ -509,10 +509,16 @@ module Orchestrator
 
         def prepare_json(object)
             case object
-            when nil, true, false, Hash, String, Integer, Array, Float
+            when nil, true, false, Hash, String, Integer, Array, Float, Symbol
                 object
             else
-                nil
+                if object.respond_to? :to_json
+                    object.to_json
+                elsif object.respond_to? :to_s
+                    object.to_s
+                else
+                    nil
+                end
             end
         end
     end
