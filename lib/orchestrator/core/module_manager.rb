@@ -168,7 +168,7 @@ module Orchestrator
                     # Allows status to be updated in workers
                     # For the most part this will run straight away
                     @thread.schedule do
-                        @stattrak.update(@settings.id.to_sym, name, value)
+                        @stattrak.update(@settings.id, name, value)
                     end
 
                     if remote
