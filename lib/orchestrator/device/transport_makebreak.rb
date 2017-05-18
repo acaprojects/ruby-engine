@@ -10,7 +10,6 @@ module Orchestrator
                 @tls = tls
 
                 @connected = false
-                @changing_state = true
                 @disconnecting = false
                 @last_retry = 0
 
@@ -29,7 +28,7 @@ module Orchestrator
             def transmit(cmd)
                 return if @terminated
 
-                if @connected
+                if @connected && !@disconnecting
                     # This is the same as TCP
                     data = cmd[:data]
 
@@ -78,7 +77,7 @@ module Orchestrator
 
             def on_connect(transport)
                 @connected = true
-                @changing_state = false
+                @disconnecting = false
 
                 if @connecting
                     @connecting.cancel
@@ -86,12 +85,14 @@ module Orchestrator
                 end
 
                 if @terminated
-                    close_connection(:after_writing)
+                    terminate
                 else
-                    begin
-                        use_tls(@config) if @tls
-                    rescue => e
-                        @manager.logger.print_error(e, 'error starting tls')
+                    if @tls
+                        begin
+                            use_tls(@config)
+                        rescue => e
+                            @manager.logger.print_error(e, 'error starting tls')
+                        end
                     end
 
                     if @config[:wait_ready]
@@ -111,7 +112,6 @@ module Orchestrator
             def on_close
                 @delaying = false
                 @connected = false
-                @changing_state = false
                 @disconnecting = false
 
 
@@ -121,42 +121,43 @@ module Orchestrator
                 end
 
                 # Prevent re-connect if terminated
-                unless @terminated
-                    @retries += 1
-                    the_time = @processor.thread.now
-                    boundry = @last_retry + @config[:thrashing_threshold]
+                return if @terminated
 
-                    # ensure we are not thrashing (rapid connect then disconnect)
-                    # This equals a disconnect and requires a warning
-                    if @retries == 1 && boundry >= the_time
-                        @retries += 1
-                        @manager.logger.warn('possible connection thrashing. Disconnecting')
+
+                @retries += 1
+                the_time = @processor.thread.now
+                boundry = @last_retry + @config[:thrashing_threshold]
+
+                # ensure we are not thrashing (rapid connect then disconnect)
+                # This equals a disconnect and requires a warning
+                if @retries == 1 && boundry >= the_time
+                    @retries += 1
+                    @manager.logger.warn('possible connection thrashing. Disconnecting')
+                end
+
+                @activity.cancel if @activity
+                @activity = nil
+
+                if @retries == 1
+                    if @write_queue.length > 0
+                        # We reconnect here as there are pending writes
+                        @last_retry = the_time
+                        reconnect
+                    end
+                else # retries > 1
+                    @write_queue.clear
+
+                    variation = 1 + rand(2000)
+                    @connecting = @manager.get_scheduler.in(3000 + variation) do
+                        @connecting = nil
+                        reconnect
                     end
 
-                    @activity.cancel if @activity
-                    @activity = nil
-
-                    if @retries == 1
-                        if @write_queue.length > 0
-                            # We reconnect here as there are pending writes
-                            @last_retry = the_time
-                            reconnect
-                        end
-                    else # retries > 1
-                        @write_queue.clear
-
-                        variation = 1 + rand(2000)
-                        @connecting = @manager.get_scheduler.in(3000 + variation) do
-                            @connecting = nil
-                            reconnect
-                        end
-
-                        # we mark the queue as offline if more than 1 reconnect fails
-                        #  or if the first connect fails
-                        if @retries == 2 || (@retries == 3 && @last_retry == 0)
-                            @processor.disconnected
-                            @processor.queue.offline(@config[:clear_queue_on_disconnect])
-                        end
+                    # we mark the queue as offline if more than 1 reconnect fails
+                    #  or if the first connect fails
+                    if @retries == 2 || (@retries == 3 && @last_retry == 0)
+                        @processor.disconnected
+                        @processor.queue.offline(@config[:clear_queue_on_disconnect])
                     end
                 end
             end
@@ -192,17 +193,23 @@ module Orchestrator
                 @connecting.cancel if @connecting
                 @activity.cancel if @activity
                 @delay_timer.cancel if @delay_timer
-                close_connection(:after_writing) if @transport.connected
+            ensure
+                @connecting = @activity = @delay_timer = nil
+                close_connection(:after_writing) if @connected
             end
 
             def disconnect
-                @connected = false
-                @disconnecting = true
                 if @delay_timer
                     @delay_timer.cancel
                     @delay_timer = nil
                 end
-                close_connection(:after_writing)
+
+                if @connecting
+                    @disconnecting = false
+                else
+                    @disconnecting = true
+                    close_connection(:after_writing)
+                end
             end
 
 
@@ -239,8 +246,7 @@ module Orchestrator
             end
 
             def reconnect
-                return if @changing_state || @connected
-                @changing_state = true
+                return if @connected || @disconnecting || @connecting
                 super
             end
 
@@ -253,8 +259,8 @@ module Orchestrator
                 end
 
                 # Notify module
-                @processor.queue.online if not @processor.queue.online?
-                @processor.connected if not @processor.connected?
+                @processor.queue.online unless @processor.queue.online?
+                @processor.connected unless @processor.connected?
                 @retries = 0
 
                 # Start inactivity timeout
