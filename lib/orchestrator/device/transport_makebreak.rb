@@ -84,6 +84,8 @@ module Orchestrator
                     @connecting = nil
                 end
 
+                @manager.logger.debug 'makebreak connection made'
+
                 if @terminated
                     terminate
                 else
@@ -119,6 +121,8 @@ module Orchestrator
                     @connecting.cancel
                     @connecting = nil
                 end
+
+                @manager.logger.debug 'makebreak disconnected'
 
                 # Prevent re-connect if terminated
                 return if @terminated
@@ -199,6 +203,8 @@ module Orchestrator
             end
 
             def disconnect
+                return unless @connected && !@disconnecting
+
                 if @delay_timer
                     @delay_timer.cancel
                     @delay_timer = nil
