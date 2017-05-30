@@ -88,7 +88,7 @@ class Orchestrator::Testing::MockDevice
 
     # Sends data to the module - emulating the remote device
     def transmit(raw, hex_string: false)
-        STDOUT.puts "INFO: Transmitting #{raw.inspect}"
+        STDOUT.puts "RX: #{raw.inspect}"
 
         data = if raw.is_a?(Array)
             array_to_str(raw)
@@ -136,14 +136,21 @@ class Orchestrator::Testing::MockDevice
         # Ensure data is processed
         wait_tick
 
+
         unless @manager.connection.check_outgoing(data)
             msg = String.new "module did not send #{raw.inspect} as expected\n"
             msg << "sent items are #{@manager.connection.outgoing.inspect}\n"
-            queued = @manager.processor.queue.to_a.collect do |cmd|
+
+            cmd_inspect = proc { |cmd|
                 insp = String.new " * data: #{cmd[:data].inspect} priority: #{cmd[:priority]}"
                 insp << " name: #{cmd[:name]}" if cmd[:name]
                 insp
-            end
+            }
+
+            queued = []
+            waiting = @manager.processor.queue.waiting
+            queued << cmd_inspect.call(waiting) if waiting
+            queued += @manager.processor.queue.to_a.collect(&cmd_inspect)
 
             msg << if queued.empty?
                 'send queue is empty'
@@ -151,9 +158,9 @@ class Orchestrator::Testing::MockDevice
                 "send queue contains: \n#{queued.join("\n")}"
             end
 
-            MockDevice.raise_error msg
+            self.class.raise_error msg
         end
-        puts "INFO: Module sent #{raw.inspect}"
+        puts "INFO: Found #{raw.inspect}"
 
         self
     end
@@ -163,11 +170,17 @@ class Orchestrator::Testing::MockDevice
     # NOTE:: This is currently destructive! Probably don't use unless debugging
     def print_queues
         msg = String.new "sent items are #{@manager.connection.outgoing.inspect}\n"
-        queued = @manager.processor.queue.to_a.collect do |cmd|
+        
+        cmd_inspect = proc { |cmd|
             insp = String.new " * data: #{cmd[:data].inspect} priority: #{cmd[:priority]}"
             insp << " name: #{cmd[:name]}" if cmd[:name]
             insp
-        end
+        }
+
+        queued = []
+        waiting = @manager.processor.queue.waiting
+        queued << cmd_inspect.call(waiting) if waiting
+        queued += @manager.processor.queue.to_a.collect(&cmd_inspect)
 
         msg << if queued.empty?
             'send queue is empty'
@@ -201,9 +214,24 @@ class Orchestrator::Testing::MockDevice
 
 
     # Waits one reactor cycle
-    def wait_tick
-        defer = thread.defer
+    def wait_tick(count = 1, defer = thread.defer)
         thread.next_tick do
+            count -= 1
+            if count == 0
+                defer.resolve(true)
+            else
+                wait_tick(count, defer)
+            end
+        end
+        co defer.promise
+    end
+
+    # Waits a number of milliseconds
+    def wait(ms)
+        wait_tick(2)
+
+        defer = thread.defer
+        thread.scheduler.in(ms + 10) do
             defer.resolve(true)
         end
         co defer.promise
