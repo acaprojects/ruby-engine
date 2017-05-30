@@ -58,7 +58,11 @@ module Orchestrator::Testing
                 md = MockDevice.new(role, klass, mod, reactor)
                 puts 'INFO: Mock module loaded. Starting test.'
                 md.instance_exec(&block)
-                puts 'Success! Tests completed without error.'
+                md.wait_tick
+                puts "\n------Final State------"
+                md.print_queues
+                puts "-----------------------\n\n"
+                puts 'Tests completed without error.'
             rescue => e
                 puts "ERROR: #{e.message}\n#{e.backtrace.join("\n")}"
             ensure
@@ -171,14 +175,16 @@ class Orchestrator::Testing::MockDevice
     def print_queues
         msg = String.new "sent items are #{@manager.connection.outgoing.inspect}\n"
         
+        waiting = @manager.processor.queue.waiting
+
         cmd_inspect = proc { |cmd|
             insp = String.new " * data: #{cmd[:data].inspect} priority: #{cmd[:priority]}"
             insp << " name: #{cmd[:name]}" if cmd[:name]
+            insp << " (sent, waiting response)" if cmd == waiting
             insp
         }
 
         queued = []
-        waiting = @manager.processor.queue.waiting
         queued << cmd_inspect.call(waiting) if waiting
         queued += @manager.processor.queue.to_a.collect(&cmd_inspect)
 
