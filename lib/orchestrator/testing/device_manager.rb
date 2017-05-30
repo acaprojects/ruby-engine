@@ -11,6 +11,7 @@ module Orchestrator
                     @outgoing << cmd
                 else
                     @outgoing << cmd[:data]
+                    puts "TX: #{cmd[:data].inspect}"
                 end
             end
 
@@ -106,7 +107,9 @@ module Orchestrator
                 @connection = MockConnection.new(self, @processor)
 
                 @processor.transport = @connection
-                @processor.connected
+                @thread.next_tick do
+                    @processor.connected
+                end
                 true # for REST API
             end
 
