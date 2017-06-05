@@ -99,7 +99,7 @@ module Orchestrator
 
                     if @config[:wait_ready]
                         # Don't wait forever
-                        @delay_timer = @manager.get_scheduler.in(@processor.defaults[:timeout]) do
+                        @delay_timer = @manager.thread.scheduler.in(@processor.defaults[:timeout]) do
                             @manager.logger.warn 'timeout waiting for device to be ready'
                             close_connection
                             @manager.notify_disconnected
@@ -152,7 +152,7 @@ module Orchestrator
                     @write_queue.clear
 
                     variation = 1 + rand(2000)
-                    @connecting = @manager.get_scheduler.in(3000 + variation) do
+                    @connecting = @manager.thread.scheduler.in(3000 + variation) do
                         @connecting = nil
                         reconnect
                     end
@@ -237,7 +237,7 @@ module Orchestrator
 
                 timeout = @config[:inactivity_timeout] || 0
                 if timeout > 0
-                    @activity = @manager.get_scheduler.in(timeout, @timeout)
+                    @activity = @manager.thread.scheduler.in(timeout, @timeout)
                 else # Wait for until queue complete
                     waiting = @processor.queue.waiting
                     if waiting

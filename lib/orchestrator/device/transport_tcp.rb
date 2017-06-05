@@ -72,7 +72,7 @@ module Orchestrator
 
                     if @config[:wait_ready]
                         # Don't wait forever
-                        @delay_timer = @manager.get_scheduler.in(@processor.defaults[:timeout]) do
+                        @delay_timer = @manager.thread.scheduler.in(@processor.defaults[:timeout]) do
                             @manager.logger.warn 'timeout waiting for device to be ready'
                             close_connection
                             @manager.notify_disconnected
@@ -85,39 +85,39 @@ module Orchestrator
             end
 
             def on_close
-                unless @terminated
-                    # Clear the connection delay if in use
-                    @delaying = false if @delaying
-                    @retries += 1
-                    the_time = @processor.thread.now
-                    boundry = @last_retry + @config[:thrashing_threshold]
+                return if @terminated
 
-                    # ensure we are not thrashing (rapid connect then disconnect)
-                    # This equals a disconnect and requires a warning
-                    if @retries == 1 && boundry >= the_time
-                        @retries += 1
-                        @processor.disconnected
-                        @manager.logger.warn('possible connection thrashing. Disconnecting')
+                # Clear the connection delay if in use
+                @delaying = false if @delaying
+                @retries += 1
+                the_time = @processor.thread.now
+                boundry = @last_retry + @config[:thrashing_threshold]
+
+                # ensure we are not thrashing (rapid connect then disconnect)
+                # This equals a disconnect and requires a warning
+                if @retries == 1 && boundry >= the_time
+                    @retries += 1
+                    @processor.disconnected
+                    @manager.logger.warn('possible connection thrashing. Disconnecting')
+                end
+
+                if @retries == 1
+                    @last_retry = the_time
+                    @processor.disconnected
+                    reconnect
+                else
+                    variation = 1 + rand(2000)
+                    @connecting = @manager.thread.scheduler.in(3000 + variation) do
+                        @connecting = nil
+                        reconnect
                     end
 
-                    if @retries == 1
-                        @last_retry = the_time
-                        @processor.disconnected
-                        reconnect
-                    else
-                        variation = 1 + rand(2000)
-                        @connecting = @manager.get_scheduler.in(3000 + variation) do
-                            @connecting = nil
-                            reconnect
-                        end
+                    if @retries == 2
+                        # NOTE:: edge case if disconnected on first connect
+                        @processor.disconnected if @last_retry == 0
 
-                        if @retries == 2
-                            # NOTE:: edge case if disconnected on first connect
-                            @processor.disconnected if @last_retry == 0
-
-                            # we mark the queue as offline if more than 1 reconnect fails
-                            @processor.queue.offline(@config[:clear_queue_on_disconnect])
-                        end
+                        # we mark the queue as offline if more than 1 reconnect fails
+                        @processor.queue.offline(@config[:clear_queue_on_disconnect])
                     end
                 end
             end

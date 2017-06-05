@@ -26,7 +26,7 @@ module Orchestrator
                     end
                 else
                     variation = 1 + rand(60000 * 5)  # 5min
-                    @checker = @manager.get_scheduler.in(60000 * 5 + variation) do
+                    @checker = @manager.thread.scheduler.in(60000 * 5 + variation) do
                         find_ip(@ip)
                     end
                     find_ip(@ip)
@@ -80,7 +80,7 @@ module Orchestrator
                     update_ip(result[0][0])
                 }, proc { |failure|
                     variation = 1 + rand(8000)
-                    @searching = @manager.get_scheduler.in(8000 + variation) do
+                    @searching = @manager.thread.scheduler.in(8000 + variation) do
                         @searching = nil
                         find_ip(hostname)
                     end
