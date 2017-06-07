@@ -64,6 +64,16 @@ module Orchestrator
                     []
                 end
             end
+
+            def set_connected_state(value)
+                if value
+                    @__config__.notify_connected
+                    self[:connected] = true
+                else
+                    @__config__.notify_disconnected
+                    self[:connected] = false
+                end
+            end
         end
     end
 end
