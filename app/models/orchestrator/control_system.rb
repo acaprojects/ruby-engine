@@ -196,11 +196,13 @@ module Orchestrator
 
             ctrl = ::Orchestrator::Control.instance
             if ctrl.ready
-                system = System.get(self.id)
-                if system
-                    mods = system.modules
-                    mods.delete(:__Triggers__)
-                    self.features = mods.join ' '
+                if self.id
+                    system = System.get(self.id)
+                    if system
+                        mods = system.modules
+                        mods.delete(:__Triggers__)
+                        self.features = mods.join ' '
+                    end
                 end
 
                 if self.settings[:extra_features].present?
