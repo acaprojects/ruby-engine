@@ -73,7 +73,7 @@ module Orchestrator
 
 
         # Expire both the zone cache and any systems that use the zone
-        before_save :set_id
+        before_create :set_id
         def set_id
             self.id = "disc-#{self.class_name}"
         end
