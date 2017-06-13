@@ -20,6 +20,7 @@ module Orchestrator
         attribute :file_exists, type: Boolean, default: true
 
 
+        # NOTE:: Assumes it is run from a rake task (FileList defined by Rake GEM)
         def self.scan_for_modules
             time = Time.now.to_i
             count = 0
@@ -28,7 +29,7 @@ module Orchestrator
             # Check if they still exist
 
             Rails.application.config.orchestrator.module_paths.each do |path|
-                Dir.glob("#{path}/**/*[!_spec].rb") do |file|
+                FileList["#{path}/**/*.rb"].reject {|mod| mod.end_with?('_spec.rb') }.each do |file|
                     begin
                         load file
 
