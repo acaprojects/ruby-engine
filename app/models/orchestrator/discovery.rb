@@ -56,8 +56,8 @@ module Orchestrator
                             disc.save!
                         end
                     rescue Exception => e
-                        puts e.message
-                        puts e.backtrace.join("\n") if e.backtrace
+                        ::STDOUT.puts e.message
+                        ::STDOUT.puts e.backtrace.select { |line| line.include?(path) }.join("\n") if e.backtrace
                     end
                 end
             end
@@ -75,6 +75,7 @@ module Orchestrator
         # Expire both the zone cache and any systems that use the zone
         before_create :set_id
         def set_id
+            ::STDOUT.puts "* Discovered #{self.class_name} #{self.name}"
             self.id = "disc-#{self.class_name}"
         end
     end
