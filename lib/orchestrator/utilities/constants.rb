@@ -113,7 +113,22 @@ module Orchestrator
                 @before_transmit = nil if @before_transmit
             end
 
-            def tokenize(opts)
+            # Apply config to child classes
+            def inherited(other)
+                request = @request
+                config = @config
+                tokenize = @tokenize
+                before_transmit = @before_transmit
+
+                other.class_eval do
+                    @request = request.deep_dup if request
+                    @config = config.deep_dup if config
+                    @tokenize = tokenize.deep_dup if tokenize
+                    @before_transmit = before_transmit.dup if before_transmit
+                end
+            end
+
+            def tokenize(**opts)
                 if opts[:delimiter].nil?
                     if opts[:msg_length].nil? && opts[:callback].nil?
                         raise ArgumentError, 'no delimiter provided'
