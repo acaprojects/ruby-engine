@@ -81,10 +81,19 @@ module Orchestrator
 
         # Reload all modules to update their settings
         def update_modules
-            modules.each do |mod|
-                manager = ::Orchestrator::Control.instance.loaded? mod.id
+            ctrl = ::Orchestrator::Control.instance
+            return unless ctrl.ready
+
+            dep = self
+            mod_found = false
+
+            modules.stream do |mod|
+                mod_found = true
+                mod.dependency = dep # Otherwise this will hit the database again
+                manager = ctrl.loaded? mod.id
                 manager.reloaded(mod) if manager
             end
+            ctrl.clear_cache if mod_found
         end
     end
 end

@@ -195,19 +195,19 @@ module Orchestrator
             return unless self.bookable
 
             ctrl = ::Orchestrator::Control.instance
-            if ctrl.ready
-                if self.id
-                    system = System.get(self.id)
-                    if system
-                        mods = system.modules
-                        mods.delete(:__Triggers__)
-                        self.features = mods.join ' '
-                    end
-                end
+            return unless ctrl.ready
 
-                if self.settings[:extra_features].present?
-                    self.features = "#{self.features} #{self.settings[:extra_features]}"
+            if self.id
+                system = System.get(self.id)
+                if system
+                    mods = system.modules
+                    mods.delete(:__Triggers__)
+                    self.features = mods.join ' '
                 end
+            end
+
+            if self.settings[:extra_features].present?
+                self.features = "#{self.features} #{self.settings[:extra_features]}"
             end
         end
 

@@ -320,6 +320,21 @@ module Orchestrator
             reactor.finally(*loaded)
         end
 
+        def clear_cache(remote = true)
+            loaded = []
+
+            if remote
+                nodes.values.each do |node|
+                    promise = node.proxy&.clear_cache
+                    loaded << promise if promise
+                end
+            end
+
+            System.clear_cache
+
+            reactor.finally(*loaded)
+        end
+
         def log_unhandled_exception(error, context, trace = nil)
             @logger.print_error error, context
             ::Libuv::Q.reject(@reactor, error)

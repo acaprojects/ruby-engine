@@ -125,6 +125,13 @@ module Orchestrator
                 send_with_id(msg)
             end
 
+            def clear_cache
+                msg = {
+                    type: :clear
+                }
+                send_with_id(msg)
+            end
+
 
             # -------------------------------------
             # Processing data from the remote node:
@@ -153,6 +160,9 @@ module Orchestrator
                     end
                 when :expire
                     @ctrl.expire_cache msg[:sys], false, no_update: msg[:no_update]
+                    send_resolution msg[:id], true
+                when :clear
+                    ::Orchestrator::System.clear_cache
                     send_resolution msg[:id], true
                 end
             end
