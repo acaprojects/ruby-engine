@@ -6,17 +6,55 @@ module Orchestrator
     module Testing
         class MockConnection
             def transmit(cmd)
-                # Differenciate between service modules and device modules
-                if cmd[:method] && cmd[:path]
-                    @outgoing << cmd
-                else
-                    @outgoing << cmd[:data]
-                    puts "TX: #{cmd[:data].inspect}"
+                data = cmd[:data]
+
+                if @config[:before_transmit]
+                    begin
+                        data = @config[:before_transmit].call(data, cmd)
+                    rescue => err
+                        @manager.logger.print_error(err, 'error in before_transmit callback')
+
+                        if @processor.queue.waiting == cmd
+                            # Fail fast
+                            @processor.thread.next_tick do
+                                @processor.__send__(:resp_failure, err)
+                            end
+                        else
+                            cmd[:defer].reject(err)
+                        end
+
+                        # Don't try and send anything
+                        return
+                    end
                 end
+
+                @outgoing << cmd[:data]
+                puts "TX: #{cmd[:data].inspect}"
             end
 
             def receive(data)
-                @processor.buffer(data)
+                if @config[:before_buffering]
+                    begin
+                        data = @config[:before_buffering].call(data)
+                    rescue => err
+                        # We'll continue buffering and provide feedback as to the error
+                        @manager.logger.print_error(err, 'error in before_buffering callback')
+                    end
+                end
+
+                if @delaying
+                    @delaying << data
+                    result = @delaying.split(@config[:wait_ready], 2)
+                    if result.length > 1
+                        @delaying = false
+                        @delay_timer.cancel
+                        @delay_timer = nil
+                        rem = result[-1]
+                        @processor.buffer(rem) unless rem.empty?
+                    end
+                else
+                    @processor.buffer(data)
+                end
             end
 
             def check_outgoing(contains)
@@ -40,6 +78,15 @@ module Orchestrator
                 @manager = manager
                 @processor = processor
                 @config = @processor.config
+
+                if @config[:wait_ready]
+                    # Don't wait forever
+                    @delay_timer = @manager.thread.scheduler.in(@processor.defaults[:timeout]) do
+                        @manager.logger.warn 'timeout waiting for device to be ready'
+                        @manager.notify_disconnected
+                    end
+                    @delaying = String.new
+                end
             end
 
             attr_reader :delaying, :outgoing, :incomming

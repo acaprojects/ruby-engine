@@ -57,6 +57,7 @@ module Orchestrator::Testing
             begin
                 md = MockDevice.new(role, klass, mod, reactor)
                 puts 'INFO: Mock module loaded. Starting test.'
+                md.wait_tick
                 md.instance_exec(&block)
                 md.wait_tick
                 puts "\n------Final State------"
@@ -84,8 +85,8 @@ class Orchestrator::Testing::MockDevice
         @manager = Orchestrator::Testing::DeviceManager.new(thread, klass, settings)
         @manager.logger.level = :debug
         @manager.logger.use_blocking_writes = true
-        @manager.start_local
         @thread = thread
+        @manager.start_local
     end
 
     attr_reader :thread, :manager, :role
