@@ -39,6 +39,7 @@ describe "SNMP protocol helper" do
                 @mod.receive(data)
             end
             result = @client.get(oid: "1.3.6.1.2.1.1.1.0")
+            reactor.stop
         }
 
         expect(result).to eq('Device description')
