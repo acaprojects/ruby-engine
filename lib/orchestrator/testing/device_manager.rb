@@ -46,10 +46,10 @@ module Orchestrator
                     @delaying << data
                     result = @delaying.split(@config[:wait_ready], 2)
                     if result.length > 1
-                        @delaying = false
-                        @delay_timer.cancel
-                        @delay_timer = nil
+                        @delaying = nil
                         rem = result[-1]
+
+                        @processor.connected
                         @processor.buffer(rem) unless rem.empty?
                     end
                 else
@@ -80,12 +80,11 @@ module Orchestrator
                 @config = @processor.config
 
                 if @config[:wait_ready]
-                    # Don't wait forever
-                    @delay_timer = @manager.thread.scheduler.in(@processor.defaults[:timeout]) do
-                        @manager.logger.warn 'timeout waiting for device to be ready'
-                        @manager.notify_disconnected
-                    end
                     @delaying = String.new
+                else
+                    @processor.thread.next_tick do
+                        @processor.connected
+                    end
                 end
             end
 
@@ -154,9 +153,6 @@ module Orchestrator
                 @connection = MockConnection.new(self, @processor)
 
                 @processor.transport = @connection
-                @thread.next_tick do
-                    @processor.connected
-                end
                 true # for REST API
             end
 

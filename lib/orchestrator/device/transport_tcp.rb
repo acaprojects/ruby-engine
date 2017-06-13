@@ -61,34 +61,30 @@ module Orchestrator
             end
 
             def on_connect(transport)
-                if @terminated
-                    close_connection(:after_writing)
-                else
-                    begin
-                        use_tls(@config) if @tls
-                    rescue => e
-                        @manager.logger.print_error(e, 'error starting tls')
-                    end
+                return close_connection(:after_writing) if @terminated
 
-                    if @config[:wait_ready]
-                        # Don't wait forever
-                        @delay_timer = @manager.thread.scheduler.in(@processor.defaults[:timeout]) do
-                            @manager.logger.warn 'timeout waiting for device to be ready'
-                            close_connection
-                            @manager.notify_disconnected
-                        end
-                        @delaying = String.new
-                    else
-                        init_connection
-                    end
+                begin
+                    use_tls(@config) if @tls
+                rescue => e
+                    @manager.logger.print_error(e, 'error starting tls')
                 end
+
+                return init_connection unless @config[:wait_ready]
+
+                # Don't wait forever
+                @delay_timer = @manager.thread.scheduler.in(@processor.defaults[:timeout]) do
+                    @manager.logger.warn 'timeout waiting for device to be ready'
+                    close_connection
+                    @manager.notify_disconnected
+                end
+                @delaying = String.new
             end
 
             def on_close
                 return if @terminated
 
                 # Clear the connection delay if in use
-                @delaying = false if @delaying
+                @delaying = nil if @delaying
                 @retries += 1
                 the_time = @processor.thread.now
                 boundry = @last_retry + @config[:thrashing_threshold]
@@ -132,23 +128,22 @@ module Orchestrator
                     end
                 end
 
-                if @delaying
-                    # Update last retry so we don't trigger multiple
-                    # calls to disconnected as connection is working
-                    @last_retry += 1
+                return @processor.buffer(data) unless @delaying
 
-                    @delaying << data
-                    result = @delaying.split(@config[:wait_ready], 2)
-                    if result.length > 1
-                        @delaying = false
-                        @delay_timer.cancel
-                        @delay_timer = nil
-                        rem = result[-1]
-                        @processor.buffer(rem) unless rem.empty?
-                        init_connection
-                    end
-                else
-                    @processor.buffer(data)
+                # Update last retry so we don't trigger multiple
+                # calls to disconnected as connection is working
+                @last_retry += 1
+
+                @delaying << data
+                result = @delaying.split(@config[:wait_ready], 2)
+                if result.length > 1
+                    @delaying = nil
+                    @delay_timer.cancel
+                    @delay_timer = nil
+                    rem = result[-1]
+
+                    init_connection # This clears the buffer
+                    @processor.buffer(rem) unless rem.empty?
                 end
             end
 

@@ -85,34 +85,29 @@ module Orchestrator
                 end
 
                 @manager.logger.debug 'makebreak connection made'
+                return terminate if @terminated
 
-                if @terminated
-                    terminate
-                else
-                    if @tls
-                        begin
-                            use_tls(@config)
-                        rescue => e
-                            @manager.logger.print_error(e, 'error starting tls')
-                        end
-                    end
-
-                    if @config[:wait_ready]
-                        # Don't wait forever
-                        @delay_timer = @manager.thread.scheduler.in(@processor.defaults[:timeout]) do
-                            @manager.logger.warn 'timeout waiting for device to be ready'
-                            close_connection
-                            @manager.notify_disconnected
-                        end
-                        @delaying = String.new
-                    else
-                        init_connection
+                if @tls
+                    begin
+                        use_tls(@config)
+                    rescue => e
+                        @manager.logger.print_error(e, 'error starting tls')
                     end
                 end
+
+                return init_connection unless @config[:wait_ready]
+
+                # Don't wait forever
+                @delay_timer = @manager.thread.scheduler.in(@processor.defaults[:timeout]) do
+                    @manager.logger.warn 'timeout waiting for device to be ready'
+                    close_connection
+                    @manager.notify_disconnected
+                end
+                @delaying = String.new
             end
 
             def on_close
-                @delaying = false
+                @delaying = nil
                 @connected = false
                 @disconnecting = false
 
@@ -175,20 +170,19 @@ module Orchestrator
                         @manager.logger.print_error(err, 'error in before_buffering callback')
                     end
                 end
+
+                return @processor.buffer(data) unless @delaying
                 
-                if @delaying
-                    @delaying << data
-                    result = @delaying.split(@config[:wait_ready], 2)
-                    if result.length > 1
-                        @delaying = false
-                        @delay_timer.cancel
-                        @delay_timer = nil
-                        rem = result[-1]
-                        @processor.buffer(rem) unless rem.empty?
-                        init_connection
-                    end
-                else
-                    @processor.buffer(data)
+                @delaying << data
+                result = @delaying.split(@config[:wait_ready], 2)
+                if result.length > 1
+                    @delaying = nil
+                    @delay_timer.cancel
+                    @delay_timer = nil
+                    rem = result[-1]
+                    
+                    init_connection
+                    @processor.buffer(rem) unless rem.empty?
                 end
             end
 
