@@ -28,7 +28,7 @@ module Orchestrator
             # Check if they still exist
 
             Rails.application.config.orchestrator.module_paths.each do |path|
-                Dir.glob("#{path}/**/*.rb") do |file|
+                Dir.glob("#{path}/**/*[!_spec].rb") do |file|
                     begin
                         load file
 
