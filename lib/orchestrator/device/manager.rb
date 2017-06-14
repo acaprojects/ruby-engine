@@ -71,7 +71,7 @@ module Orchestrator
                     end
                 end
 
-                update_connected_status(true)
+                @thread.next_tick { update_connected_status(true) }
             end
 
             def notify_disconnected
@@ -83,7 +83,7 @@ module Orchestrator
                     end
                 end
 
-                update_connected_status(false)
+                @thread.next_tick { update_connected_status(false) }
             end
 
             def notify_received(data, resolve, command = nil)
