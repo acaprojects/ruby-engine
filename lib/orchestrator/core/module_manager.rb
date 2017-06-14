@@ -292,51 +292,47 @@ module Orchestrator
                 id = settings.id
 
                 model = ::Orchestrator::Module.find_by_id id
-                if model && model.connected != connected
-                    tries = 0
-                    begin
-                        model.connected = connected
-                        model.updated_at = Time.now.to_i
-                        model.save!(with_cas: true)
-                        @settings = model
-                    rescue => e
-                        tries += 1
-                        if tries < 5
-                            model = ::Orchestrator::Module.find_by_id id
-                            retry
-                        end
-                        
-                        # report any errors updating the model
-                        @logger.print_error(e, 'error updating connected state in database model')
+                return unless model && model.connected != connected
 
-                        nil
+                tries = 0
+                begin
+                    model.connected = connected
+                    model.updated_at = Time.now.to_i
+                    model.save!(with_cas: true)
+                    @settings = model
+                rescue => e
+                    tries += 1
+                    if tries < 5
+                        model = ::Orchestrator::Module.find_by_id id
+                        retry
                     end
-                else
+                    
+                    # report any errors updating the model
+                    @logger.print_error(e, 'error updating connected state in database model')
+
                     nil
                 end
             end
 
             def update_running_status(running)
                 model = ::Orchestrator::Module.find_by_id settings.id
-                if model && model.running != running
-                    tries = 0
-                    begin
-                        model.running = running
-                        model.connected = false if !running
-                        model.updated_at = Time.now.to_i
-                        model.save!(with_cas: true)
-                        @settings = model
-                    rescue => e
-                        tries += 1
-                        if tries < 5
-                            model = ::Orchestrator::Module.find_by_id settings.id
-                            retry
-                        end
-                        # report any errors updating the model
-                        @logger.print_error(e, 'error updating running state in database model')
-                        nil
+                return nil unless model && model.running != running
+
+                tries = 0
+                begin
+                    model.running = running
+                    model.connected = false if !running
+                    model.updated_at = Time.now.to_i
+                    model.save!(with_cas: true)
+                    @settings = model
+                rescue => e
+                    tries += 1
+                    if tries < 5
+                        model = ::Orchestrator::Module.find_by_id settings.id
+                        retry
                     end
-                else
+                    # report any errors updating the model
+                    @logger.print_error(e, 'error updating running state in database model')
                     nil
                 end
             end
