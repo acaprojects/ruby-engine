@@ -254,6 +254,9 @@ module Orchestrator
 
             def init_connection(wait_ready = false)
                 if wait_ready
+                    # Process the input buffer before transmit, primarily
+                    # in case the data is relevant to the before_transmit
+                    # callback.
                     @processor.thread.next_tick { process_write_queue }
                 else
                     process_write_queue
