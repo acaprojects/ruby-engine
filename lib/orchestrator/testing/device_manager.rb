@@ -28,8 +28,8 @@ module Orchestrator
                     end
                 end
 
-                @outgoing << cmd[:data]
-                puts "TX: #{cmd[:data].inspect}"
+                @outgoing << data
+                puts "TX: #{data.inspect}"
             end
 
             def receive(data)
