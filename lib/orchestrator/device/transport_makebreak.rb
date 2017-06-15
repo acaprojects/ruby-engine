@@ -52,6 +52,8 @@ module Orchestrator
                         end
                     end
 
+                    # Inception
+                    process_write_queue unless @write_queue.empty?
                     promise = write(data)
                     reset_timeout
                     if cmd[:wait]
@@ -181,7 +183,7 @@ module Orchestrator
                     @delay_timer = nil
                     rem = result[-1]
                     
-                    init_connection
+                    init_connection(true)
                     @processor.buffer(rem) unless rem.empty?
                 end
             end
@@ -250,12 +252,11 @@ module Orchestrator
                 super
             end
 
-            def init_connection
-                # Write pending directly
-                queue = @write_queue
-                @write_queue = []
-                while queue.length > 0
-                    transmit(queue.shift)
+            def init_connection(wait_ready = false)
+                if wait_ready
+                    @processor.thread.next_tick { process_write_queue }
+                else
+                    process_write_queue
                 end
 
                 # Notify module
@@ -265,6 +266,15 @@ module Orchestrator
 
                 # Start inactivity timeout
                 reset_timeout
+            end
+
+            def process_write_queue
+                # Write pending directly
+                queue = @write_queue
+                @write_queue = []
+                while queue.length > 0
+                    transmit(queue.shift)
+                end
             end
         end
     end
