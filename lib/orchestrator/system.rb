@@ -88,7 +88,7 @@ module Orchestrator
 
         def count(name)
             mod = @modules[name.to_sym]
-            mod.nil? ? 0 : mod.length
+            mod&.length || 0
         end
 
         def modules
@@ -114,23 +114,20 @@ module Orchestrator
             wait = nil
             loading = @@loading[id]
 
-            if loading
-                return co(loading)
-            else
-                @@critical.synchronize {
-                    loading = @@loading[id]
-                    if loading.nil?
-                        wait = reactor.defer
-                        @@loading[id] = wait.promise
-                    end
-                }
-                return co(loading) if loading
-            end
+            return co(loading) if loading
+            @@critical.synchronize {
+                loading = @@loading[id]
+                if loading.nil?
+                    wait = reactor.defer
+                    @@loading[id] = wait.promise
+                end
+            }
+            return co(loading) if loading
 
             begin
                 system = @@systems[id]
                 return system if system
-                
+
                 sys = ControlSystem.find_by_id(id.to_s)
                 if sys.nil?
                     @@loading.delete id
@@ -190,10 +187,10 @@ module Orchestrator
             end
 
             if manager
-                mod_name = if manager.settings.custom_name.nil?
-                    manager.settings.dependency.module_name.to_sym
-                else
+                mod_name = if manager.settings.custom_name.present?
                     manager.settings.custom_name.to_sym
+                else
+                    manager.settings.dependency.module_name.to_sym
                 end
                 @modules[mod_name] ||= []
                 @modules[mod_name] << manager
