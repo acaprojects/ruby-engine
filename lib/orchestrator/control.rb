@@ -120,7 +120,7 @@ module Orchestrator
         # The database etc
         # This function is thread safe
         def load_zone(zone_id)
-            zone = @zones[zone.id]
+            zone = @zones[zone_id]
             return zone if zone
 
             tries = 0
