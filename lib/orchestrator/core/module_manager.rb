@@ -152,7 +152,7 @@ module Orchestrator
             end
 
             def get_scheduler
-                @scheduler ||= ::Orchestrator::Core::ScheduleProxy.new(@thread)
+                @scheduler ||= ::Orchestrator::Core::ScheduleProxy.new(@thread, self)
             end
 
             # @return [::Orchestrator::Core::SystemProxy]
