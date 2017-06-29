@@ -31,6 +31,8 @@ namespace :migrate do
             edges[0]
         else
             tmp = ::Orchestrator::EdgeControl.new
+            id = ENV['ENGINE_NODE_ID']
+            tmp.id = id if id
             tmp.name ||= 'Master Node'
             tmp.host_origin ||= 'http://127.0.0.1'
             tmp.save!
@@ -68,6 +70,6 @@ namespace :migrate do
             end
         end
 
-        puts "\nENGINE_NODE_ID=\n#{edge.id}"
+        puts "\nENGINE_NODE_ID=\n#{ENV['ENGINE_NODE_ID'] || edge.id}"
     end
 end
