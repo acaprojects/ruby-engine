@@ -67,6 +67,7 @@ namespace :migrate do
                 puts e.backtrace.join("\n")
             end
         end
-    end
 
+        puts "\nENGINE_NODE_ID=\n#{edge.id}"
+    end
 end
