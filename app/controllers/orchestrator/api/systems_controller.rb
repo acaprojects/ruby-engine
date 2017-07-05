@@ -153,7 +153,7 @@ module Orchestrator
                 reactor = ::Libuv.reactor
 
                 defer = reactor.defer
-                sys  = ::Orchestrator::Core::SystemProxy.new(reactor, id)
+                sys  = ::Orchestrator::Core::SystemProxy.new(reactor, id, nil, current_user)
                 mod = sys.get(para[:module], para[:index] || 1)
 
                 result = mod.method_missing(para[:method], *para[:args])
