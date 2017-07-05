@@ -406,7 +406,7 @@ module Orchestrator
                     @ws.text(::JSON.generate(resp))
                 else
                     # Set sys to get errors occurring outside of the modules
-                    @logger.add @debug if @inspecting.empty?
+                    @logger.register @debug if @inspecting.empty?
                     @inspecting.add mod
 
                     mod_man = ::Orchestrator::Control.instance.loaded?(mod)

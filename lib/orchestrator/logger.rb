@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'set'
+require 'logger'
 
 # Update the regular logger
 class ::Logger
@@ -16,18 +17,19 @@ end
 module Orchestrator
     class Logger
         LEVEL = {
-            debug: 0,
-            info: 1,
-            warn: 2,
-            error: 3,
-            fatal: 4
+            debug: ::Logger::DEBUG,
+            info: ::Logger::INFO,
+            warn: ::Logger::WARN,
+            error: ::Logger::ERROR,
+            fatal: ::Logger::FATAL
         }.freeze
+        LEVEL_NAME = LEVEL.invert
 
-        DEFAULT_LEVEL = 1
+        DEFAULT_LEVEL = ::Logger::INFO
 
         def initialize(reactor, mod)
             @reactor = reactor
-            @mod_id = mod.id
+            @progname = mod.id
             if mod.respond_to? :dependency
                 @klass = mod.dependency.class_name
             elsif mod.respond_to? :control_system_id
@@ -39,19 +41,25 @@ module Orchestrator
             @listeners = Set.new
             @logger = ::Orchestrator::Control.instance.logger
 
+            # This is used for module development (see orchestrator:testing)
             @use_blocking_writes = false
         end
 
         attr_accessor :use_blocking_writes
 
-
         def level=(level)
             @level = LEVEL[level] || level
         end
         attr_reader :level
+        alias_method :sev_threshold, :level
+        alias_method :sev_threshold=, :level=
 
-        # Add listener
-        def add(listener)
+        def level_name(level)
+            LEVEL_NAME[level] || :unknown
+        end
+
+        # Add a listener
+        def register(listener)
             if listener.nil?
                 @logger.error "attempting to add null listener\n#{caller.join("\n")}"
                 return
@@ -62,7 +70,7 @@ module Orchestrator
                 @listeners << listener
             end
 
-            @level = 0
+            @level = ::Logger::DEBUG
         end
 
         def remove(listener)
@@ -75,40 +83,67 @@ module Orchestrator
             @level = DEFAULT_LEVEL if @listeners.empty?
         end
 
+        def add(severity, message = nil, progname = nil)
+            severity ||= ::Logger::UNKNOWN
+            return true if severity < @level
+            progname ||= @progname
+            if message.nil?
+                if block_given?
+                    message = yield
+                else
+                    message = progname
+                    progname = @progname
+                end
+            end
+            log(severity, message, progname)
+        end
+
+        def <<(message)
+            info(message)
+        end
        
-        def debug(msg = nil)
-            if @level <= 0
-                msg = yield if msg.nil? && block_given?
-                log(:debug, msg)
-            end
+        def debug(progname = nil, &block)
+            add(::Logger::DEBUG, nil, progname, &block)
         end
 
-        def info(msg = nil)
-            if @level <= 1
-                msg = yield if msg.nil? && block_given?
-                log(:info, msg)
-            end
+        def debug?
+            @level <= ::Logger::DEBUG
         end
 
-        def warn(msg = nil)
-            if @level <= 2
-                msg = yield if msg.nil? && block_given?
-                log(:warn, msg)
-            end
+        def info(progname = nil, &block)
+            add(::Logger::INFO, nil, progname, &block)
         end
 
-        def error(msg = nil)
-            if @level <= 3
-                msg = yield if msg.nil? && block_given?
-                log(:error, msg)
-            end
+        def info?
+            @level <= ::Logger::INFO
         end
 
-        def fatal(msg = nil)
-            if @level <= 4
-                msg = yield if msg.nil? && block_given?
-                log(:fatal, msg)
-            end
+        def warn(progname = nil, &block)
+            add(::Logger::WARN, nil, progname, &block)
+        end
+
+        def warn?
+            @level <= ::Logger::WARN
+        end
+
+        def error(progname = nil, &block)
+            add(::Logger::ERROR, nil, progname, &block)
+        end
+
+        def error?
+            @level <= ::Logger::ERROR
+        end
+
+        def fatal(progname = nil, &block)
+            add(::Logger::FATAL, nil, progname, &block)
+        end
+
+        def fatal?
+            @level <= ::Logger::FATAL
+        end
+
+        def unknown(progname = nil, &block)
+            add(::Logger::UNKNOWN, nil, progname, &block)
         end
 
         def print_error(e, msg = nil, trace = nil)
@@ -119,38 +154,62 @@ module Orchestrator
             error(message)
         end
 
+        def close
+            warn '`closed` called on logger. no-op'
+        end
+
+        def progname=(_)
+            warn '`progname=` called on logger. no-op'
+        end
+
+        attr_reader :progname
+
+        def datetime_format
+            @logger.datetime_format
+        end
+
+        def datetime_format=(datetime_format)
+            @logger.datetime_format = datetime_format
+        end
+
 
         protected
 
 
-        def log(level, msg)
-            @reactor.schedule do
-                tags = [@klass, @mod_id]
+        def log(level, msg, progname)
+            return print_error(msg) if msg.is_a?(::Exception)
+            msg = msg.inspect unless msg.is_a?(::String)
 
-                mod = ::Orchestrator::Control.instance.loaded?(@mod_id)
+            @reactor.schedule do
+                tags = [@klass]
+
+                mod = ::Orchestrator::Control.instance.loaded?(@progname)
                 tags << mod.current_user.id if mod && mod.current_user
 
                 # Writing to STDOUT is blocking hence doing this in a worker thread
                 # http://nodejs.org/dist/v0.10.26/docs/api/process.html#process_process_stdout
                 if @use_blocking_writes
                     @logger.tagged(*tags) {
-                        @logger.send(level, msg)
+                        @logger.add(level, msg, progname)
                     }
                 elsif level != :debug
                     # We never write debug logs to the main log
                     @reactor.work do
                         @logger.tagged(*tags) {
-                            @logger.send(level, msg)
+                            @logger.add(level, msg, progname)
                         }
                     end
                 end
 
                 # Listeners are any attached remote debuggers
-                @listeners.each do |listener|
-                    begin
-                        listener.call(@klass, @mod_id, level, msg)
-                    rescue Exception => e
-                        @logger.error "logging to remote #{listener}\n#{e.message}\n#{e.backtrace.join("\n")}"
+                if @listeners.size > 0
+                    lname = level_name(level)
+                    @listeners.each do |listener|
+                        begin
+                            listener.call(@klass, @progname, lname, msg)
+                        rescue Exception => e
+                            @logger.error "logging to remote #{listener}\n#{e.message}\n#{e.backtrace.join("\n")}"
+                        end
                     end
                 end
             end

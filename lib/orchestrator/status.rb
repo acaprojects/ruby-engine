@@ -111,7 +111,7 @@ module Orchestrator
 
             # Add to logger
             manager = @controller.loaded?(lookup)
-            manager.logger.add(callback) if manager
+            manager.logger.register(callback) if manager
 
             callback
         end
@@ -158,7 +158,7 @@ module Orchestrator
             end
 
             manager = @controller.loaded?(mod_id)
-            manager.logger.add(callbacks) if manager
+            manager.logger.register(callbacks) if manager
         end
 
         # Used to maintain subscriptions where module is moved to another thread

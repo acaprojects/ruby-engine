@@ -49,7 +49,7 @@ class MockLogger
 
     attr_reader :listeners
 
-    def add(listener)
+    def register(listener)
         if listener.is_a? Enumerable
             @listeners.merge(listener)
         else
