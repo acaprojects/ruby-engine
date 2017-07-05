@@ -169,7 +169,7 @@ module Orchestrator
         end
 
         def datetime_format=(datetime_format)
-            @logger.datetime_format = datetime_format
+            warn '`datetime_format=` called on logger. no-op'
         end
 
 
@@ -180,12 +180,11 @@ module Orchestrator
             return print_error(msg) if msg.is_a?(::Exception)
             msg = msg.inspect unless msg.is_a?(::String)
 
+            tags = [@klass, progname]
+            user = ::Orchestrator::Control.instance.loaded?(@progname)&.current_user&.id
+            msg = "(#{user}) #{msg}" if user
+
             @reactor.schedule do
-                tags = [@klass]
-
-                mod = ::Orchestrator::Control.instance.loaded?(@progname)
-                tags << mod.current_user.id if mod && mod.current_user
-
                 # Writing to STDOUT is blocking hence doing this in a worker thread
                 # http://nodejs.org/dist/v0.10.26/docs/api/process.html#process_process_stdout
                 if @use_blocking_writes
