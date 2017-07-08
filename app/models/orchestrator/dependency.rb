@@ -11,7 +11,7 @@ module Orchestrator
         before_destroy :cleanup_modules
 
 
-        ROLES = Set.new([:device, :service, :logic])
+        ROLES = Set.new([:ssh, :device, :service, :logic])
 
 
         attribute :name,        type: String

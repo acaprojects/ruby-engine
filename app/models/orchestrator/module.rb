@@ -85,6 +85,22 @@ module Orchestrator
         def configuration
             return unless dependency
             case dependency.role
+            when :ssh
+                self.role = 0
+                self.port = (self.port || dependency.default || 22).to_i
+
+                errors.add(:ip, 'cannot be blank') if self.ip.blank?
+                errors.add(:port, 'is invalid') unless self.port.between?(1, 65535)
+
+                self.tls = true # display the padlock icon in backoffice
+                self.udp = nil
+
+                begin
+                    url = Addressable::URI.parse("http://#{self.ip}:#{self.port}/")
+                    url.scheme && url.host
+                rescue
+                    errors.add(:ip, 'address / hostname or port are not valid')
+                end
             when :device
                 self.role = 1
                 self.port = (self.port || dependency.default).to_i
@@ -103,20 +119,19 @@ module Orchestrator
 
                 begin
                     url = Addressable::URI.parse("http://#{self.ip}:#{self.port}/")
-                    url.scheme && url.host && url
+                    url.scheme && url.host
                 rescue
                     errors.add(:ip, 'address / hostname or port are not valid')
                 end
             when :service
                 self.role = 2
-
-                self.tls = nil
                 self.udp = nil
 
                 begin
                     self.uri ||= dependency.default
                     url = Addressable::URI.parse(self.uri)
-                    url.scheme && url.host && url
+                    url.host # ensure this can be parsed
+                    self.tls = url.scheme == 'https' # secure indication
                 rescue
                     errors.add(:uri, 'is an invalid URI')
                 end

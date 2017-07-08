@@ -24,6 +24,7 @@ Gem::Specification.new do |s|
     s.add_dependency 'uv-rays', '~> 2.0'    # Evented networking library
     s.add_dependency 'addressable',  '~> 2.4'     # IP address utilities
     s.add_dependency 'algorithms',   '~> 0.6'     # Priority queue
+    s.add_dependency 'evented-ssh',  '~> 0'       # SSH protocol support
     s.add_dependency 'couchbase-orm','~> 0'       # Database adaptor
     s.add_dependency 'doorkeeper-couchbase', '~> 1.0'
     s.add_dependency 'co-elastic-query', '~> 3.0' # Query builder
