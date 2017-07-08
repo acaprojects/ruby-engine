@@ -10,6 +10,9 @@ module Orchestrator
 
             attr_reader :processor, :connection
 
+            # Direct access required for child classes
+            alias :core_start_local :start_local
+
             def start_local(online = @settings.running)
                 return false if not online
                 return true if @processor

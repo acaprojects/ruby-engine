@@ -3,7 +3,11 @@
 module Orchestrator
     module Service
         module Mixin
-            include ::Orchestrator::Core::Mixin
+            include ::Orchestrator::Device::Mixin
+
+            undef send
+            undef disconnect
+            undef enable_multicast_loop
 
             def request(method, path, options = {}, &blk)
                 defer = @__config__.thread.defer
@@ -34,20 +38,13 @@ module Orchestrator
                 request(:delete, path, options, &blk)
             end
 
-            def config(options)
-                @__config__.thread.schedule do
-                    @__config__.processor.config = options
-                end
-            end
-
-            def defaults(options)
-                @__config__.thread.schedule do
-                    @__config__.processor.send_options(options)
-                end
-            end
-
             def remote_address
                 @__config__.settings.uri
+            end
+
+            def remote_port
+                addr = ::Addressable::URI.parse(remote_address)
+                addr.port || (addr.scheme == 'http' ? 80 : 443)
             end
 
             def clear_cookies
@@ -62,16 +59,6 @@ module Orchestrator
                     @__config__.connection.server.middleware
                 rescue
                     []
-                end
-            end
-
-            def set_connected_state(value)
-                if value
-                    @__config__.notify_connected
-                    self[:connected] = true
-                else
-                    @__config__.notify_disconnected
-                    self[:connected] = false
                 end
             end
         end
