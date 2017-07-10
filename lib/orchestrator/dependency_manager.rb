@@ -100,6 +100,8 @@ module Orchestrator
                     class_object = classname.constantize
 
                     case role
+                    when :ssh
+                        include_ssh(class_object)
                     when :device
                         include_device(class_object)
                     when :service
@@ -135,6 +137,12 @@ module Orchestrator
         def include_service(klass)
             klass.class_eval do
                 include ::Orchestrator::Service::Mixin
+            end
+        end
+
+        def include_ssh(klass)
+            klass.class_eval do
+                include ::Orchestrator::Ssh::Mixin
             end
         end
 

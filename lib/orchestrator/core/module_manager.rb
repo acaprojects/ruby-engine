@@ -131,6 +131,7 @@ module Orchestrator
                     mod.dependency
                 rescue => e
                     @logger.print_error(e, 'error eager loading dependency data')
+                    mod = @settings # Keep the existing settings as these are probably loaded
                 end
 
                 @thread.schedule do

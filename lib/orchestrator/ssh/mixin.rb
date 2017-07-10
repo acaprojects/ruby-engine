@@ -11,14 +11,19 @@ module Orchestrator
             undef enable_multicast_loop
 
             def exec(*args, **options, &block)
-                # Escape the arguments
-                cmd = Shellwords.join(args)
+                # Escape the arguments as required
+                cmd = args.length > 1 ? Shellwords.join(args) : args[0]
+
                 options[:data] = cmd
+                options[:defer] = @__config__.thread.defer
+
                 if options[:stream] || block_given?
                     options[:stream] ||= block
                     options[:wait] = false
+                    options[:resp] = @__config__.thread.defer
+                    options[:defer].resolve(options[:resp].promise)
                 end
-                options[:defer] = @__config__.thread.defer
+
                 @__config__.thread.schedule do
                     @__config__.processor.queue_command(options)
                 end

@@ -472,6 +472,8 @@ module Orchestrator
         def init_manager(thread, klass, settings)
             # Initialize the connection / logic / service handler here
             case settings.dependency.role
+            when :ssh
+                Ssh::Manager.new(thread, klass, settings)
             when :device
                 Device::Manager.new(thread, klass, settings)
             when :service

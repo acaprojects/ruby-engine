@@ -13,24 +13,21 @@ module Orchestrator
                 @scheduler = @manager.thread.scheduler
 
                 @connecting = nil   # Connection timer
-
-                # TODO:: need to check these on update
-                @ssh_settings = @manager.setting(:ssh) || {}
-                @ssh_settings.merge!({
-                    port: @settings.port,
-                    non_interactive: true,
-                    logger: @manager.logger
-                })
                 
                 reconnect
             end
 
             def reconnect
-                connecting = ::ESSH.p_start(@settings.ip, ssh_settings[:username], **@ssh_settings)
+                return if @terminated
+
+                connecting = ::ESSH.p_start(@settings.ip, @manager.username, **@manager.ssh_settings)
                 connecting.then { |connection|
                     @connection = connection
+                    @last_keepalive_sent_at = Time.now.to_i
+
                     on_connect(connection.transport)
                 }.catch { |error|
+                    @connection = nil
                     @manager.logger.print_error(error, 'initializing SSH transport')
 
                     # reconnect after a cool down period as will probably continue to fail
@@ -38,7 +35,7 @@ module Orchestrator
                     variation = 1 + rand(2000)
                     @connecting = @scheduler.in(5000 + variation) do
                         @connecting = nil
-                        init_connection
+                        reconnect
                     end
                 }
             end
@@ -47,6 +44,21 @@ module Orchestrator
                 return transport.shutdown! if @terminated
 
                 @processor.connected
+                
+                # Keep the socket open
+                variation = 1 + rand(2000)
+                @keep_alive&.cancel
+                @keep_alive = @scheduler.every(30000 + variation) do
+                    now = Time.now.to_i
+                    last = @last_keepalive_sent_at + 15
+
+                    if now > last
+                        @manager.logger.debug 'requesting keepalive.'
+                        @connection.send_global_request('keepalive@openssh.com') { |success, response|
+                            @manager.logger.debug 'keepalive response successful.'
+                        }
+                    end
+                end
 
                 # Listen for socket close events
                 transport.socket.finally do
@@ -55,14 +67,17 @@ module Orchestrator
             end
 
             def on_close
+                @connection = nil
                 return if @terminated
 
                 @processor.disconnected
-                @connection = nil
 
                 # Just for peace of mind
-                @connecting.cancel if @connecting
+                @connecting&.cancel
                 @connecting = nil
+
+                @keep_alive&.cancel
+                @keep_alive = nil
 
                 reconnect
             end
@@ -70,30 +85,65 @@ module Orchestrator
             def terminate
                 @terminated = true
 
-                @connecting.cancel if @connecting
+                @connecting&.cancel
                 @connecting = nil
 
-                if @connection
-                    # TODO:: put a timeout here and force the socket closed after
-                    # a few seconds if still connected (might be streaming)
-                    @connection.close # NOTE:: this blocks (coroutine)
-                    @connection = nil
-                end
+                @keep_alive&.cancel
+                @keep_alive = nil
+
+                disconnect
             end
 
             def delaying; false; end
 
+            def disconnect
+                return unless @connection
+                conn = @connection
+                @manager.thread.next_tick do
+                    # NOTE:: performed next tick as this blocks (coroutine)
+                    conn.close
+                end
+            end
+
             def transmit(cmd)
-                return if @terminated || @connection.nil?
+                return if @terminated
+
+                if @connection.nil?
+                    cmd[:defer].reject(:disconnected)
+                    return
+                end
 
                 data = cmd[:data]
                 stream = cmd[:stream]
 
-                if stream && stream.respond_to?(:call)
+                @last_keepalive_sent_at = Time.now.to_i
 
+                if stream && stream.respond_to?(:call)
+                    begin
+                        status = {}
+                        channel = @connection.exec(data, status: status, &stream)
+                        channel.promise.then { cmd[:resp].resolve(status) }.catch { |e| cmd[:resp].reject(e) }
+                    rescue => e
+                        @manager.logger.print_error(e, 'SSH command failure')
+                        cmd[:resp].reject(e)
+                    end
                 else
-                    cmd[:defer].resolve(@connection.p_exec!(data))
+                    promise = @connection.p_exec!(data)
+                    cmd[:defer].resolve(promise)
+
+                    if @processor.queue.waiting == cmd
+                        promise.then { |result|
+                            @processor.__send__(:resp_success, result)
+                            result
+                        }.catch { |e|
+                            @processor.__send__(:resp_success, :abort)
+                            @manager.logger.print_error(e, 'SSH command failure')
+                            @manager.thread.reject(e) # continue the promise rejection
+                        }
+                    end
                 end
+
+                nil
             end
         end
     end

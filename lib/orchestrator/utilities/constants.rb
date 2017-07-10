@@ -216,19 +216,26 @@ module Orchestrator
                 @makebreak = false unless @makebreak
 
                 cfg = {}
-                cfg[:role] = @implements if @implements
+                if @makebreak
+                    cfg[:makebreak] = @makebreak
+                    @implements = :device
+                end
                 cfg[:name] = @descriptive_name if @descriptive_name
                 cfg[:description] = @driver_description if @driver_description
+                if @default_settings
+                    cfg[:settings] = @default_settings
+                    @implements ||= :ssh if @default_settings[:ssh]
+                end
+                @default_value ||= 22 if @implements == :ssh
                 cfg[:default] = @default_value if @default_value
                 cfg[:module_name] = @generic_name if @generic_name
-                cfg[:settings] = @default_settings if @default_settings
-                cfg[:makebreak] = @makebreak
+                cfg[:role] = @implements if @implements
                 cfg
             end
 
             def tcp_port(value)
                 @default_value = value.to_i
-                @implements = :device
+                @implements ||= @default_value == 22 ? :ssh : :device
             end
 
             def makebreak!
@@ -245,10 +252,9 @@ module Orchestrator
                 @implements = :service
             end
 
-            Roles = [:device, :service, :logic]
             def implements(role)
-                val = role.to_sym
-                @implements = role if Roles.include?(val)
+                val = role&.to_sym
+                @implements = role if ::Orchestrator::Dependency::ROLES.include?(val)
             end
 
             def generic_name(name)
@@ -264,7 +270,7 @@ module Orchestrator
             end
 
             def default_settings(json)
-                @default_settings = json
+                @default_settings = json.with_indifferent_access
             end
         end
 
