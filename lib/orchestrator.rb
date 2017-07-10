@@ -47,6 +47,11 @@ require 'orchestrator/device/processor'
 require 'orchestrator/device/manager'
 require 'orchestrator/device/mixin'
 
+# SSH abstractions
+require 'orchestrator/ssh/transport_ssh'
+require 'orchestrator/ssh/manager'
+require 'orchestrator/ssh/mixin'
+
 # Service abstractions
 require 'orchestrator/service/transport_http'
 require 'orchestrator/service/manager'

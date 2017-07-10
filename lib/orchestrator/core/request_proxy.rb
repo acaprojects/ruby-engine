@@ -45,6 +45,9 @@ module Orchestrator
         PROTECTED[:clear_cookies] = true
         PROTECTED[:use_middleware] = true
 
+        # SSH module
+        PROTECTED[:exec] = true
+
 
         #
         # This class exists so that we can access regular kernel methods

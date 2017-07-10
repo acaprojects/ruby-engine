@@ -11,7 +11,7 @@ module Orchestrator
         before_destroy :cleanup_modules
 
 
-        ROLES = Set.new([:device, :service, :logic])
+        ROLES = Set.new([:ssh, :device, :service, :logic])
 
 
         attribute :name,        type: String
@@ -21,7 +21,7 @@ module Orchestrator
 
         # Override default role accessors
         def role
-            @role ||= self[:role].to_sym if self[:role]
+            @role ||= self[:role]&.to_sym
         end
         def role=(name)
             @role = name.to_sym
@@ -91,7 +91,7 @@ module Orchestrator
                 mod_found = true
                 mod.dependency = dep # Otherwise this will hit the database again
                 manager = ctrl.loaded? mod.id
-                manager.reloaded(mod) if manager
+                manager&.reloaded(mod)
             end
             ctrl.clear_cache if mod_found
         end

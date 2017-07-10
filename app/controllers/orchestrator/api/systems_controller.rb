@@ -210,8 +210,8 @@ module Orchestrator
             # returns a list of functions available to call
             Ignore = Set.new([
                 Object, Kernel, BasicObject,
-                Constants, Transcoder,
-                Core::Mixin, Logic::Mixin, Device::Mixin, Service::Mixin
+                Constants, Transcoder, Core::Mixin,
+                Logic::Mixin, Device::Mixin, Service::Mixin, Ssh::Mixin
             ])
             def funcs
                 params.require(:module)
