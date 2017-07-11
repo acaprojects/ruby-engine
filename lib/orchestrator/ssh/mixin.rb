@@ -7,7 +7,6 @@ module Orchestrator
         module Mixin
             include ::Orchestrator::Device::Mixin
 
-            undef send
             undef enable_multicast_loop
 
             def exec(*args, **options, &block)
@@ -20,8 +19,10 @@ module Orchestrator
                 if options[:stream] || block_given?
                     options[:stream] ||= block
                     options[:wait] = false
-                    options[:resp] = @__config__.thread.defer
-                    options[:defer].resolve(options[:resp].promise)
+                    options[:exec] = @__config__.thread.defer
+                    options[:defer].resolve(options[:exec].promise)
+                else
+                    options[:exec] = true
                 end
 
                 @__config__.thread.schedule do
