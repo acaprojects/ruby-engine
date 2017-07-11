@@ -42,7 +42,7 @@ module Orchestrator
             @logger = ::Orchestrator::Control.instance.logger
 
             # This is used for module development (see orchestrator:testing)
-            @use_blocking_writes = false
+            @use_blocking_writes = !::Rails.env.production?
         end
 
         attr_accessor :use_blocking_writes
@@ -191,8 +191,8 @@ module Orchestrator
                     @logger.tagged(*tags) {
                         @logger.add(level, msg, progname)
                     }
-                elsif level != :debug
-                    # We never write debug logs to the main log
+                elsif level > ::Logger::INFO
+                    # We never write debug or info logs to disk
                     @reactor.work do
                         @logger.tagged(*tags) {
                             @logger.add(level, msg, progname)
