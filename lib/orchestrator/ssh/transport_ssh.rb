@@ -99,6 +99,14 @@ module Orchestrator
             def disconnect
                 return unless @connection
                 conn = @connection
+
+                # We want to force disconnect after a short period of time
+                @scheduler.in(1500) do
+                    if conn&.transport&.socket && !conn.transport.socket.closed?
+                        conn.transport.shutdown!
+                    end
+                end
+
                 @manager.thread.next_tick do
                     # NOTE:: performed next tick as this blocks (coroutine)
                     conn.close
