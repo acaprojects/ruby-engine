@@ -30,9 +30,10 @@ module Orchestrator
                         @username = username
                         @ssh_settings = ssh_settings
 
-                        @logger.debug 'SSH setting change detected. Reconnecting...'
-
-                        @connection.disconnect if @processor.connected?
+                        if @processor&.connected?
+                            @logger.debug 'SSH setting change detected. Reconnecting...'
+                            @connection.disconnect
+                        end
                     end
                 end
             end
