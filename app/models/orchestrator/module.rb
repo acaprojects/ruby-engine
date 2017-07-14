@@ -5,6 +5,7 @@ require 'addressable/uri'
 module Orchestrator
     class Module < CouchbaseOrm::Base
         design_document :mod
+        include Encryption
 
 
         # The classes / files that this module requires to execute

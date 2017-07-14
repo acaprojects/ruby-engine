@@ -3,6 +3,7 @@
 module Orchestrator
     class Zone < CouchbaseOrm::Base
         design_document :zone
+        include Encryption
 
 
         attribute :name,        type: String

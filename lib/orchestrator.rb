@@ -18,6 +18,7 @@ require 'orchestrator/utilities/security'   # helper methods for protecting code
 require 'orchestrator/dependency_manager'   # Manages code loading
 require 'orchestrator/websocket_manager'    # Websocket interface
 require 'orchestrator/datagram_server'      # UDP abstraction management
+require 'orchestrator/encryption'           # For storing sensitive information in the database
 require 'orchestrator/control'              # Module control and system loader
 require 'orchestrator/version'              # orchestrator version
 require 'orchestrator/system'               # This is the source of truth for all system information

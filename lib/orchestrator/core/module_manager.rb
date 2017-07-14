@@ -235,6 +235,8 @@ module Orchestrator
             # For Device: instance -> dependency
             def setting(name)
                 res = @settings.settings[name]
+                id  = @settings.id
+
                 if res.nil?
                     if @settings.control_system_id
                         sys = System.get(@settings.control_system_id)
@@ -244,21 +246,61 @@ module Orchestrator
                         if res.nil?
                             sys.zones.each do |zone|
                                 res = zone.settings[name]
-                                return res.deep_dup if res
+                                return decrypt_value(zone.id, name, res.deep_dup) if res
                             end
 
                             # Fallback to the dependency
                             res = @settings.dependency.settings[name]
+                            id  = @settings.dependency.id
+                        else
+                            id = sys.id
                         end
                     else
                         # Fallback to the dependency
                         res = @settings.dependency.settings[name]
+                        id  = @settings.dependency.id
                     end
                 end
                 # As we don't continually go to the database we should
                 # ensure that every module has a unique copy of settings
                 # as they may modify the hash
-                res ? res.deep_dup : nil
+                res ? decrypt_value(id, name, res.deep_dup) : nil
+            end
+
+            # Perform decryption work in the thread pool as we don't want to block the reactor
+            def decrypt_value(id, key, val)
+                begin
+                    if val.is_a?(String) && val[0] == "\e"
+                        return thread.work { ::Orchestrator::Encryption.decode_setting(id, key, v) }.value
+                    end
+                    @last_id = id
+                    val
+                rescue => e
+                    @logger.print_error(e)
+                    val # We'll return the original value here
+                end
+            end
+
+            # Performs a more time consuming decryption
+            # Seperated from regular setting lookup to avoid the performance hit
+            def decrypt(name)
+                val = setting(name)
+                if val.is_a?(Hash)
+                    id = @last_id # Save the id for currying (might change otherwise)
+                    return thread.work { deep_decrypt(id, val) }.value
+                end
+                val
+            end
+
+            # Decrypts any encrypted keys that occur in the hash
+            def deep_decrypt(id, hash)
+                hash.each do |k, v|
+                    if v.is_a?(Hash)
+                        deep_decrypt(id, v)
+                    elsif v.is_a?(String) && v[0] == "\e"
+                        hash[k] = ::Orchestrator::Encryption.decode_setting(id, k, v)
+                    end
+                end
             end
 
             # Called from Core::Mixin on any thread

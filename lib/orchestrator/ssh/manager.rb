@@ -39,7 +39,7 @@ module Orchestrator
             end
 
             def get_ssh_settings
-                ssh_settings = (setting(:ssh) || {}).symbolize_keys
+                ssh_settings = (decrypt(:ssh) || {}).symbolize_keys
                 ssh_settings.merge!({
                     port: @settings.port,
                     non_interactive: true,

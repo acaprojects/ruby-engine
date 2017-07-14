@@ -6,6 +6,7 @@ require 'addressable/uri'
 module Orchestrator
     class ControlSystem < CouchbaseOrm::Base
         design_document :sys
+        include Encryption
 
 
         # Allows us to lookup systems by names

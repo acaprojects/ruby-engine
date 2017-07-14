@@ -11,9 +11,44 @@ require 'scrypt'
 
 module Orchestrator
     module Encryption
-        def self.encode_setting(id, key, clear_text)
-            return clear_text if clear_text[0] == "\e"
+        extend ::ActiveSupport::Concern
 
+        included do
+            before_save :encrypt_settings, if: :settings_changed?
+        end
+
+        def encrypt_settings(h = self.settings)
+            h.keys.each do |k|
+                v = h[k]
+
+                case v
+                when Hash
+                    encrypt_settings(v)
+                when String
+                    key = k.to_s
+                    if key[0] == '$'
+                        save_key = key[1..-1]
+                        self.id = ::CouchbaseOrm::IdGenerator.next(self) unless self.id
+                        id = self.id
+
+                        crypt = proc {
+                            h[save_key] = ::Orchestrator::Encryption.encode_setting(id, save_key, v)
+                            h.delete(k)
+                        }
+
+                        # We want this to work in the console etc
+                        thread = ::Libuv.reactor
+                        if thread.reactor_running? && thread.reactor_thread?
+                            thread.work(crypt).value # Wait for encryption to complete
+                        else
+                            crypt.call
+                        end
+                    end
+                end
+            end
+        end
+
+        def self.encode_setting(id, key, clear_text)
             # Always use a new random salt for each encoding (protects the password)
             salt = ::SCrypt::Engine.generate_salt
 

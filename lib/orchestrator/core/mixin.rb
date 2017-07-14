@@ -95,7 +95,14 @@ module Orchestrator
             end
 
             def setting(name)
-                @__config__.setting(name.to_sym)
+                @__config__.setting(name)
+            end
+
+            # Similar to how you would extract settings. Except it
+            # goes deep into any hashes and decrypts any encrypted keys
+            # it finds.
+            def decrypt(name)
+                @__config__.decrypt(name)
             end
 
             def thread

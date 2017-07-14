@@ -5,6 +5,7 @@ require 'set'
 module Orchestrator
     class Dependency < CouchbaseOrm::Base
         design_document :dep
+        include Encryption
 
 
         after_save     :update_modules
