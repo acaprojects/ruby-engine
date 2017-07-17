@@ -209,9 +209,12 @@ module Orchestrator
 
             # returns a list of functions available to call
             Ignore = Set.new([
-                Object, Kernel, BasicObject,
-                Constants, Transcoder, Core::Mixin,
-                Logic::Mixin, Device::Mixin, Service::Mixin, Ssh::Mixin
+                Constants, Transcoder, Core::Mixin, Ssh::Mixin,
+                Logic::Mixin, Device::Mixin, Service::Mixin
+            ])
+            Break = Set.new([
+                ::ActiveSupport::ToJsonWithActiveSupportEncoder,
+                Object, Kernel, BasicObject
             ])
             def funcs
                 params.require(:module)
@@ -229,9 +232,11 @@ module Orchestrator
                         # Including those methods from ancestor classes
                         funcs = []
                         klass.ancestors.each do |methods|
-                            break if Ignore.include? methods 
+                            break if Break.include?(methods)
+                            next  if Ignore.include?(methods)
                             funcs += methods.public_instance_methods(false)
                         end
+
                         # Remove protected methods
                         pub = funcs.select { |func| !Core::PROTECTED[func] }
 
