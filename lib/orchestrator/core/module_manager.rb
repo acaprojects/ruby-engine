@@ -237,34 +237,35 @@ module Orchestrator
                 res = @settings.settings[name]
                 id  = @settings.id
 
-                if res.nil?
-                    if @settings.control_system_id
-                        sys = System.get(@settings.control_system_id)
-                        res = sys.settings[name]
+                # As we don't continually go to the database we should
+                # ensure that every module has a unique copy of settings
+                # as they may modify the hash
+                return decrypt_value(id, name, res.deep_dup) unless res.nil?
 
-                        # Check if zones have the setting
-                        if res.nil?
-                            sys.zones.each do |zone|
-                                res = zone.settings[name]
-                                return decrypt_value(zone.id, name, res.deep_dup) if res
-                            end
+                id = @settings.control_system_id
+                if id
+                    sys = System.get(id)
+                    res = sys.settings[name]
 
-                            # Fallback to the dependency
-                            res = @settings.dependency.settings[name]
-                            id  = @settings.dependency.id
-                        else
-                            id = sys.id
+                    # Check if zones have the setting
+                    if res.nil?
+                        sys.zones.each do |zone|
+                            res = zone.settings[name]
+                            return decrypt_value(zone.id, name, res.deep_dup) unless res.nil?
                         end
-                    else
+
                         # Fallback to the dependency
                         res = @settings.dependency.settings[name]
                         id  = @settings.dependency.id
                     end
+                else
+                    # Fallback to the dependency
+                    res = @settings.dependency.settings[name]
+                    id  = @settings.dependency.id
                 end
-                # As we don't continually go to the database we should
-                # ensure that every module has a unique copy of settings
-                # as they may modify the hash
-                res ? decrypt_value(id, name, res.deep_dup) : nil
+
+                return nil if res.nil?
+                decrypt_value(id, name, res.deep_dup)
             end
 
             # Perform decryption work in the thread pool as we don't want to block the reactor
