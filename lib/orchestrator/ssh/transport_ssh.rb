@@ -77,6 +77,7 @@ module Orchestrator
             def on_connect(transport)
                 return transport.shutdown! if @terminated
                 return init_connection unless @config[:wait_ready]
+                @delaying = String.new
             end
 
             def on_read(channel, data)
@@ -104,6 +105,7 @@ module Orchestrator
 
             def on_close
                 @shell = nil
+                @delaying = nil
                 @connection = nil
                 return if @terminated
 
