@@ -4,6 +4,7 @@
 require 'rspec/expectations'
 require 'orchestrator/testing/mock_transport'
 require 'orchestrator/testing/device_manager'
+require 'byebug'
 
 
 module Orchestrator::Testing
