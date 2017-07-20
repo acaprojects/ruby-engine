@@ -444,7 +444,7 @@ module Orchestrator
 
                 if difference > 12000
                     should_kill = true
-                    watching = true
+                    watching = Rails.env.production?
                 elsif difference > 3000
                     watching = true
                 end
@@ -467,8 +467,12 @@ module Orchestrator
             @watching = watching
 
             if should_kill
-                @logger.fatal "SYSTEM UNRESPONSIVE - FORCING SHUTDOWN"
-                Process.kill 'SIGKILL', Process.pid
+                if Rails.env.production?
+                    @logger.fatal "SYSTEM UNRESPONSIVE - FORCING SHUTDOWN"
+                    Process.kill 'SIGKILL', Process.pid
+                else
+                    @logger.error "SYSTEM UNRESPONSIVE - in development mode a shutdown isn't forced"
+                end
             end
         end
         # =================
