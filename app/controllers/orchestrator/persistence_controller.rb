@@ -6,11 +6,8 @@ module Orchestrator
     class PersistenceController < ApiController
         CONTROL = Control.instance
 
-        # Supply a bearer_token param for oauth
-        HIJACK = 'rack.hijack'
-
         def websocket
-            hijack = request.env[HIJACK]
+            hijack = request.env['rack.hijack']
             if hijack && CONTROL.ready
                 socket = hijack.call
 

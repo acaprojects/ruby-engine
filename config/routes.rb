@@ -46,7 +46,7 @@ Orchestrator::Engine.routes.draw do
             get 'system_logs',         on: :collection
         end
         resources :system_triggers
-        
+
         concerns  :mods
 
         resources :stats do
@@ -65,6 +65,13 @@ Orchestrator::Engine.routes.draw do
             post 'notify', on: :member
         end
         get 'webhooks/:id/notify', to: 'webhooks#show'
+
+        # Tests are enabled in development
+        if not Rails.env.production?
+            resources :tests do
+                get 'websocket', via: :all
+            end
+        end
     end
 
     # These are non-restful endpoints

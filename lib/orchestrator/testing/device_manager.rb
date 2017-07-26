@@ -3,6 +3,10 @@
 # NOTE:: include RSpec::Matchers
 require 'orchestrator/testing/mock_transport'
 
+# Sync true enables remote debugging
+$stdout.sync = true
+$stderr.sync = true
+
 module Orchestrator::Testing; end
 class Orchestrator::Testing::DeviceManager < ::Orchestrator::Core::ModuleManager
     attr_reader :processor, :connection
