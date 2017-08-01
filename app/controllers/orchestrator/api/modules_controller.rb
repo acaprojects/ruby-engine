@@ -129,7 +129,7 @@ module Orchestrator
             end
 
             def destroy
-                @mod.delete
+                @mod.destroy
                 head :ok
             end
 

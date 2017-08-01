@@ -35,8 +35,8 @@ module Orchestrator
             end
 
             def destroy
-                # delete will update CS and zone caches
-                @edge.delete
+                # destroy will update CS and zone caches
+                @edge.destroy
                 head :ok
             end
 
