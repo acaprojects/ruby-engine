@@ -92,6 +92,7 @@ module Orchestrator
                     msg = String.new(e.message)
                     msg << "\n#{e.backtrace.join("\n")}" if e.respond_to?(:backtrace) && e.backtrace
                     render plain: msg, status: :internal_server_error
+                    logger.error(msg)
                 end
             end
 

@@ -32,19 +32,16 @@ module Orchestrator
             if class_object && force == false
                 defer.resolve(class_object)
             else
-                begin
-                    # We need to ensure only one file loads at a time
-                    klass = @critical.synchronize {
-                        perform_load(dependency.role, classname, class_lookup, force)
-                    }
-                    defer.resolve klass
-                rescue Error::FileNotFound => e
-                    # This avoids printing a stack trace that we don't need
-                    defer.reject(Error::FileNotFound.new(e.message))
-                rescue Exception => e
-                    defer.reject(e)
-                    print_error(e, 'error loading dependency')
-                end
+                defer.resolve(@reactor.work {
+                    perform_load(dependency.role, classname, class_lookup, force)
+                })
+            end
+
+            defer.promise.catch do |e|
+                msg = String.new(e.message)
+                msg << "\n#{e.backtrace.join("\n")}" if e&.backtrace&.respond_to?(:join)
+                @logger.error(msg)
+                @reactor.reject(e)
             end
 
             defer.promise
@@ -56,29 +53,26 @@ module Orchestrator
 
             if class_object && force == false
                 class_object
-            else
-                @critical.synchronize {
+            elsif @reactor.reactor_thread?
+                @reactor.work {
                     perform_load(role, classname, class_lookup, force)
-                }
+                }.value
+            else
+                perform_load(role, classname, class_lookup, force)
             end
         end
 
         def force_load(file)
             defer = @reactor.defer
 
-            if File.exists?(file)
-                begin
-                    @critical.synchronize {
-                        ::Kernel.load file
-                    }
-                    defer.resolve(file)
-                rescue Exception => e
-                    defer.reject(e)
-                    print_error(e, 'force load failed')
+            defer.resolve(@reactor.work {
+                if File.exists?(file)
+                    @critical.synchronize { ::Kernel.load file }
+                    file
+                else
+                    raise Error::FileNotFound.new("could not find '#{file}'")
                 end
-            else
-                defer.reject(Error::FileNotFound.new("could not find '#{file}'"))
-            end
+            })
 
             defer.promise
         end
@@ -94,23 +88,25 @@ module Orchestrator
 
             ::Rails.configuration.orchestrator.module_paths.each do |path|
                 file_path = File.join(path, file)
+
                 if ::File.exists?(file_path)
+                    @critical.synchronize {
+                        ::Kernel.load file_path
+                        class_object = classname.constantize
 
-                    ::Kernel.load file_path
-                    class_object = classname.constantize
+                        case role
+                        when :ssh
+                            include_ssh(class_object)
+                        when :device
+                            include_device(class_object)
+                        when :service
+                            include_service(class_object)
+                        else
+                            include_logic(class_object)
+                        end
 
-                    case role
-                    when :ssh
-                        include_ssh(class_object)
-                    when :device
-                        include_device(class_object)
-                    when :service
-                        include_service(class_object)
-                    else
-                        include_logic(class_object)
-                    end
-
-                    @dependencies[class_lookup] = class_object
+                        @dependencies[class_lookup] = class_object
+                    }
                     break
                 end
             end
@@ -144,13 +140,6 @@ module Orchestrator
             klass.class_eval do
                 include ::Orchestrator::Ssh::Mixin
             end
-        end
-
-        def print_error(e, msg = '')
-            msg = String.new(msg)
-            msg << "\n#{e.message}"
-            msg << "\n#{e.backtrace.join("\n")}" if e.respond_to?(:backtrace) && e.backtrace.respond_to?(:join)
-            @logger.error(msg)
         end
     end
 end
