@@ -3,7 +3,7 @@
 # This file is ingored in production.
 # The filesystem aspects use blocking IO.
 
-if not Rails.env.production?
+if Rails.env.development?
     require 'orchestrator/testing/testsocket_manager'
     require 'spider-gazelle/upgrades/websocket'
     require 'rake/file_list'
@@ -25,15 +25,20 @@ if not Rails.env.production?
                 end
 
                 def show
+                    # NOTE:: This is quite unsafe for a web application. Also blocks the reactor.
+                    # => hence why we are only doing it in development
                     spec_file = params.permit(:id)[:id]
-                    mod_file  = "#{spec_file.split('_spec')[0]}.rb"
-
-                    path = ::Rails.application.config.orchestrator.module_paths.select { |dir|
-                        mod_file.start_with?(dir)
-                    }[0]
-                    klass_name = mod_file[path.length..-4].camelize
 
                     begin
+                        text = File.read("#{spec_file}.rb")
+                        klass_name = text.match(/.mock_device\s*\({0,1}\s*\'{0,1}\"{0,1}([^"|^']+)/)[1]
+                        file_path = "#{klass_name.underscore}.rb"
+
+                        path = ::Rails.application.config.orchestrator.module_paths.select { |dir|
+                            File.file?(File.join(dir, file_path))
+                        }[0]
+                        mod_file = File.join(path, file_path)
+
                         load mod_file
                         klass = klass_name.constantize
 
