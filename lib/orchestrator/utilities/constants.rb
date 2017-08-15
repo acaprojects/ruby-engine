@@ -83,7 +83,7 @@ module Orchestrator
 
                     # We want to create a callback chain if more than one
                     before_transmit = if callbacks.length > 1
-                        lambda do |data|
+                        proc do |data|
                             callbacks.each do |cb|
                                 data = cb.call(data)
                             end 
@@ -101,7 +101,7 @@ module Orchestrator
             end
 
             def __default_opts(instance)
-                {}.merge!(@request || {})
+                {}.merge!(Hash(@request))
             end
 
             # Called each time the class is reloaded so we can
@@ -120,7 +120,7 @@ module Orchestrator
                 tokenize = @tokenize
                 before_transmit = @before_transmit
 
-                other.class_eval do
+                other.instance_eval do
                     @request = request.deep_dup if request
                     @config = config.deep_dup if config
                     @tokenize = tokenize.deep_dup if tokenize
@@ -231,6 +231,26 @@ module Orchestrator
                 cfg[:module_name] = @generic_name if @generic_name
                 cfg[:role] = @implements if @implements
                 cfg
+            end
+
+            def inherited(other)
+                default_value = @default_value
+                implements = @implements
+                makebreak = @makebreak
+                generic_name = @generic_name
+                descriptive_name = @descriptive_name
+                driver_description = @driver_description
+                default_settings = @default_settings
+
+                other.instance_eval do
+                    @default_value = default_value if default_value
+                    @implements = implements if implements
+                    @makebreak = makebreak if makebreak
+                    @generic_name = generic_name if generic_name
+                    @descriptive_name = descriptive_name if descriptive_name
+                    @driver_description = driver_description if driver_description
+                    @default_settings = default_settings if default_settings
+                end
             end
 
             def tcp_port(value)
