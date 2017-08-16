@@ -60,6 +60,16 @@ module Orchestrator
 
                 logger.debug 'init: Mounting Engine'
 
+                # 5min fail safe check to ensure system has booted.
+                # Couchbase sometimes never responds when it is booting.
+                @reactor.scheduler.in('5m') do
+                    if not @ready
+                        STDERR.puts "\n\nSYSTEM BOOT FAILURE:\n\n"
+                        dump_thread_backtraces
+                        @reactor.next_tick { Process.kill('SIGKILL', Process.pid) }
+                    end
+                end
+
                 # Cache all the zones in the system
                 ::Orchestrator::Zone.all.each do |zone|
                     @zones[zone.id] = zone
@@ -452,16 +462,7 @@ module Orchestrator
 
             if watching
                 @logger.error "WATCHDOG ACTIVATED" if !@watching
-
-                # Dump the thread bracktraces
-                Thread.list.each do |t|
-                    backtrace = t.backtrace
-                    STDERR.puts "#" * 90
-                    STDERR.puts t.inspect
-                    STDERR.puts backtrace ? backtrace.join("\n") : 'no backtrace'
-                    STDERR.puts "#" * 90
-                end
-                STDERR.flush
+                dump_thread_backtraces
             end
 
             @watching = watching
@@ -474,6 +475,17 @@ module Orchestrator
                     @logger.error "SYSTEM UNRESPONSIVE - in development mode a shutdown isn't forced"
                 end
             end
+        end
+
+        def dump_thread_backtraces
+            Thread.list.each do |t|
+                backtrace = t.backtrace
+                STDERR.puts "#" * 90
+                STDERR.puts t.inspect
+                STDERR.puts backtrace ? backtrace.join("\n") : 'no backtrace'
+                STDERR.puts "#" * 90
+            end
+            STDERR.flush
         end
         # =================
         # END WATCHDOG CODE
