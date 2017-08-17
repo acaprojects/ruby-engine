@@ -60,9 +60,9 @@ module Orchestrator
                     head :ok
                 else
                     ::Auth::Authentication.for_user(@user.id).each do |auth|
-                        auth.delete
+                        auth.destroy
                     end
-                    @user.delete
+                    @user.destroy
                 end
             end
 

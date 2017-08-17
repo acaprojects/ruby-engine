@@ -46,7 +46,7 @@ module Orchestrator
             end
 
             def destroy
-                @dep.delete
+                @dep.destroy
                 head :ok
             end
 

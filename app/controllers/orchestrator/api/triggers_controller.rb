@@ -33,7 +33,7 @@ module Orchestrator
             end
 
             def destroy
-                @trig.delete # expires the cache in after callback
+                @trig.destroy # expires the cache in after callback
                 head :ok
             end
 
