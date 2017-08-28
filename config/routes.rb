@@ -34,8 +34,6 @@ Orchestrator::Engine.routes.draw do
         resources :dependencies do  # dependencies have settings
             post 'reload',  on: :member
         end
-        resources :applications
-        resources :domains
         resources :nodes
         resources :triggers
         resources :groups           # users define the groups they are in
