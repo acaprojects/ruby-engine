@@ -21,6 +21,8 @@ module Orchestrator
             def index
                 query = @@elastic.query(params)
                 query.not({'doc.deleted' => [true]})
+                authority_id = params.permit(:authority_id)[:authority_id]
+                query.filter({'doc.authority_id' => [authority_id]}) if authority_id
                 results = @@elastic.search(query) do |user|
                     user.as_json(ADMIN_DATA)
                 end
