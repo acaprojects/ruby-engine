@@ -150,8 +150,6 @@ module Orchestrator
                     whitelist[:args] = Array(params[:args])
                 end
 
-                reactor = ::Libuv.reactor
-
                 defer = reactor.defer
                 sys  = ::Orchestrator::Core::SystemProxy.new(reactor, id, nil, current_user)
                 mod = sys.get(para[:module], para[:index] || 1)
