@@ -48,13 +48,20 @@ module Orchestrator
             end
 
             def curry_user(block)
+                # Save the user who created the schedule
                 user = @manager.current_user
+
                 proc do |*args|
+                    # Save any active users on this fiber (should be nil)
                     current_user = @manager.current_user
                     begin
+                        # Set the user
                         @manager.current_user = user
                         block.call(*args)
+                    rescue Exception => e
+                        @manager.logger.print_error(e, 'in scheduled task')
                     ensure
+                        # Restore the previous user (probably nil)
                         @manager.current_user = current_user
                     end
                 end
