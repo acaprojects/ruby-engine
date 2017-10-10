@@ -32,6 +32,10 @@ class Orchestrator::Testing::DeviceManager < ::Orchestrator::Core::ModuleManager
         true # for REST API
     end
 
+    def define_setting(key, value)
+        @logger.info("updating setting: #{key.to_s} => #{::JSON.generate(value)}")
+    end
+
     def stop_local
         super
         @processor.terminate if @processor
