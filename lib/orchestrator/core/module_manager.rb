@@ -312,6 +312,8 @@ module Orchestrator
                 mod.save!(with_cas: true)
                 @settings = mod
                 value # Don't leak direct access to the database model
+            rescue ::Libcouchbase::Error::KeyExists
+                retry # CAS operation
             end
 
 
