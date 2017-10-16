@@ -306,10 +306,14 @@ module Orchestrator
             # thread safe
             def define_setting(name, value)
                 mod = Orchestrator::Module.find(@settings.id)
-                mod.settings[name] = value
+                values = mod.settings.dup
+                values[name] = value
+                mod.settings = values
                 mod.save!(with_cas: true)
                 @settings = mod
                 value # Don't leak direct access to the database model
+            rescue ::Libcouchbase::Error::KeyExists
+                retry # CAS operation
             end
 
 

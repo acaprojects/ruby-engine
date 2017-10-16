@@ -214,6 +214,8 @@ module Orchestrator
                         model.triggered = state
                         logger.warn "trigger #{model.id} not found: (#{model.name})"
                     end
+                rescue ::Libcouchbase::Error::KeyExists
+                    retry # CAS operation
                 rescue => e
                     # report any errors updating the model
                     if e.respond_to? :record
