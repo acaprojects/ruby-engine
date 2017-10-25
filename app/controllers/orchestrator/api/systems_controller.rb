@@ -139,15 +139,19 @@ module Orchestrator
                 head :ok
             end
 
-            EXEC_PARAMS = [:module, :index, :method, {
-                args: []
-            }]
+            EXEC_PARAMS = [:module, :index, :method]
             def exec
                 # Run a function in a system module (async request)
                 params.require(:module)
                 params.require(:method)
-                para = params.permit(EXEC_PARAMS).tap do |whitelist|
-                    whitelist[:args] = Array(params[:args])
+                para = params.permit(EXEC_PARAMS).to_h.tap do |whitelist|
+                    whitelist[:args] = Array(params[:args]).collect { |arg|
+                        if arg.is_a?(::ActionController::Parameters)
+                            arg.to_unsafe_h
+                        else
+                            arg
+                        end
+                    }
                 end
 
                 defer = reactor.defer
