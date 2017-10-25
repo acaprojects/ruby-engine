@@ -144,7 +144,12 @@ module Orchestrator
                 # Run a function in a system module (async request)
                 params.require(:module)
                 params.require(:method)
-                para = params.permit(EXEC_PARAMS).to_h.tap do |whitelist|
+
+                # This looks insane however it does achieve our out of the ordinary requirement
+                # .to_h converts to indifferent access .to_h converts to a regular hash and
+                # .symbolize_keys! is required for passing hashes to functions with named params
+                # and having them apply correctly
+                para = params.permit(EXEC_PARAMS).to_h.to_h.symbolize_keys!.tap do |whitelist|
                     whitelist[:args] = Array(params[:args]).collect { |arg|
                         if arg.is_a?(::ActionController::Parameters)
                             arg.to_unsafe_h.to_h.symbolize_keys!
