@@ -271,7 +271,7 @@ module Orchestrator
             # Perform decryption work in the thread pool as we don't want to block the reactor
             def decrypt_value(id, key, val)
                 if val.is_a?(String) && val[0] == "\e"
-                    return thread.work { ::Orchestrator::Encryption.decode_setting(id, key, v) }.value
+                    return thread.work { ::Orchestrator::Encryption.decode_setting(id, key, val) }.value
                 end
                 @last_id = id
                 val
