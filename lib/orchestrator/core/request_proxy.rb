@@ -120,8 +120,8 @@ module Orchestrator
                                 end
                             end
                         rescue => e
-                            @mod.logger.print_error(e, '', @trace)
                             defer.reject(e)
+                            @mod.logger.print_error(e, "issue calling #{name} with #{args.inspect}", @trace)
                         ensure
                             @mod.current_user = previous
                         end
