@@ -147,7 +147,7 @@ module Orchestrator
                 para = params.permit(EXEC_PARAMS).to_h.tap do |whitelist|
                     whitelist[:args] = Array(params[:args]).collect { |arg|
                         if arg.is_a?(::ActionController::Parameters)
-                            arg.to_unsafe_h.symbolize_keys!
+                            arg.to_unsafe_h.to_h.symbolize_keys!
                         else
                             arg
                         end
