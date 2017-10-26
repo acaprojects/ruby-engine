@@ -5,9 +5,9 @@ require 'set'
 module Orchestrator
     module Api
         class ModulesController < ApiController
-            before_action :check_admin, except: [:index, :state, :show]
-            before_action :check_support, only: [:index, :state, :show]
-            before_action :find_module,   only: [:show, :update, :destroy]
+            before_action :check_admin, except: [:index, :state, :show, :ping]
+            before_action :check_support, only: [:index, :state, :show, :ping]
+            before_action :find_module,   only: [:show, :update, :destroy, :ping]
 
 
             @@elastic ||= Elastic.new(::Orchestrator::Module)
@@ -179,6 +179,29 @@ module Orchestrator
                         end
                     end
                     render body: defer.promise.value.inspect
+                end
+            end
+
+            # ping helper function
+            def ping
+                if @mod.role > 2
+                    head :not_acceptable
+                else
+                    begin
+                        ping = ::UV::Ping.new(@mod.hostname, 3)
+                        ping.ping
+                        render json: {
+                            host: ping.ip,
+                            pingable: ping.pingable,
+                            warning: ping.warning,
+                            exception: ping.exception
+                        }
+                    rescue => e
+                        render json: {
+                            error: e.message,
+                            backtrace: e.backtrace.join("\n")
+                        }, status: :internal_server_error
+                    end
                 end
             end
 
