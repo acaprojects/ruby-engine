@@ -187,21 +187,14 @@ module Orchestrator
                 if @mod.role > 2
                     head :not_acceptable
                 else
-                    begin
-                        ping = ::UV::Ping.new(@mod.hostname, 3)
-                        ping.ping
-                        render json: {
-                            host: ping.ip,
-                            pingable: ping.pingable,
-                            warning: ping.warning,
-                            exception: ping.exception
-                        }
-                    rescue => e
-                        render json: {
-                            error: e.message,
-                            backtrace: e.backtrace.join("\n")
-                        }, status: :internal_server_error
-                    end
+                    ping = ::UV::Ping.new(@mod.hostname, count: 3)
+                    ping.ping
+                    render json: {
+                        host: ping.ip,
+                        pingable: ping.pingable,
+                        warning: ping.warning,
+                        exception: ping.exception
+                    }
                 end
             end
 
