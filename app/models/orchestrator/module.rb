@@ -75,6 +75,15 @@ module Orchestrator
             ControlSystem.using_module(self.id)
         end
 
+        def hostname
+            case role
+            when 0, 1 # SSH and Device
+                self.ip
+            when 2    # Service
+                Addressable::URI.parse(self.uri).host
+            end
+        end
+
 
         protected
 
