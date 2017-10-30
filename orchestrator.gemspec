@@ -14,7 +14,7 @@ Gem::Specification.new do |s|
     s.summary     = 'A distributed system for building automation'
     s.description = 'A building and Internet of Things automation system'
 
-    s.add_dependency 'rake',    '~> 12'     # Task running framework
+    s.add_dependency 'rake',    '~> 12.2'     # Task running framework
     s.add_dependency 'rspec',   '~> 3.5'    # Testing framework
     s.add_dependency 'rails',   '~> 5.0'    # Web framework
     s.add_dependency 'libuv',   '~> 3.1'    # High performance IO reactor for ruby
