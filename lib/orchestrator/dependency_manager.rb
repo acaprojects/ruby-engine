@@ -101,6 +101,8 @@ module Orchestrator
                             include_device(class_object)
                         when :service
                             include_service(class_object)
+                        when :model
+                            # We're basically just force loading a file here
                         else
                             include_logic(class_object)
                         end
