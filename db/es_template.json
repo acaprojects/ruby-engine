@@ -116,6 +116,11 @@
                                 }
                             }
                         },
+                        "description": {
+                            "type": "string",
+                            "store": true,
+                            "analyzer": "aggressive_tokenisation"
+                        },
 
                         "email"          : {"type": "string", "analyzer": "searchable" },
                         "uri"            : {"type": "string", "analyzer": "searchable" },

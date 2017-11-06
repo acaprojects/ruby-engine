@@ -7,7 +7,6 @@ module Orchestrator
     class DependencyManager
         include Singleton
 
-
         def self.load(classname, role, force = true)
             DependencyManager.instance.load_helper(classname.to_s, role.to_sym, force)
         end
@@ -21,27 +20,19 @@ module Orchestrator
             end
         end
 
-
         def load(dependency, force = false)
             defer = @reactor.defer
 
             classname = dependency.class_name
             class_lookup = classname.to_sym
-            class_object = @dependencies[class_lookup]
 
-            if class_object && force == false
-                defer.resolve(class_object)
-            else
-                defer.resolve(@reactor.work {
-                    perform_load(dependency.role, classname, class_lookup, force)
-                })
-            end
-
-            defer.promise.catch do |e|
+            begin
+                defer.resolve(load_helper(classname, dependency.role, force))
+            rescue Exception => e
                 msg = String.new(e.message)
                 msg << "\n#{e.backtrace.join("\n")}" if e&.backtrace&.respond_to?(:join)
                 @logger.error(msg)
-                @reactor.reject(e)
+                defer.reject(e)
             end
 
             defer.promise
@@ -49,30 +40,41 @@ module Orchestrator
 
         def load_helper(classname, role, force = false)
             class_lookup = classname.to_sym
-            class_object = @dependencies[class_lookup]
 
-            if class_object && force == false
-                class_object
-            elsif @reactor.reactor_thread?
+            if not force
+                class_object = @dependencies[class_lookup]
+                return class_object if class_object
+            end
+
+            if @reactor.reactor_thread?
                 @reactor.work {
-                    perform_load(role, classname, class_lookup, force)
+                    perform_load(role, classname, class_lookup)
                 }.value
             else
-                perform_load(role, classname, class_lookup, force)
+                perform_load(role, classname, class_lookup)
             end
         end
 
         def force_load(file)
             defer = @reactor.defer
 
-            defer.resolve(@reactor.work {
-                if File.exists?(file)
-                    @critical.synchronize { ::Kernel.load file }
-                    file
+            if File.exists?(file)
+                if @reactor.reactor_thread?
+                    defer.resolve(@reactor.work {
+                        @critical.synchronize { ::Kernel.load file }
+                        file
+                    })
                 else
-                    raise Error::FileNotFound.new("could not find '#{file}'")
+                    begin
+                        @critical.synchronize { ::Kernel.load file }
+                        defer.resolve(file)
+                    rescue Exception => e
+                        defer.reject(e)
+                    end
                 end
-            })
+            else
+                defer.reject(Error::FileNotFound.new("could not find '#{file}'"))
+            end
 
             defer.promise
         end
@@ -82,7 +84,7 @@ module Orchestrator
 
 
         # Always called from within a Mutex
-        def perform_load(role, classname, class_lookup, force)
+        def perform_load(role, classname, class_lookup)
             file = "#{classname.underscore}.rb"
             class_object = nil
 
@@ -101,6 +103,8 @@ module Orchestrator
                             include_device(class_object)
                         when :service
                             include_service(class_object)
+                        when :model
+                            # We're basically just force loading a file here
                         else
                             include_logic(class_object)
                         end
