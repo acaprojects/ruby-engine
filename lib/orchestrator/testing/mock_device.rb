@@ -102,7 +102,8 @@ class Orchestrator::Testing::MockDevice
         elsif hex_string
             hex_to_byte(raw)
         else
-            raw
+            # Avoid issues with string literals
+            String.new(raw)
         end
 
         @manager.connection.receive(data)
