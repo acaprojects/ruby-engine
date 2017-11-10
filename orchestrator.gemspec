@@ -29,9 +29,9 @@ Gem::Specification.new do |s|
     s.add_dependency 'doorkeeper-couchbase', '~> 1.0'
     s.add_dependency 'co-elastic-query', '~> 3.0' # Query builder
     s.add_dependency 'spider-gazelle',   '~> 3.0' # RACK Webserver
+    s.add_dependency 'byebug',  '~> 9.0'    # Debugging console for module testing
 
     s.add_development_dependency 'yard',   '~> 0.9' # Comment based documentation generation
-    s.add_development_dependency 'byebug', '~> 9.0' # Debugging console
 
 
     s.files = Dir["{lib,app,config}/**/*"] + %w(Rakefile orchestrator.gemspec README.md LICENSE.md)
