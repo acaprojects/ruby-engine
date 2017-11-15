@@ -153,6 +153,8 @@ module Orchestrator
             end
 
             def get_scheduler
+                raise 'schedule unavailable in a task' unless @thread.reactor_thread?
+                raise 'driver is stopped' unless @running
                 @scheduler ||= ::Orchestrator::Core::ScheduleProxy.new(@thread, self)
             end
 
