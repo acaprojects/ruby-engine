@@ -1,27 +1,29 @@
 # frozen_string_literal: true
 
 require 'set'
+require 'concurrent/atomic/atomic_fixnum'
 
 module Orchestrator
-    Subscription = Struct.new(:sys_name, :sys_id, :mod_name, :mod_id, :index, :status, :callback, :on_thread) do
-        @@mutex = Mutex.new
-        @@sub_id = 1
+    Subscription = Struct.new(:sys_name, :sys_id, :mod_name, :mod_id, :index, :status, :callback, :on_thread, :old_value, :subscription) do
+        @@sub_id = Concurrent::AtomicFixnum.new
 
         def initialize(*args)
             super(*args)
-
-            @@mutex.synchronize {
-                @@sub_id += 1
-                @sub_id = @@sub_id
-            }
-
-            @do_callback = proc { callback.call(self) }
+            @sub_id = @@sub_id.increment
         end
 
         def notify(update, force = false)
             if update != @value || force
+                old_val = @value
                 @value = update
-                on_thread.schedule @do_callback
+
+                notification = self.dup
+                notification.old_value = old_val
+                notification.subscription = self
+
+                on_thread.schedule do
+                    callback.call(notification)
+                end
             end
         end
 
