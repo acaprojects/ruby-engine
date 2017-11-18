@@ -1,11 +1,14 @@
 # frozen_string_literal: true
 
-
 require 'rspec/expectations'
 require 'orchestrator/testing/mock_transport'
 require 'orchestrator/testing/device_manager'
-require 'byebug'
 
+# Only load byebug if it is available
+begin
+    require 'byebug'
+rescue Exception
+end
 
 module Orchestrator::Testing
     def self.mock_device(klass_name, **config, &block)
@@ -102,7 +105,8 @@ class Orchestrator::Testing::MockDevice
         elsif hex_string
             hex_to_byte(raw)
         else
-            raw
+            # Avoid issues with string literals
+            String.new(raw)
         end
 
         @manager.connection.receive(data)

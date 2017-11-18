@@ -48,8 +48,6 @@ module Orchestrator
         # SSH module
         PROTECTED[:exec] = true
 
-
-        #
         # This class exists so that we can access regular kernel methods
         class RequestForward
             def initialize(thread, mod, user = nil)
@@ -140,7 +138,6 @@ module Orchestrator
             end
         end
 
-
         # By using basic object we should be almost perfectly proxying the module code
         class RequestProxy < BasicObject
             def initialize(thread, mod, user = nil)
@@ -148,11 +145,9 @@ module Orchestrator
                 @forward = RequestForward.new(thread, mod, user)
             end
 
-
             def trace
                 @forward.trace
             end
-
 
             # Simplify access to status variables as they are thread safe
             def [](name)
@@ -182,9 +177,12 @@ module Orchestrator
                 @mod.instance.method(method.to_sym).arity
             end
 
-
             # All other method calls are wrapped in a promise
             def method_missing(name, *args, &block)
+                @forward.request(name.to_sym, args, &block)
+            end
+
+            def send(name, *args, &block)
                 @forward.request(name.to_sym, args, &block)
             end
 

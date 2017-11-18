@@ -13,10 +13,8 @@ module Orchestrator
                 @trace = []
             end
 
-
             attr_reader :trace
             attr_reader :modules
-
 
             # Provide Enumerable support
             def each
@@ -44,7 +42,6 @@ module Orchestrator
                 return nil unless mod
                 return RequestProxy.new(@thread, mod, @user)
             end
-
 
             def request(name, args, &block)
                 if ::Orchestrator::Core::PROTECTED[name]
@@ -105,28 +102,27 @@ module Orchestrator
 
         # By using basic object we should be almost perfectly proxying the module code
         class RequestsProxy < BasicObject
+            include ::Enumerable
+
             def initialize(thread, modules, user = nil)
                 @forward = RequestsForward.new(thread, modules, user)
                 @modules = @forward.modules
             end
 
-
             def trace
                 @forward.trace
             end
-
 
             # Provide Enumerable support
             def each(&blk)
                 @forward.each &blk
             end
 
-            # Provide some helper methods
+            # Shortcut some methods (reduce object creation)
             def count; @modules.count; end
             def length; @modules.length; end
             def empty?; @modules.empty?; end
             def each_index; @modules.each_index(&block); end
-
 
             def last
                 @forward.last
@@ -153,6 +149,10 @@ module Orchestrator
             end
 
             def method_missing(name, *args, &block)
+                @forward.request(name.to_sym, args, &block)
+            end
+
+            def send(name, *args, &block)
                 @forward.request(name.to_sym, args, &block)
             end
 

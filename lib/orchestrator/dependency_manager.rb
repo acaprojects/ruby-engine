@@ -88,30 +88,26 @@ module Orchestrator
             file = "#{classname.underscore}.rb"
             class_object = nil
 
-            ::Rails.configuration.orchestrator.module_paths.each do |path|
-                file_path = File.join(path, file)
+            begin
+                # Check lib first
+                @critical.synchronize {
+                    ::Kernel.load file
+                    class_object = classname.constantize
+                    inject_mixin(role, class_object, class_lookup)
+                }
+            rescue LoadError
+                # Check modules folder
+                ::Rails.configuration.orchestrator.module_paths.each do |path|
+                    file_path = File.join(path, file)
 
-                if ::File.exists?(file_path)
-                    @critical.synchronize {
-                        ::Kernel.load file_path
-                        class_object = classname.constantize
-
-                        case role
-                        when :ssh
-                            include_ssh(class_object)
-                        when :device
-                            include_device(class_object)
-                        when :service
-                            include_service(class_object)
-                        when :model
-                            # We're basically just force loading a file here
-                        else
-                            include_logic(class_object)
-                        end
-
-                        @dependencies[class_lookup] = class_object
-                    }
-                    break
+                    if ::File.exists?(file_path)
+                        @critical.synchronize {
+                            ::Kernel.load file_path
+                            class_object = classname.constantize
+                            inject_mixin(role, class_object, class_lookup)
+                        }
+                        break
+                    end
                 end
             end
 
@@ -120,6 +116,23 @@ module Orchestrator
             end
 
             class_object
+        end
+
+        def inject_mixin(role, class_object, class_lookup)
+            case role
+            when :ssh
+                include_ssh(class_object)
+            when :device
+                include_device(class_object)
+            when :service
+                include_service(class_object)
+            when :model
+                # We're basically just force loading a file here
+            else
+                include_logic(class_object)
+            end
+
+            @dependencies[class_lookup] = class_object
         end
 
         def include_logic(klass)

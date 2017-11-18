@@ -2,15 +2,12 @@
 
 module Orchestrator
     module Core
-        SCHEDULE_ACCESS_DENIED = 'schedule unavailable in a task'
-
         module Mixin
 
             # Returns a wrapper around a shared instance of ::UV::Scheduler
             #
             # @return [::Orchestrator::Core::ScheduleProxy]
             def schedule
-                raise SCHEDULE_ACCESS_DENIED unless @__config__.thread.reactor_thread?
                 @__config__.get_scheduler
             end
 
