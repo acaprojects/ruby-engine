@@ -44,7 +44,6 @@ module Orchestrator
                     port: @settings.port,
                     non_interactive: true,  # No password prompt
                     keys_only: true,        # Don't use ssh-agent
-                    verbose: nil,           # Our logger to control log levels
                     logger: @logger
                 })
                 username = ssh_settings.delete(:username) || ''
