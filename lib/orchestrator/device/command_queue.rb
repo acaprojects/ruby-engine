@@ -35,7 +35,7 @@ module Orchestrator
             def pop(blk = @default)
                 return if @waiting
                 @callback = blk
-                @reactor.next_tick @perform_pop if blk
+                @reactor.next_tick &@perform_pop if blk
             end
 
             # Dump the current list of commands in order
@@ -90,7 +90,7 @@ module Orchestrator
                 end
 
                 if @callback && length == 1
-                    @reactor.next_tick @perform_pop
+                    @reactor.next_tick &@perform_pop
                 end
             end
 
