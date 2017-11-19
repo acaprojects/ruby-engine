@@ -11,9 +11,9 @@ module Orchestrator
                 @reactor = ws.reactor
                 @spec_file = spec_file
 
-                @ws.progress method(:on_message)
-                @ws.finally method(:on_shutdown)
-                @ws.on_open method(:on_open)
+                @ws.progress { |data| @process.stdin.write(data) }
+                @ws.finally { @process.kill }
+                @ws.on_open { |ws| on_open(ws) }
             end
 
 
@@ -41,20 +41,10 @@ module Orchestrator
                     end
                 end
 
-                @process.finally do
-                    @ws.close
-                end
+                @process.finally { @ws.close }
 
                 @process.stdout.start_read
                 @process.stderr.start_read
-            end
-
-            def on_message(data, ws)
-                @process.stdin.write(data)
-            end
-
-            def on_shutdown
-                @process.kill
             end
         end
     end

@@ -41,7 +41,7 @@ module Orchestrator
             index_module control_system.id, true
 
             # Index the real modules
-            @config.modules.each &method(:index_module)
+            @config.modules.each { |id| index_module(id) }
 
             # Build an ordered zone cache for setting lookup
             zones = @@ctrl.zones

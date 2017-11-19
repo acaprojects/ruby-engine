@@ -12,7 +12,7 @@ module Orchestrator
                 settings = manager.settings
                 @ip = settings.ip
                 @port = settings.port
-                @on_read = method(:on_read)
+                @on_read = proc { |d| on_read(d) }
 
                 # One per loop unless port specified
                 @udp_server = @reactor.udp_service

@@ -70,12 +70,13 @@ module Orchestrator
                     @triggers[trig.id] = trig
                     @trigger_names[trig.name] = trig
 
-                    state = State.new(trig, schedule, method(:callback), logger)
+                    callback = proc { |id, state| callback(id, state) }
+                    state = State.new(trig, schedule, callback, logger)
                     @conditions[trig.id] = state
 
                     subs = []
                     sys_proxy = system
-                    sub_callback = state.method(:set_value)
+                    sub_callback = proc { |info| state.set_value(info) }
                     state.subscriptions.each do |sub|
                         subs << sys_proxy.subscribe(sub[:mod], sub[:index], sub[:status], sub_callback)
                     end
@@ -142,7 +143,7 @@ module Orchestrator
                 # create new trigger objects
                 # with current status values
                 sys_proxy = system
-                callback = method(:callback)
+                callback = proc { |id, state| callback(id, state) }
                 triggers.each do |trig|
                     @triggers[trig.id] = trig
                     @trigger_names[trig.name] = trig
@@ -153,7 +154,7 @@ module Orchestrator
                     # subscribe to status variables and
                     # map any existing status into the triggers
                     subs = []
-                    sub_callback = state.method(:set_value)
+                    sub_callback = proc { |info| state.set_value(info) }
 
                     state.subscriptions.each do |sub|
                         subs << sys_proxy.subscribe(sub[:mod], sub[:index], sub[:status], sub_callback)

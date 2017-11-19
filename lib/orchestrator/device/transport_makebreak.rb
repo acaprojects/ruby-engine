@@ -13,14 +13,10 @@ module Orchestrator
                 @disconnecting = false
                 @last_retry = 0
 
-
                 @activity = nil     # Activity timer
                 @connecting = nil   # Connection timer
                 @retries = 2        # Connection retries
                 @write_queue = []
-
-                @timeout = method(:timeout)
-                @reset_timeout = method(:reset_timeout)
             end
 
             attr_reader :delaying
@@ -218,11 +214,6 @@ module Orchestrator
             protected
 
 
-            def timeout(*args)
-                @activity = nil
-                disconnect
-            end
-
             def reset_timeout
                 return if @terminated
 
@@ -233,12 +224,15 @@ module Orchestrator
 
                 timeout = @config[:inactivity_timeout] || 0
                 if timeout > 0
-                    @activity = @manager.thread.scheduler.in(timeout, @timeout)
+                    @activity = @manager.thread.scheduler.in(timeout) do
+                        @activity = nil
+                        disconnect
+                    end
                 else # Wait for until queue complete
                     waiting = @processor.queue.waiting
                     if waiting
                         if waiting[:makebreak_set].nil?
-                            waiting[:defer].promise.finally @reset_timeout
+                            waiting[:defer].promise.finally { reset_timeout }
                             waiting[:makebreak_set] = true
                         end
                     elsif @processor.queue.length == 0

@@ -82,7 +82,7 @@ module Orchestrator
                 @defaults = SEND_DEFAULTS.dup
                 @config = CONFIG_DEFAULTS.dup
 
-                @queue = CommandQueue.new(@thread, method(:send_next))
+                @queue = CommandQueue.new(@thread, proc { |c| send_next(c) })
                 @responses = []
                 @wait = false
                 @connected = false
@@ -213,7 +213,13 @@ module Orchestrator
             end
 
             def terminate
-                @thread.schedule method(:do_terminate)
+                @thread.schedule do
+                    if @queue.waiting
+                        @queue.waiting[:defer].reject(TERMINATE_MSG)
+                        @queue.waiting = nil
+                    end
+                    @queue.cancel_all(TERMINATE_MSG)
+                end
             end
 
             def check_next
@@ -242,14 +248,6 @@ module Orchestrator
                     # remove the buffer if none
                     @buffer = nil
                 end
-            end
-
-            def do_terminate
-                if @queue.waiting
-                    @queue.waiting[:defer].reject(TERMINATE_MSG)
-                    @queue.waiting = nil
-                end
-                @queue.cancel_all(TERMINATE_MSG)
             end
 
             # Check transport response data

@@ -61,7 +61,7 @@ module Orchestrator
             unless ENV['ORC_NO_BOOT'] || defined?(Rails::Console) || Rails.env.test? || defined?(::Rake::Task)
                 ctrl.reactor.next_tick do
                     begin
-                        ctrl.mount.then ctrl.method(:boot)
+                        ctrl.mount.then { ctrl.boot }
                     rescue Exception => e # Exception is valid here as process kill will be more effective
                         # Issue would have been caused by a database error in the ctrl.mount function
                         # We really need the system to be in a clean state when it starts so our only

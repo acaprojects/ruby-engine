@@ -28,7 +28,6 @@ module Orchestrator
             @nodes = ::Concurrent::Map.new
             @connections = ::Concurrent::Map.new
             @reactor = ::Libuv::Reactor.default
-            @exceptions = method(:log_unhandled_exception)
 
             @next_thread = Concurrent::AtomicFixnum.new
 
@@ -99,7 +98,7 @@ module Orchestrator
 
                         cpus = ::Libuv.cpu_count || 1
                         start_watchdog
-                        cpus.times &method(:start_thread)
+                        cpus.times { |i| start_thread(i) }
 
                         logger.debug 'init: Watchdog started'
                     end
@@ -123,7 +122,7 @@ module Orchestrator
         # Boot the control system, running all defined modules
         def boot(*args)
             # Only boot if running as a server
-            Thread.new &method(:load_all)
+            Thread.new { load_all }
         end
 
         # Load a zone that might have been missed or added manually
@@ -371,7 +370,7 @@ module Orchestrator
                 logger.debug 'init: Connecting to edge nodes'
 
                 # Determine if we are the master node (either single master or load balanced masters)
-                this_node   = @nodes[Remote::NodeId]
+                this_node = @nodes[Remote::NodeId]
 
                 start_server
                 @nodes.each_value do |remote_node|
@@ -404,7 +403,7 @@ module Orchestrator
             @threads << thread
 
             Thread.new do
-                thread.notifier @exceptions
+                thread.notifier { |*args| log_unhandled_exception(*args) }
                 thread.run do |thread|
                     attach_watchdog thread
                 end
@@ -433,7 +432,7 @@ module Orchestrator
             @watching = false
 
             Thread.new do
-                thread.notifier @exceptions
+                thread.notifier { |*args| log_unhandled_exception(*args) }
                 thread.run do |thread|
                     thread.scheduler.every 2000 do
                         check_threads
