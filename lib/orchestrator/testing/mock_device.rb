@@ -89,7 +89,6 @@ class Orchestrator::Testing::MockDevice
         @role = role
         @manager = Orchestrator::Testing::DeviceManager.new(thread, klass, settings)
         @manager.logger.level = :debug
-        @manager.logger.use_blocking_writes = true
         @thread = thread
         @manager.start_local
     end
