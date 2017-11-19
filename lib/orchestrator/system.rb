@@ -114,7 +114,7 @@ module Orchestrator
             wait = nil
             loading = @@loading[id]
 
-            return co(loading) if loading
+            return loading.value if loading
             @@critical.synchronize {
                 loading = @@loading[id]
                 if loading.nil?
@@ -122,7 +122,7 @@ module Orchestrator
                     @@loading[id] = wait.promise
                 end
             }
-            return co(loading) if loading
+            return loading.value if loading
 
             begin
                 system = @@systems[id]

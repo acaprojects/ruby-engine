@@ -60,7 +60,7 @@ module Orchestrator
 
                 begin
                     # Note:: Coroutine waiting for dependency load
-                    co depman.load(@dep, :force)
+                    depman.load(@dep, :force).value
                     content = nil
                     status = :ok
 

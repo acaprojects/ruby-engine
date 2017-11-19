@@ -382,19 +382,18 @@ module Orchestrator
                 # TODO:: we could have this auto-negotiated in the future
                 unless ENV['COLLECT_STATS'] == 'false'
                     logger.debug 'init: Collecting cluster statistics'
-                    @reactor.scheduler.every(300_000, method(:log_stats))
+                    @reactor.scheduler.every(300_000) do
+                        begin
+                            Orchestrator::Stats.new.save
+                        rescue => e
+                            @logger.warn "exception saving statistics: #{e.message}"
+                        end
+                    end
                 end
 
                 logger.debug 'init: Init complete'
                 @ready_defer.resolve(true)
             end
-        end
-
-
-        def log_stats(*_)
-            Orchestrator::Stats.new.save
-        rescue => e
-            @logger.warn "exception saving statistics: #{e.message}"
         end
 
 

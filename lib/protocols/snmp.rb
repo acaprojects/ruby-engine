@@ -12,6 +12,6 @@ class Protocols::Snmp
     end
 
     def send(payload)
-        co(@driver.send(payload))
+        @driver.send(payload).value
     end
 end

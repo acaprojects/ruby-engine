@@ -94,12 +94,12 @@ module Orchestrator
                 # Stop all modules in the system
                 wait = @cs.cleanup_modules
 
-                co reactor.finally(*wait).then {
+                reactor.finally(*wait).then {
                     @cs.destroy
-                }
+                }.value
 
                 # Clear the cache
-                co control.expire_cache(sys_id)
+                control.expire_cache(sys_id).value
 
                 head :ok
             end
@@ -121,12 +121,12 @@ module Orchestrator
                 # This needs to be done on the remote as well
                 # Clear the system cache once the modules are loaded
                 # This ensures the cache is accurate
-                co control.reactor.finally(*loaded).then do
+                control.reactor.finally(*loaded).then {
                     # Might as well trigger update behaviour.
                     # Ensures logic modules that interact with other logic modules
                     # are accurately informed
                     control.expire_cache(@cs)
-                end
+                }.value
 
                 head :ok
             end

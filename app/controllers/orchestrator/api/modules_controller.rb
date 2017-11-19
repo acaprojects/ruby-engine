@@ -140,7 +140,7 @@ module Orchestrator
 
             def start
                 # It is possible that module class load can fail
-                result = co control.start(id)
+                result = control.start(id).value
                 if result
                     head :ok
                 else
@@ -149,7 +149,7 @@ module Orchestrator
             end
 
             def stop
-                co control.stop(id)
+                control.stop(id).value
                 head :ok
             end
 
