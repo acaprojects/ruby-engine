@@ -443,7 +443,7 @@ module Orchestrator
 
                 if command[:wait]
                     # Set up timers for command timeout
-                    @timeout = schedule.in(command[:timeout], @resp_failure)
+                    @timeout = schedule.in(command[:timeout], &@resp_failure)
                 else
                     # resolve the send promise early as we are not waiting for the response
                     command[:defer].resolve(:no_wait)
