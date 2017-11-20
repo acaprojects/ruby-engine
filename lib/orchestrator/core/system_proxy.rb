@@ -205,7 +205,7 @@ module Orchestrator
                         end
                     end
 
-                    co defer.promise
+                    defer.promise.value
                 else
                     @thread.observer.subscribe(options)
                 end

@@ -13,20 +13,20 @@ module Orchestrator
 
             attr_reader :schedules
 
-            def every(time, callback = nil, &block)
-                add_schedule @scheduler.every(time, curry_user(callback || block))
+            def every(time, &block)
+                add_schedule @scheduler.every(time, &curry_user(block))
             end
 
-            def in(time, callback = nil, &block)
-                add_schedule @scheduler.in(time, curry_user(callback || block))
+            def in(time, &block)
+                add_schedule @scheduler.in(time, &curry_user(block))
             end
 
-            def at(time, callback = nil, &block)
-                add_schedule @scheduler.at(time, curry_user(callback || block))
+            def at(time, &block)
+                add_schedule @scheduler.at(time, &curry_user(block))
             end
 
-            def cron(schedule, callback = nil, timezone: nil, &block)
-                add_schedule @scheduler.cron(schedule, curry_user(callback || block), timezone: timezone)
+            def cron(schedule, timezone: nil, &block)
+                add_schedule @scheduler.cron(schedule, timezone: timezone, &curry_user(block))
             end
 
             def clear

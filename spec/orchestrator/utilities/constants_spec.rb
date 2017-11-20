@@ -111,9 +111,7 @@ describe 'module constants mixin' do
         req_opts = TestModule.__default_opts(@inst)
 
         expect(req_opts.empty?).to eq(true)
-        expect(config).to eq({
-            before_transmit: @inst.method(:cb)
-        })
+        expect(config[:before_transmit].call('check')).to eq('check')
     end
 
     it 'should support a multiple before_transmit callbacks' do
@@ -174,7 +172,7 @@ describe 'module constants mixin' do
 
         tokeniser = config[:tokenize].call
         expect(tokeniser).to be_a(::UV::AbstractTokenizer)
-        expect(tokeniser.callback).to eq(@inst.method(:cb))
+        expect(tokeniser.callback.call(1)).to be(3)
     end
 
     it 'should throw an error if the tokeniser config does not meet requirements' do

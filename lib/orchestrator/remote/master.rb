@@ -29,7 +29,6 @@ module Orchestrator
                 @connections = {}
                 @connected_to = Set.new
 
-                @tokenise = method(:tokenise)
                 @node = @ctrl.nodes[NodeId]
 
                 init_node_states
@@ -46,11 +45,12 @@ module Orchestrator
             def start_server
                 # Bind the socket
                 @tcp = @thread.tcp
-                        .bind('0.0.0.0', @node.server_port, method(:new_connection))
+                        .bind('0.0.0.0', @node.server_port) { |client| new_connection(client) }
                         .listen(64) # smallish backlog is all we need
 
-                # Delegate errors
-                @tcp.catch @bind_error
+                @tcp.catch do |error|
+                    @logger.print_error(error, "Remote binding error")
+                end
 
                 @logger.info "Node server on tcp://0.0.0.0:#{@node.server_port}"
             end
@@ -96,18 +96,16 @@ module Orchestrator
                     end
                 end
 
-                client.progress @tokenise
+                client.progress do |data, client|
+                    connection = @connections[client.object_id]
+                    connection.tokeniser.extract(data).each do |msg|
+                        process connection, msg
+                    end
+                end
 
                 # This is an encrypted connection
                 client.start_tls(server: true)
                 client.start_read
-            end
-
-            def tokenise(data, client)
-                connection = @connections[client.object_id]
-                connection.tokeniser.extract(data).each do |msg|
-                    process connection, msg
-                end
             end
 
 

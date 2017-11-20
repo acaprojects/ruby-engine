@@ -55,7 +55,7 @@ module Orchestrator
 
                         # Were we passed a proc?
                         if !cb.respond_to?(:call)
-                            token[:callback] = instance.method(cb.to_sym)
+                            token[:callback] = proc { |data| instance.__send__(cb.to_sym, data) }
                         end
 
                         config[:tokenize] = proc {
@@ -77,7 +77,7 @@ module Orchestrator
                         if cb.respond_to?(:call)
                             callbacks << cb
                         else
-                            callbacks << instance.method(cb.to_sym)
+                            callbacks << proc { |data| instance.__send__(cb.to_sym, data) }
                         end
                     end
 

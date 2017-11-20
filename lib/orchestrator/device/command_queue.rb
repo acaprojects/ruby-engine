@@ -22,11 +22,11 @@ module Orchestrator
                     # name: [[priority list], command]
                     # where command may be nil
                 }
-                @comparison = method(:comparison)
+                @comparison = proc { |x, y| comparison(x, y) }
                 @pending_commands = Containers::Heap.new(&@comparison)
 
                 @state = :online    # online / offline
-                @perform_pop = method(:perform_pop)
+                @perform_pop = proc { perform_pop }
             end
 
             # Provides a callback to pass the next command to.

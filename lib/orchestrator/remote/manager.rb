@@ -18,7 +18,7 @@ module Orchestrator
 
             def running
                 # TODO::
-                co proxy.running?(@settings.id)
+                proxy.running?(@settings.id).value
             end
 
             # Use fiber local variables for storing the current user
@@ -81,7 +81,7 @@ module Orchestrator
             end
 
             def [](name)
-                co proxy.status(@settings.id, name)
+                proxy.status(@settings.id, name).value
             end
 
 

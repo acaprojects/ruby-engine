@@ -39,7 +39,9 @@ module Orchestrator
                     end
 
                     connection.open_channel do |ch|
-                        ch.request_pty(modes: { Net::SSH::Connection::Term::ECHO => 0 }, &method(:open_shell))
+                        ch.request_pty(modes: { Net::SSH::Connection::Term::ECHO => 0 }) do |ch, success|
+                            open_shell(ch, success)
+                        end
                     end
                 }.catch { |error|
                     @connection = nil
@@ -60,8 +62,8 @@ module Orchestrator
                     ch.send_channel_request('shell') do |ch, success|
                         if success
                             @shell = ch
-                            ch.on_data(&method(:on_read))
-                            ch.on_extended_data(&method(:on_read))
+                            ch.on_data { |channel, data| on_read(channel, data) }
+                            ch.on_extended_data { |channel, data| on_read(channel, data) }
                             on_connect(connection.transport)
                         else
                             @manager.logger.warn('failed to open SSH shell')

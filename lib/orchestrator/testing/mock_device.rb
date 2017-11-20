@@ -89,7 +89,6 @@ class Orchestrator::Testing::MockDevice
         @role = role
         @manager = Orchestrator::Testing::DeviceManager.new(thread, klass, settings)
         @manager.logger.level = :debug
-        @manager.logger.use_blocking_writes = true
         @thread = thread
         @manager.start_local
     end
@@ -211,7 +210,7 @@ class Orchestrator::Testing::MockDevice
         res = @last_executed
         @last_executed = nil
         actual = if res.respond_to? :then
-            co(res)
+            res.value
         else
             res
         end
@@ -236,7 +235,7 @@ class Orchestrator::Testing::MockDevice
                 wait_tick(count, defer)
             end
         end
-        co defer.promise
+        defer.promise.value
     end
 
     # Waits a number of milliseconds
@@ -247,7 +246,7 @@ class Orchestrator::Testing::MockDevice
         thread.scheduler.in(ms + 10) do
             defer.resolve(true)
         end
-        co defer.promise
+        defer.promise.value
     end
 
     def temporary_disconnect

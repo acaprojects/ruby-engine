@@ -12,12 +12,12 @@ module Orchestrator
 
             @bindings = ::Concurrent::Map.new
             @stattrak = @reactor.observer
-            @notify_update = method(:notify_update)
+            @notify_update = proc { |u| notify_update(u) }
 
             @logger = ::Orchestrator::Logger.new(@reactor, user)
 
-            @ws.progress method(:on_message)
-            @ws.finally method(:on_shutdown)
+            @ws.progress { |data, ws| on_message(data, ws) }
+            @ws.finally { on_shutdown }
             #@ws.on_open method(:on_open)
 
             @accessed = ::Set.new
@@ -462,10 +462,10 @@ module Orchestrator
         end
 
         def on_shutdown
-            @bindings.each_value &method(:do_unbind)
+            @bindings.each_value { |b| do_unbind(b) }
             @bindings = nil
             if @inspecting
-                @inspecting.each &method(:do_ignore)
+                @inspecting.each { |i| do_ignore(i) }
                 @inspecting = nil
             end
 
@@ -494,7 +494,7 @@ module Orchestrator
         end
 
         def periodicly_update_logs
-            @accessTimer = @reactor.scheduler.every(60000 + Random.rand(1000), method(:update_accessed))
+            @accessTimer = @reactor.scheduler.every(60000 + Random.rand(1000)) { update_accessed }
             @access_log.systems = @accessed.to_a
             @access_log.save
         end

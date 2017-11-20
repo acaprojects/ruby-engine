@@ -41,7 +41,7 @@ module Orchestrator
             index_module control_system.id, true
 
             # Index the real modules
-            @config.modules.each &method(:index_module)
+            @config.modules.each { |id| index_module(id) }
 
             # Build an ordered zone cache for setting lookup
             zones = @@ctrl.zones
@@ -114,7 +114,7 @@ module Orchestrator
             wait = nil
             loading = @@loading[id]
 
-            return co(loading) if loading
+            return loading.value if loading
             @@critical.synchronize {
                 loading = @@loading[id]
                 if loading.nil?
@@ -122,7 +122,7 @@ module Orchestrator
                     @@loading[id] = wait.promise
                 end
             }
-            return co(loading) if loading
+            return loading.value if loading
 
             begin
                 system = @@systems[id]

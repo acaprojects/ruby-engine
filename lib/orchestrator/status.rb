@@ -35,8 +35,6 @@ module Orchestrator
             @thread = thread
             @controller = controller
 
-            @find_subscription = method(:find_subscription)
-
             # {:mod_id => {status => Subscriptions}}
             @subscriptions = {}
             # {:system_id => Subscriptions}
@@ -80,7 +78,7 @@ module Orchestrator
         # Removes subscription callback from the lookup
         def unsubscribe(sub)
             if sub.is_a? ::Libuv::Q::Promise
-                sub.then @find_subscription
+                sub.then { |sub| find_subscription(sub) }
             else
                 find_subscription(sub)
             end

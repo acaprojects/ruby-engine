@@ -84,8 +84,7 @@ module Orchestrator
                 ensure
                     @scheduler.clear if @scheduler
                     if @subsciptions
-                        unsub = @stattrak.method(:unsubscribe)
-                        @subsciptions.each &unsub
+                        @subsciptions.each { |u| @stattrak.unsubscribe(u) }
                         @subsciptions = nil
                     end
                     @instance = nil

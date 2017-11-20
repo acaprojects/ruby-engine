@@ -76,7 +76,7 @@ module Orchestrator
                     thread.schedule do
                         defer.resolve(@__config__.subscribe(status, cb))
                     end
-                    co defer.promise
+                    defer.promise.value
                 end
             end
 

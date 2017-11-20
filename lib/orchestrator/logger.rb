@@ -25,7 +25,7 @@ module Orchestrator
         }.freeze
         LEVEL_NAME = LEVEL.invert
 
-        DEFAULT_LEVEL = ::Logger::INFO
+        DEFAULT_LEVEL = ::Rails.env.production? ? ::Logger::WARN : ::Logger::INFO
 
         def initialize(reactor, mod)
             @reactor = reactor
@@ -40,12 +40,7 @@ module Orchestrator
             @level = DEFAULT_LEVEL
             @listeners = Set.new
             @logger = ::Orchestrator::Control.instance.logger
-
-            # This is used for module development (see orchestrator:testing)
-            @use_blocking_writes = !::Rails.env.production?
         end
-
-        attr_accessor :use_blocking_writes
 
         def level=(level)
             @level = LEVEL[level] || level
@@ -102,48 +97,74 @@ module Orchestrator
             info(message)
         end
        
-        def debug(progname = nil, &block)
-            add(::Logger::DEBUG, nil, progname, &block)
+        def debug(progname = nil)
+            return true if ::Logger::DEBUG < @level
+            if block_given?
+                add(::Logger::DEBUG, nil, progname) { yield }
+            else
+                add(::Logger::DEBUG, nil, progname)
+            end
         end
 
         def debug?
             @level <= ::Logger::DEBUG
         end
 
-        def info(progname = nil, &block)
-            add(::Logger::INFO, nil, progname, &block)
+        def info(progname = nil)
+            return true if ::Logger::INFO < @level
+            if block_given?
+                add(::Logger::INFO, nil, progname) { yield }
+            else
+                add(::Logger::INFO, nil, progname)
+            end
         end
 
         def info?
             @level <= ::Logger::INFO
         end
 
-        def warn(progname = nil, &block)
-            add(::Logger::WARN, nil, progname, &block)
+        def warn(progname = nil)
+            if block_given?
+                add(::Logger::WARN, nil, progname) { yield }
+            else
+                add(::Logger::WARN, nil, progname)
+            end
         end
 
         def warn?
             @level <= ::Logger::WARN
         end
 
-        def error(progname = nil, &block)
-            add(::Logger::ERROR, nil, progname, &block)
+        def error(progname = nil)
+            if block_given?
+                add(::Logger::ERROR, nil, progname) { yield }
+            else
+                add(::Logger::ERROR, nil, progname)
+            end
         end
 
         def error?
             @level <= ::Logger::ERROR
         end
 
-        def fatal(progname = nil, &block)
-            add(::Logger::FATAL, nil, progname, &block)
+        def fatal(progname = nil)
+            if block_given?
+                add(::Logger::FATAL, nil, progname) { yield }
+            else
+                add(::Logger::FATAL, nil, progname)
+            end
         end
 
         def fatal?
             @level <= ::Logger::FATAL
         end
 
-        def unknown(progname = nil, &block)
-            add(::Logger::UNKNOWN, nil, progname, &block)
+        def unknown(progname = nil)
+            if block_given?
+                add(::Logger::UNKNOWN, nil, progname) { yield }
+            else
+                add(::Logger::UNKNOWN, nil, progname)
+            end
         end
 
         def print_error(e, msg = nil, trace = nil)
@@ -176,38 +197,63 @@ module Orchestrator
         protected
 
 
-        def log(level, msg, progname)
-            return print_error(msg) if msg.is_a?(::Exception)
-            msg = msg.inspect unless msg.is_a?(::String)
+        if ::Rails.env.production?
+            def log(level, msg, progname)
+                return print_error(msg) if msg.is_a?(::Exception)
+                msg = msg.inspect unless msg.is_a?(::String)
 
-            tags = [@klass, progname]
-            user = ::Orchestrator::Control.instance.loaded?(@progname)&.current_user&.id
-            msg = "(#{user}) #{msg}" if user
+                tags = [@klass, progname]
+                user = ::Orchestrator::Control.instance.loaded?(@progname)&.current_user&.id
+                msg = "(#{user}) #{msg}" if user
 
-            @reactor.schedule do
-                # Writing to STDOUT is blocking hence doing this in a worker thread
-                # http://nodejs.org/dist/v0.10.26/docs/api/process.html#process_process_stdout
-                if @use_blocking_writes
+                @reactor.schedule do
+                    # Writing to STDOUT is blocking hence doing this in a worker thread
+                    # http://nodejs.org/dist/v0.10.26/docs/api/process.html#process_process_stdout
+                    if level > ::Logger::INFO
+                        # We never write debug or info logs to disk
+                        @reactor.work do
+                            @logger.tagged(*tags) {
+                                @logger.add(level, msg, progname)
+                            }
+                        end
+                    end
+
+                    # Listeners are any attached remote debuggers
+                    if @listeners.size > 0
+                        lname = level_name(level)
+                        @listeners.each do |listener|
+                            begin
+                                listener.call(@klass, @progname, lname, msg)
+                            rescue Exception => e
+                                @logger.error "logging to remote #{listener}\n#{e.message}\n#{e.backtrace.join("\n")}"
+                            end
+                        end
+                    end
+                end
+            end
+        else
+            def log(level, msg, progname)
+                return print_error(msg) if msg.is_a?(::Exception)
+                msg = msg.inspect unless msg.is_a?(::String)
+
+                tags = [@klass, progname]
+                user = ::Orchestrator::Control.instance.loaded?(@progname)&.current_user&.id
+                msg = "(#{user}) #{msg}" if user
+
+                @reactor.schedule do
                     @logger.tagged(*tags) {
                         @logger.add(level, msg, progname)
                     }
-                elsif level > ::Logger::INFO
-                    # We never write debug or info logs to disk
-                    @reactor.work do
-                        @logger.tagged(*tags) {
-                            @logger.add(level, msg, progname)
-                        }
-                    end
-                end
 
-                # Listeners are any attached remote debuggers
-                if @listeners.size > 0
-                    lname = level_name(level)
-                    @listeners.each do |listener|
-                        begin
-                            listener.call(@klass, @progname, lname, msg)
-                        rescue Exception => e
-                            @logger.error "logging to remote #{listener}\n#{e.message}\n#{e.backtrace.join("\n")}"
+                    # Listeners are any attached remote debuggers
+                    if @listeners.size > 0
+                        lname = level_name(level)
+                        @listeners.each do |listener|
+                            begin
+                                listener.call(@klass, @progname, lname, msg)
+                            rescue Exception => e
+                                @logger.error "logging to remote #{listener}\n#{e.message}\n#{e.backtrace.join("\n")}"
+                            end
                         end
                     end
                 end
