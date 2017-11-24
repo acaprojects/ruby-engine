@@ -125,7 +125,7 @@ module Orchestrator
                     # Might as well trigger update behaviour.
                     # Ensures logic modules that interact with other logic modules
                     # are accurately informed
-                    control.expire_cache(@cs)
+                    control.expire_cache(@cs.id)
                 }.value
 
                 head :ok
