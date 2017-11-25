@@ -22,6 +22,13 @@ module Orchestrator
                 trig = sys[:__Triggers__]
 
                 case @trigger.conditions[0][1].to_sym
+                when :payload_only
+                    exec_payload(sys)
+                    User.bucket.subdoc(@trigger.id) do |doc|
+                        doc.counter('trigger_count', 1)
+                    end
+                    trig["#{@trigger.binding}_count"] += 1
+
                 when :execute_before
                     exec_payload(sys)
                     trig.webhook(@trigger.id)
