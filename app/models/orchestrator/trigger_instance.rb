@@ -51,13 +51,7 @@ module Orchestrator
         end
 
         def binding
-            return @binding if @binding || self.id.nil?
-
-            @binding = String.new('t')
-            self.id.each_byte do |byte|
-                @binding << byte.to_s(16)
-            end
-            @binding
+            self.id
         end
 
 
