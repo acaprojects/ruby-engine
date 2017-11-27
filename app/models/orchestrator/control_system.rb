@@ -32,6 +32,11 @@ module Orchestrator
         attribute :features, type: String
         attribute :bookable, type: Boolean, default: false
 
+        # Provide a email lookup helpers
+        ensure_unique :email, presence: false do |email|
+            email.to_s.strip.downcase
+        end
+
         # The number of UI devices that are always available in the room
         # i.e. the number of iPads mounted on the wall
         attribute :installed_ui_devices, type: Integer, default: 0
