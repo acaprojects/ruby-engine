@@ -4,10 +4,9 @@ require 'radix/base'
 
 module Orchestrator
     module Remote
-        class Proxy
-            B65 = ::Radix::Base.new(::Radix::BASE::B62 + ['-', '_', '~'])
-            B10 = ::Radix::Base.new(10)
+        Request = Struct.new(:type, :ref, :value, :args, :user, :id)
 
+        class Proxy
             def initialize(ctrl, dep_man, tcp)
                 @ctrl = ctrl
                 @dep_man = dep_man
@@ -36,35 +35,17 @@ module Orchestrator
             # Send commands to the remote node:
             # ---------------------------------
             def execute(mod_id, func, args = nil, user_id = nil)
-                msg = {
-                    type: :cmd,
-                    mod: mod_id,
-                    func: func
-                }
-
-                msg[:args] = Array(args) if args
-                msg[:user] = user_id if user_id
-
+                msg = Request.new :cmd, mod_id, func, args, user_id
                 send_with_id(msg)
             end
 
             def status(mod_id, status_name)
-                defer = @thread.defer
-
-                msg = {
-                    type: :stat,
-                    mod: mod_id,
-                    stat: status_name
-                }
-
+                msg = Request.new :stat, mod_id, status_name
                 send_with_id(msg)
             end
 
             def shutdown
-                msg = {
-                    type: :push,
-                    push: :shutdown
-                }
+                msg = Request.new :push, nil, :shutdown
                 send_direct(msg)
             end
 
@@ -73,63 +54,33 @@ module Orchestrator
             # ------> Might also need to pass the settings down the wire to avoid race conditions
 
             def reload(dep_id)
-                msg = {
-                    type: :push,
-                    push: :reload,
-                    dep: dep_id
-                }
+                msg = Request.new :push, dep_id, :reload
                 send_with_id(msg)
             end
 
             [:load, :start, :stop, :unload].each do |cmd|
                 define_method cmd do |mod_id|
-                    msg = {
-                        type: :push,
-                        push: cmd,
-                        mod: mod_id
-                    }
+                    msg = Request.new :push, mod_id, cmd
                     send_with_id(msg)
                 end
             end
 
             def set_status(mod_id, status_name, value)
-                # TODO:: use Marshal in the future
-                case value
-                when String, Array, Hash, Float, Integer
-                    msg = {
-                        type: :push,
-                        push: :status,
-                        mod: mod_id,
-                        stat: status_name,
-                        val: value
-                    }
-                    send_with_id(msg)
-                else
-                    ::Libuv::Q.reject(@thread, 'unable to serialise status value')
-                end
-            end
-
-            def restore
-                msg = {
-                    type: :restore
-                }
+                msg = Request.new :push, mod_id, :status, [status_name, value]
                 send_with_id(msg)
             end
 
+            def restore
+                send_with_id(Request.new :restore)
+            end
+
             def expire_cache(sys_id, no_update = false)
-                msg = {
-                    type: :expire,
-                    sys: sys_id
-                }
-                msg[:no_update] = true if no_update
+                msg = Request.new :expire, sys_id, !!no_update
                 send_with_id(msg)
             end
 
             def clear_cache
-                msg = {
-                    type: :clear
-                }
-                send_with_id(msg)
+                send_with_id(Request.new :clear)
             end
 
 
@@ -138,32 +89,33 @@ module Orchestrator
             # -------------------------------------
 
             def process(msg)
-                case msg[:type].to_sym
+                case msg.type
                 when :cmd
-                    puts "\nexec #{msg[:mod]}.#{msg[:func]} -> as #{msg[:user] || 'anonymous'}"
-                    exec(msg[:id], msg[:mod], msg[:func], Array(msg[:args]), msg[:user])
+                    puts "\nexec #{msg.ref}.#{msg.value} -> as #{msg.user || 'anonymous'}"
+                    exec(msg.id, msg.ref, msg.value, Array(msg.args), msg.user)
                 when :stat
-                    get_status(msg[:id], msg[:mod], msg[:stat])
-                when :resp
-                    puts "\nresp #{msg}"
-                    response(msg)
+                    get_status(msg.id, msg.ref, msg.value)
+                when :resolve
+                    resolve(msg)
+                when :reject
+                    reject(msg)
                 when :push
-                    puts "\n#{msg[:push]} #{msg[:mod]}"
+                    puts "\n#{msg.value} #{msg.ref}"
                     command(msg)
                 when :restore
                     puts "\nServer requested we restore control"
                     begin
                         @ctrl.nodes[NodeId].slave_control_restored
-                        send_resolution msg[:id], true
+                        send_resolution msg.id, true
                     rescue => e
-                        send_rejection msg[:id], e
+                        send_rejection msg.id, e
                     end
                 when :expire
-                    @ctrl.expire_cache msg[:sys], false, no_update: msg[:no_update]
-                    send_resolution msg[:id], true
+                    @ctrl.expire_cache msg.ref, false, no_update: msg.value
+                    send_resolution msg.id, true
                 when :clear
                     ::Orchestrator::System.clear_cache
-                    send_resolution msg[:id], true
+                    send_resolution msg.id, true
                 end
             end
 
@@ -173,27 +125,27 @@ module Orchestrator
 
             def next_id
                 @count += 1
-                ::Radix.convert(@count, B10, B65).freeze
+                @count
             end
 
             # This is a response to a message we requested from the node
-            def response(msg)
-                request = @sent.delete msg[:id]
+            def resolve(msg)
+                puts "resolution #{msg.id}: #{msg.value}"
 
+                request = @sent.delete msg.id
                 if request
-                    if msg[:reject]
-                        # Rebuild the error and set the backtrace
-                        klass = msg[:klass]
-                        err = klass ? klass.constantize.new(msg[:reject]) : RuntimeError.new(msg[:reject])
-                        err.set_backtrace(msg[:btrace]) if msg.has_key? :btrace
-                        request.reject err
-                    else
-                        request.resolve msg[:resolve]
-                        if msg[:was_object]
-                            # TODO:: log a warning that the return value might not
-                            # be what was expected
-                        end
-                    end
+                    request.resolve msg.value
+                else
+                    # TODO:: log a warning as we can't find this request
+                end
+            end
+
+            def reject(msg)
+                puts "rejection #{msg.id}: #{msg.value}"
+
+                request = @sent.delete msg.id
+                if request
+                    request.reject msg.value
                 else
                     # TODO:: log a warning as we can't find this request
                 end
@@ -237,8 +189,7 @@ module Orchestrator
 
             # This is a request that isn't looking for a response
             def command(msg)
-                msg_type = msg[:push].to_sym
-
+                msg_type = msg.value
                 case msg_type
                 when :shutdown
                     # TODO:: shutdown the control server
@@ -246,41 +197,43 @@ module Orchestrator
                     # -- Good for performing updates with little downtime
 
                 when :reload
-                    dep = Dependency.find_by_id(msg[:dep])
+                    dep = Dependency.find_by_id(msg.ref)
                     if dep
                         result = @dep_man.load(dep, :force)
-                        promise_response(msg[:id], result)
+                        promise_response(msg.id, result)
                     else
-                        send_rejection(msg[:id], "dependency #{msg[:dep]} not found")
+                        send_rejection(msg.id, "dependency #{msg.ref} not found")
                     end
 
                 when :load
-                    result = @ctrl.update(msg[:mod], false)
-                    promise_response(msg[:id], result)
+                    result = @ctrl.update(msg.ref, false)
+                    promise_response(msg.id, result)
 
                 when :start, :stop
-                    result = @ctrl.__send__(msg_type, msg[:mod], false)
-                    promise_response(msg[:id], result)
+                    result = @ctrl.__send__(msg_type, msg.ref, false)
+                    promise_response(msg.id, result)
 
                 when :unload
-                    result = @ctrl.unload(msg[:mod], false)
-                    promise_response(msg[:id], result)
+                    result = @ctrl.unload(msg.ref, false)
+                    promise_response(msg.id, result)
 
                 when :status
-                    mod_id = msg[:mod]
+                    mod_id = msg.ref
                     mod = @ctrl.loaded?(mod_id)
 
                     if mod
                         begin
+                            status_name, value = msg.args
+
                             # The false indicates "don't send this update back to the remote node"
-                            mod.trak(msg[:stat].to_sym, msg[:val], false)
-                            send_resolution(msg[:id], true)
-                            puts "Received status #{msg[:stat]} = #{msg[:val]}"
+                            mod.trak(status_name, value, false)
+                            send_resolution(msg.id, true)
+                            puts "Received status #{status_name} = #{value}"
                         rescue => e
-                            send_rejection(msg[:id], e)
+                            send_rejection(msg.id, e)
                         end
                     else
-                        send_rejection(msg[:id], 'module not loaded')
+                        send_rejection(msg.id, 'module not loaded')
                     end
                 end
             end
@@ -294,10 +247,10 @@ module Orchestrator
                 @thread.schedule do
                     begin
                         id = next_id
-                        msg[:id] = id
+                        msg.id = id
                         @sent[id] = defer
-                        output = ::JSON.generate(msg)
-                        @tcp.write "\x02#{output}\x03"
+                        output = Marshal.dump(msg)
+                        @tcp.write "#{output}\x00\x00\x00\x03"
                     rescue => e
                         @sent.delete id
                         defer.reject e
@@ -307,8 +260,8 @@ module Orchestrator
             end
 
             def send_direct(msg)
-                output = ::JSON.generate(msg)
-                @tcp.write "\x02#{output}\x03"
+                output = Marshal.dump(msg)
+                @tcp.write "#{output}\x00\x00\x00\x03"
             end
 
             def promise_response(msg_id, promise)
@@ -321,48 +274,24 @@ module Orchestrator
 
             # Reply to Requests
             def send_resolution(req_id, value)
-                response = {
-                    id: req_id,
-                    type: :resp
-                }
-
-                # Don't send nil values (save on bytes)
-                response[:resolve] = value if value
-
-                output = nil
-                begin
-                    output = ::JSON.generate(response)
-                rescue
-                    response[:was_object] = true
-                    response.delete(:resolve)
-
-                    # Value probably couldn't be converted into a JSON object for transport...
-                    output = ::JSON.generate(response)
-                end
+                response = Request.new :resolve
+                response.id = req_id
+                response.value = value
+                output = Marshal.dump(response)
 
                 @thread.schedule {
-                    @tcp.write "\x02#{output}\x03"
+                    @tcp.write "#{output}\x00\x00\x00\x03"
                 }
             end
 
-            def send_rejection(req_id, msg)
-                response = {
-                    id: req_id,
-                    type: :resp
-                }
-
-                if msg.is_a? Exception
-                    response[:klass] = msg.class.name
-                    response[:reject] = msg.message
-                    response[:btrace] = msg.backtrace
-                else
-                    response[:reject] = msg
-                end
-
-                output = ::JSON.generate(response)
+            def send_rejection(req_id, reason)
+                response = Request.new :reject
+                response.id = req_id
+                response.value = reason
+                output = Marshal.dump(response)
 
                 @thread.schedule {
-                    @tcp.write "\x02#{output}\x03"
+                    @tcp.write "#{output}\x00\x00\x00\x03"
                 }
             end
         end

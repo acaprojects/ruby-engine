@@ -13,8 +13,7 @@ module Orchestrator
         end
 
         ParserSettings = {
-            indicator: "\x02",
-            delimiter: "\x03"
+            delimiter: "\x00\x00\x00\x03"
         }
 
         class Master
@@ -67,11 +66,10 @@ module Orchestrator
                 connection.tokeniser = ::UV::BufferedTokenizer.new(ParserSettings)
                 connection.io = client
 
-
-                connection.poll = @thread.scheduler.every(60000) do
-                    client.write "\x02ping\x03"
+                # Ping
+                connection.poll = @thread.scheduler.every(20000) do
+                    client.write "p\x00\x00\x00\x03"
                 end
-
 
                 # Hook up the connection callbacks
                 client.enable_nodelay
@@ -108,18 +106,13 @@ module Orchestrator
                 client.start_read
             end
 
-
-            DECODE_OPTIONS = {
-                symbolize_names: true
-            }.freeze
-
             def process(connection, msg)
                 # Connection Maintenance
                 return if msg[0] == 'p'
 
                 if connection.validated?
                     begin
-                        connection.parser.process ::JSON.parse(msg, DECODE_OPTIONS)
+                        connection.parser.process Marshal.load(msg)
                     rescue => e
                         # TODO:: Log the error here
                     end
@@ -140,9 +133,9 @@ module Orchestrator
 
                             # Provide the edge node with our failover data
                             if edge.is_failover_host && edge.host_active?
-                                connection.io.write "\x02hello #{@node.password} #{edge.failover_time}\x03"
+                                connection.io.write "hello #{@node.password} #{edge.failover_time}\x00\x00\x00\x03"
                             else
-                                connection.io.write "\x02hello #{@node.password}\x03"
+                                connection.io.write "hello #{@node.password}\x00\x00\x00\x03"
                             end
                             @connected_to << node_id
                             edge.slave_connected connection.parser, start_time

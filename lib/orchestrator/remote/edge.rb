@@ -58,7 +58,7 @@ module Orchestrator
                 @logger.info "Connection made to node #{@remote_node.id} (#{ip})"
 
                 # Authenticate with the remote server
-                write("\x02#{NodeId} #{@boot_time} #{@node.password}\x03")
+                write("#{NodeId} #{@boot_time} #{@node.password}\x00\x00\x00\x03")
                 @proxy = Proxy.new(@ctrl, @dep_man, transport)
             end
 
@@ -94,33 +94,30 @@ module Orchestrator
                 end
             end
 
-            DECODE_OPTIONS = {
-                symbolize_names: true
-            }.freeze
             def on_read(data, *_)
                 @tokenise.extract(data).each do |msg|
-                    begin
-                        if msg[0] == '{' && @validated
-                            @proxy.process ::JSON.parse(msg, DECODE_OPTIONS)
-                        elsif msg[0] == 'p'
+                    if msg[0] == 'p'
                             write("\x02pong\x03")
-                        elsif msg[0] == 'h'
-                            # Message is: 'hello password'
-                            # This very basic auth gives us some confidence that the remote is who they claim to be
-                            _, pass, time = msg.split(' ')
-                            if @remote_node.password == pass
-                                @validated = true
-                                @node.master_connected(@proxy, @boot_time, time ? time.to_i : nil)
-                            else
-                                ip, _ = @transport.peername
-                                close_connection
-                                @logger.warn "Connection to node #{@remote_node.id} (#{ip}) was closed due to bad credentials"
-                            end
+                    elsif msg[0] == 'h'
+                        # Message is: 'hello password'
+                        # This very basic auth gives us some confidence that the remote is who they claim to be
+                        _, pass, time = msg.split(' ')
+                        if @remote_node.password == pass
+                            @validated = true
+                            @node.master_connected(@proxy, @boot_time, time ? time.to_i : nil)
+                        else
+                            ip, _ = @transport.peername
+                            close_connection
+                            @logger.warn "Connection to node #{@remote_node.id} (#{ip}) was closed due to bad credentials"
                         end
-                    rescue => e
-                        ip, _ = @transport.peername
-                        close_connection
-                        @logger.warn "Connection to node #{@remote_node.id} (#{ip}) was closed due to bad data"
+                    else
+                        begin
+                            @proxy.process Marshal.load(msg)
+                        rescue => e
+                            ip, _ = @transport.peername
+                            close_connection
+                            @logger.warn "Connection to node #{@remote_node.id} (#{ip}) was closed due to bad data"
+                        end
                     end
                 end
             end

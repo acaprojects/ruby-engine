@@ -77,7 +77,7 @@ class MockCtrl
 
     # this is technically the TCP object
     def write(data)
-        written = ::JSON.parse(data[1..-2], symbolize_names: true)
+        written = Marshal.load(data)
         @log << written
         ::Libuv::Q::ResolvedPromise.new(::Libuv.reactor, written)
     end
@@ -101,19 +101,21 @@ describe Orchestrator::Remote::Proxy do
 
             # Create request
             req = proxy.execute('mod_111', 'function', [1,2,3])
-            expect(@log[0]).to eq({
-                type: 'cmd',
-                mod: 'mod_111',
-                func: 'function',
-                args: [1,2,3],
-                id: '1'
-            })
+            sent = ::Orchestrator::Remote::Request.new(
+                :cmd,
+                'mod_111',
+                'function',
+                [1,2,3],
+                nil,
+                1
+            )
+            expect(@log[0]).to eq(sent)
 
             # Process request
             proxy.process(@log[0])
-            expect(@log[1][:id]).to eq('1')
-            expect(@log[1][:type]).to eq('resp')
-            expect(@log[1][:reject]).to eq('module not loaded')
+            expect(@log[1].id).to eq(1)
+            expect(@log[1].type).to eq(:reject)
+            expect(@log[1].value).to eq('module not loaded')
 
             # Process response
             proxy.process(@log[1])
@@ -133,18 +135,21 @@ describe Orchestrator::Remote::Proxy do
 
             # Create request
             req = proxy.status('mod_111', 'connected')
-            expect(@log[0]).to eq({
-                type: 'stat',
-                mod: 'mod_111',
-                stat: 'connected',
-                id: '1'
-            })
+            sent = ::Orchestrator::Remote::Request.new(
+                :stat,
+                'mod_111',
+                'connected',
+                nil,
+                nil,
+                1
+            )
+            expect(@log[0]).to eq(sent)
 
             # Process request
             proxy.process(@log[0])
-            expect(@log[1][:id]).to eq('1')
-            expect(@log[1][:type]).to eq('resp')
-            expect(@log[1][:resolve]).to eq(true)
+            expect(@log[1].id).to eq(1)
+            expect(@log[1].type).to eq(:resolve)
+            expect(@log[1].value).to eq(true)
 
             # Process response
             proxy.process(@log[1])
@@ -163,46 +168,29 @@ describe Orchestrator::Remote::Proxy do
             proxy = ::Orchestrator::Remote::Proxy.new(mock, mock, mock)
 
             # Create request
-            req = proxy.set_status('mod_111', 'new_status', 'value')
-            expect(@log[0]).to eq({
-                type: 'push',
-                push: 'status',
-                mod: 'mod_111',
-                stat: 'new_status',
-                val: 'value',
-                id: '1'
-            })
+            req = proxy.set_status('mod_111', :new_status, 'value')
+            sent = ::Orchestrator::Remote::Request.new(
+                :push,
+                'mod_111',
+                :status,
+                [:new_status, 'value'],
+                nil,
+                1
+            )
+            expect(@log[0]).to eq(sent)
 
             # Process request
             proxy.process(@log[0])
             expect(@log[1]).to eq([:new_status, 'value', false])
 
-            expect(@log[2][:id]).to eq('1')
-            expect(@log[2][:type]).to eq('resp')
-            expect(@log[2][:resolve]).to eq(true)
+            expect(@log[2].id).to eq(1)
+            expect(@log[2].type).to eq(:resolve)
+            expect(@log[2].value).to eq(true)
 
             # Process response
             proxy.process(@log[2])
             req.then do |resp|
                 failed = resp != true
-            end
-        end
-
-        expect(failed).to be(false)
-    end
-
-    it "should fail to send a set status request" do
-        failed = true
-        @reactor.run do
-            mock = MockCtrl.new(@log)
-            proxy = ::Orchestrator::Remote::Proxy.new(mock, mock, mock)
-
-            # Create request
-            req = proxy.set_status('mod_111', 'new_status', Object.new)
-            expect(@log[0]).to be(nil)
-
-            req.catch do |error|
-                failed = false
             end
         end
 
@@ -217,21 +205,24 @@ describe Orchestrator::Remote::Proxy do
 
             # Create request
             req = proxy.start('mod_111')
-            expect(@log[0]).to eq({
-                type: 'push',
-                push: 'start',
-                mod: 'mod_111',
-                id: '1'
-            })
+            sent = ::Orchestrator::Remote::Request.new(
+                :push,
+                'mod_111',
+                :start,
+                nil,
+                nil,
+                1
+            )
+            expect(@log[0]).to eq(sent)
 
             # Process request
             proxy.process(@log[0])
             @reactor.next_tick do
                 expect(@log[1]).to eq([:start, 'mod_111', false])
 
-                expect(@log[2][:id]).to eq('1')
-                expect(@log[2][:type]).to eq('resp')
-                expect(@log[2][:resolve]).to eq(true)
+                expect(@log[2].id).to eq(1)
+                expect(@log[2].type).to eq(:resolve)
+                expect(@log[2].value).to eq(true)
 
                 # Process response
                 proxy.process(@log[2])
@@ -252,21 +243,24 @@ describe Orchestrator::Remote::Proxy do
 
             # Create request
             req = proxy.stop('mod_111')
-            expect(@log[0]).to eq({
-                type: 'push',
-                push: 'stop',
-                mod: 'mod_111',
-                id: '1'
-            })
+            sent = ::Orchestrator::Remote::Request.new(
+                :push,
+                'mod_111',
+                :stop,
+                nil,
+                nil,
+                1
+            )
+            expect(@log[0]).to eq(sent)
 
             # Process request
             proxy.process(@log[0])
             @reactor.next_tick do
                 expect(@log[1]).to eq([:stop, 'mod_111', false])
 
-                expect(@log[2][:id]).to eq('1')
-                expect(@log[2][:type]).to eq('resp')
-                expect(@log[2][:resolve]).to eq(true)
+                expect(@log[2].id).to eq(1)
+                expect(@log[2].type).to eq(:resolve)
+                expect(@log[2].value).to eq(true)
 
                 # Process response
                 proxy.process(@log[2])
@@ -287,21 +281,24 @@ describe Orchestrator::Remote::Proxy do
 
             # Create request
             req = proxy.load('mod_111')
-            expect(@log[0]).to eq({
-                type: 'push',
-                push: 'load',
-                mod: 'mod_111',
-                id: '1'
-            })
+            sent = ::Orchestrator::Remote::Request.new(
+                :push,
+                'mod_111',
+                :load,
+                nil,
+                nil,
+                1
+            )
+            expect(@log[0]).to eq(sent)
 
             # Process request
             proxy.process(@log[0])
             @reactor.next_tick do
                 expect(@log[1]).to eq([:update, 'mod_111', false])
 
-                expect(@log[2][:id]).to eq('1')
-                expect(@log[2][:type]).to eq('resp')
-                expect(@log[2][:resolve]).to eq(true)
+                expect(@log[2].id).to eq(1)
+                expect(@log[2].type).to eq(:resolve)
+                expect(@log[2].value).to eq(true)
 
                 # Process response
                 proxy.process(@log[2])
@@ -322,21 +319,24 @@ describe Orchestrator::Remote::Proxy do
 
             # Create request
             req = proxy.unload('mod_111')
-            expect(@log[0]).to eq({
-                type: 'push',
-                push: 'unload',
-                mod: 'mod_111',
-                id: '1'
-            })
+            sent = ::Orchestrator::Remote::Request.new(
+                :push,
+                'mod_111',
+                :unload,
+                nil,
+                nil,
+                1
+            )
+            expect(@log[0]).to eq(sent)
 
             # Process request
             proxy.process(@log[0])
             @reactor.next_tick do
                 expect(@log[1]).to eq([:unload, 'mod_111', false])
 
-                expect(@log[2][:id]).to eq('1')
-                expect(@log[2][:type]).to eq('resp')
-                expect(@log[2][:resolve]).to eq(true)
+                expect(@log[2].id).to eq(1)
+                expect(@log[2].type).to eq(:resolve)
+                expect(@log[2].value).to eq(true)
 
                 # Process response
                 proxy.process(@log[2])
@@ -357,19 +357,22 @@ describe Orchestrator::Remote::Proxy do
 
             # Create request
             req = proxy.reload('dep_111')
-            expect(@log[0]).to eq({
-                type: 'push',
-                push: 'reload',
-                dep: 'dep_111',
-                id: '1'
-            })
+            sent = ::Orchestrator::Remote::Request.new(
+                :push,
+                'dep_111',
+                :reload,
+                nil,
+                nil,
+                1
+            )
+            expect(@log[0]).to eq(sent)
 
             # Process request
             proxy.process(@log[0])
             @reactor.next_tick do
-                expect(@log[1][:id]).to eq('1')
-                expect(@log[1][:type]).to eq('resp')
-                expect(@log[1][:reject]).to eq('dependency dep_111 not found')
+                expect(@log[1].id).to eq(1)
+                expect(@log[1].type).to eq(:reject)
+                expect(@log[1].value).to eq('dependency dep_111 not found')
 
                 # Process response
                 proxy.process(@log[1])
@@ -406,19 +409,23 @@ describe Orchestrator::Remote::Proxy do
 
                 # Create request
                 req = proxy.expire_cache(cs.id)
-                expect(@log[0]).to eq({
-                    type: 'expire',
-                    sys: cs.id,
-                    id: '1'
-                })
+                sent = ::Orchestrator::Remote::Request.new(
+                    :expire,
+                    cs.id,
+                    false,
+                    nil,
+                    nil,
+                    1
+                )
+                expect(@log[0]).to eq(sent)
 
                 # Process request
                 proxy.process(@log[0])
                 expect(@log[1]).to eq([:expire_cache, cs.id, false])
 
-                expect(@log[2][:id]).to eq('1')
-                expect(@log[2][:type]).to eq('resp')
-                expect(@log[2][:resolve]).to eq(true)
+                expect(@log[2].id).to eq(1)
+                expect(@log[2].type).to eq(:resolve)
+                expect(@log[2].value).to eq(true)
 
                 # Process response
                 proxy.process(@log[2])
