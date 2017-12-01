@@ -18,7 +18,6 @@ module Orchestrator
             NodeId = :run_migrations_and_reboot
         end
 
-
         class Edge < ::UV::OutboundConnection
             def post_init(this_node, remote_node)
                 @node = this_node
@@ -62,9 +61,7 @@ module Orchestrator
                 @proxy = Proxy.new(@ctrl, @dep_man, transport)
             end
 
-
             attr_reader :proxy
-
 
             def on_close
                 return if @terminated
@@ -97,7 +94,8 @@ module Orchestrator
             def on_read(data, *_)
                 @tokenise.extract(data).each do |msg|
                     if msg[0] == 'p'
-                            write("\x02pong\x03")
+                            # pong
+                            write("p\x00\x00\x00\x03")
                     elsif msg[0] == 'h'
                         # Message is: 'hello password'
                         # This very basic auth gives us some confidence that the remote is who they claim to be

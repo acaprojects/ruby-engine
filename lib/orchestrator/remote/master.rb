@@ -34,12 +34,9 @@ module Orchestrator
                 start_server
             end
 
-
             attr_reader :thread
 
-
             protected
-
 
             def start_server
                 # Bind the socket

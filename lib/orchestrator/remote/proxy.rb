@@ -27,9 +27,7 @@ module Orchestrator
                 end
             end
 
-
             attr_reader :thread
-
 
             # ---------------------------------
             # Send commands to the remote node:
@@ -44,14 +42,19 @@ module Orchestrator
                 send_with_id(msg)
             end
 
-            def shutdown
-                msg = Request.new :push, nil, :shutdown
+            def update_settings(mod_id, mod_obj)
+                msg = Request.new :settings, mod_id, mod_obj
                 send_direct(msg)
             end
 
-            # TODO:: Expire System Cache
-            # TODO:: Reload module, system, dependency, zone (settings update)
-            # ------> Might also need to pass the settings down the wire to avoid race conditions
+            def running?(mod_id)
+                msg = Request.new :running, mod_id
+                send_with_id(msg)
+            end
+
+            # ---------------------------------
+            # System level commands
+            # ---------------------------------
 
             def reload(dep_id)
                 msg = Request.new :push, dep_id, :reload
@@ -83,6 +86,10 @@ module Orchestrator
                 send_with_id(Request.new :clear)
             end
 
+            def shutdown
+                msg = Request.new :push, nil, :shutdown
+                send_direct(msg)
+            end
 
             # -------------------------------------
             # Processing data from the remote node:
@@ -116,12 +123,14 @@ module Orchestrator
                 when :clear
                     ::Orchestrator::System.clear_cache
                     send_resolution msg.id, true
+                when :settings
+                    settings_update(msg.ref, msg.value)
+                when :running
+                    send_resolution msg.id, !!(@ctrl.loaded?(msg.ref)&.running)
                 end
             end
 
-
             protected
-
 
             def next_id
                 @count += 1
@@ -185,6 +194,11 @@ module Orchestrator
                 else
                     send_rejection(req_id, 'module not loaded')
                 end
+            end
+
+            def settings_update(mod_id, settings)
+                mod = @ctrl.loaded? mod_id
+                mod.reloaded(settings) if mod
             end
 
             # This is a request that isn't looking for a response
