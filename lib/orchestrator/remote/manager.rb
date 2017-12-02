@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module Orchestrator
     module Remote
         class Manager
@@ -8,16 +7,13 @@ module Orchestrator
                 @thread = thread        # Libuv Loop
                 @settings = settings    # Database model
                 @klass = klass
-
                 @stattrak = @thread.observer
-                @logger = ::Orchestrator::Logger.new(@thread, @settings)
             end
 
-            attr_reader :thread, :settings, :klass, :stattrak, :logger
+            attr_reader :thread, :settings, :klass, :stattrak
 
 
             def running
-                # TODO::
                 proxy.running?(@settings.id).value
             end
 
@@ -55,18 +51,6 @@ module Orchestrator
             end
 
 
-            # Proxy through subscriptions
-            def subscribe(status, callback)
-                # TODO::
-                proxy.subscribe(@settings.id, status, callback)
-            end
-
-            def unsubscribe(sub)
-                # TODO::
-                proxy.unsubscribe(@settings.id, sub)
-            end
-
-
             # Status query / update from remote node
             def status
                 self
@@ -84,6 +68,8 @@ module Orchestrator
             def inspect
                 "#<#{self.class}:0x#{self.__id__.to_s(16)} managing=#{@klass.to_s} id=#{@settings.id} remote_node_connected=#{proxy.connected?}>"
             end
+
+            # TODO:: __STATS__
         end
     end
 end

@@ -39,7 +39,7 @@ module Orchestrator
             # @return [Remote::Proxy|nil]
             def remote_node
                 # Grab the edge the module should be running on
-                edge = @nodes[@settings.edge_id.to_sym]
+                edge = @settings.node
                 if edge.should_run_on_this_host
                     edge = @nodes[edge.node_master_id]
                 end
@@ -47,20 +47,25 @@ module Orchestrator
                 # Ensure the edge we selected is not this host
                 if edge && !edge.should_run_on_this_host
                     proxy = edge.proxy
-                    yield proxy if proxy
+                    yield proxy if proxy && block_given?
                     proxy
                 else
                     nil
                 end
             end
 
+            def running_locally?
+                edge = @settings.node
+                edge.should_run_on_this_host && edge.host_active?
+            end
 
             def instance
                 return @instance if @instance
-                if @settings.node.host_active?
+                edge = @settings.node
+                if edge.host_active?
                     nil
                 else
-                    @settings.node
+                    edge.proxy
                 end
             end
 

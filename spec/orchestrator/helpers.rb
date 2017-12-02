@@ -80,6 +80,12 @@ class MockModule
         track.update(settings.id, status, value)
     end
 
+    def running_locally?
+        true
+    end
+
+    def remote_node; end
+
     attr_reader   :status, :logger
     attr_accessor :settings, :thread
 end

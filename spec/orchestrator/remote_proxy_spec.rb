@@ -57,6 +57,27 @@ class MockCtrl
         @log << settings
     end
 
+    # ==========
+    # debug logging mocks
+    # ==========
+    def logger
+        self
+    end
+
+    def register(callback)
+        @cb = callback
+        @log << :registered
+    end
+
+    def remove(callback)
+        @log << :removed if @cb == callback
+        @cb = nil
+    end
+
+    def log(message)
+        @cb.call('MockCtrl', 'mod_111', :info, message)
+    end
+
     # ===============
     # This is emulating a module manager for status requests
     # ===============
@@ -353,6 +374,60 @@ describe Orchestrator::Remote::Proxy do
         end
 
         expect(failed).to be(false)
+    end
+
+    it "should perform remote debugging" do
+        @reactor.run do
+            mock = MockCtrl.new(@log)
+            proxy = ::Orchestrator::Remote::Proxy.new(mock, mock, mock)
+
+            # Create request
+            callback = proc { |*args|
+                @log << args
+            }
+            req = proxy.debug(:mod_111, callback)
+            sent = ::Orchestrator::Remote::Request.new(
+                :debug,
+                :mod_111,
+                nil,
+                nil,
+                nil,
+                nil
+            )
+            expect(@log[0]).to eq(sent)
+
+            # Process request
+            proxy.process(@log[0])
+            expect(@log[1]).to be(:registered)
+            
+            # Check log debugging is forwarded
+            mock.log('test-logging')
+            sent = ::Orchestrator::Remote::Request.new(
+                :notify,
+                'mod_111',
+                :info,
+                ['MockCtrl', 'test-logging'],
+                nil,
+                nil
+            )
+            expect(@log[2]).to eq(sent)
+
+            # Ensure the debug callback is invoked
+            proxy.process(@log[2])
+            expect(@log[3]).to eq(['MockCtrl', 'mod_111', :info, 'test-logging'])
+
+            # Ingore debugging data
+            proxy.ignore(:mod_111, callback)
+            sent = ::Orchestrator::Remote::Request.new(
+                :ignore,
+                :mod_111,
+                nil,
+                nil,
+                nil,
+                nil
+            )
+            expect(@log[4]).to eq(sent)
+        end
     end
 
     it "should update module settings remotely" do

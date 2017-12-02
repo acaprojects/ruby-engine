@@ -54,11 +54,11 @@ module Orchestrator
 
         # Returns the node currently running this module
         def node
-            return @node_cache if @node_cache
+            return @nodes[@node_id] if @node_id
             # NOTE:: Same function in control_system.rb
             @nodes ||= Control.instance.nodes
             @node_id ||= self.edge_id.to_sym
-            @node_cache = @nodes[@node_id]
+            @nodes[@node_id]
         end
 
 
