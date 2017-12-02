@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-# encoding: ASCII-8BIT
+# encoding: UTF-8
 
 require 'libuv'
 require 'protocols/snmp'
@@ -34,8 +34,8 @@ describe "SNMP protocol helper" do
         reactor.run { |reactor|
             reactor.next_tick do
                 # Manipulate data here
-                magic = @mod.data[17..20]
-                data  = "0;\x02\x01\x01\x04\x06public\xA2.\x02\x04" + magic + 
+                magic = @mod.data[17..20].force_encoding('UTF-8')
+                data  = "0;\x02\x01\x01\x04\x06public\xA2.\x02\x04#{magic}" + 
                         "\x02\x01\x00\x02\x01\x000 0\x1E\x06\b+\x06\x01\x02\x01\x01\x01\x00\x04\x12Device description"
                 @mod.receive(data)
             end
