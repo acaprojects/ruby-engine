@@ -155,7 +155,7 @@ module Orchestrator
                         }
 
                         begin
-                            @ws.text(::JSON.generate(output))
+                            @ws.text(output.to_json)
                         rescue Exception => e
                             # Probably an error generating JSON
                             @logger.debug {
@@ -166,7 +166,7 @@ module Orchestrator
                                 end
                             }
                             output[:value] = nil
-                            @ws.text(::JSON.generate(output))
+                            @ws.text(output.to_json)
                         end
                     }, proc { |err|
                         # Request proxy will log the error
@@ -198,10 +198,10 @@ module Orchestrator
             binding = @bindings.delete(lookup)
             do_unbind(binding) if binding
 
-            @ws.text(::JSON.generate({
+            @ws.text({
                 id: id,
                 type: :success
-            }))
+            }.to_json)
         end
 
         def do_unbind(binding)
@@ -241,7 +241,7 @@ module Orchestrator
                     try_bind(id, sys, system, mod, index, name, lookup)
                 else
                     # binding already made - return success
-                    @ws.text(::JSON.generate({
+                    @ws.text({
                         id: id,
                         type: :success,
                         meta: {
@@ -250,7 +250,7 @@ module Orchestrator
                             index: index,
                             name: name
                         }
-                    }))
+                    }.to_json)
                 end
             else
                 @logger.debug("websocket binding could not find system: {sys: #{sys}, mod: #{mod}, index: #{index}, name: #{name}}")
@@ -277,7 +277,7 @@ module Orchestrator
             # Ensure browser sees this before the first status update
             # At this point subscription will be successful
             @bindings[lookup] = defer.promise
-            @ws.text(::JSON.generate({
+            @ws.text({
                 id: id,
                 type: :success,
                 meta: {
@@ -286,7 +286,7 @@ module Orchestrator
                     index: index,
                     name: name
                 }
-            }))
+            }.to_json)
 
             if mod_man
                 options[:mod_id] = mod_man.settings.id.to_sym
@@ -317,7 +317,7 @@ module Orchestrator
             }
 
             begin
-                @ws.text(::JSON.generate(output))
+                @ws.text(output.to_json)
             rescue Exception => e
                 # respond with nil if object cannot be converted
                 begin
@@ -326,7 +326,7 @@ module Orchestrator
                     @logger.warn "status #{output[:meta]} update failed, could not generate JSON data for value"
                 end
                 output[:value] = nil
-                @ws.text(::JSON.generate(output))
+                @ws.text(output.to_json)
             end
         end
 
@@ -342,13 +342,13 @@ module Orchestrator
             if @debug.nil?
                 @debug = proc { |klass, mod_id, level, msg|
                     @reactor.schedule {
-                        @ws.text(::JSON.generate({
+                        @ws.text({
                             type: :debug,
                             mod: mod_id,
                             klass: klass,
                             level: level,
                             msg: msg
-                        }))
+                        }.to_json)
                     }
                 }
                 @inspecting = Set.new
@@ -403,7 +403,7 @@ module Orchestrator
             # Set mod to get module level errors
             begin
                 if @inspecting.include?(mod)
-                    @ws.text(::JSON.generate(resp))
+                    @ws.text(resp.to_json)
                 else
                     # Set sys to get errors occurring outside of the modules
                     @logger.register @debug if @inspecting.empty?
@@ -417,10 +417,10 @@ module Orchestrator
                         end
                     else
                         @stattrak.debug_subscribe(mod, @debug)
-                        @logger.warning("websocket debug could not find module: #{mod}")
+                        @logger.warn("websocket debug could not find module: #{mod}")
                     end
 
-                    @ws.text(::JSON.generate(resp))
+                    @ws.text(resp.to_json)
                 end
             rescue => e
                 @logger.print_error(e, "websocket debug request failed")
@@ -441,10 +441,10 @@ module Orchestrator
                 do_ignore(mod)
             end
 
-            @ws.text(::JSON.generate({
+            @ws.text({
                 id: id,
                 type: :success
-            }))
+            }.to_json)
         end
 
         def do_ignore(mod_id)
@@ -453,12 +453,12 @@ module Orchestrator
 
 
         def error_response(id, code, message)
-            @ws.text(::JSON.generate({
+            @ws.text({
                 id: id,
                 type: :error,
                 code: code,
                 msg: message
-            }))
+            }.to_json)
         end
 
         def on_shutdown
