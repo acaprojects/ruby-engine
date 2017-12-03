@@ -339,6 +339,9 @@ module Orchestrator
             def send_direct(msg)
                 output = Marshal.dump(msg)
                 @tcp.write "#{output}\x00\x00\x00\x03"
+            rescue => e
+                # TODO:: use proper logger
+                puts "Error requesting message: #{msg.inspect}\n#{e.message}\n#{e.backtrace.join("\n")}"
             end
 
             def promise_response(msg_id, promise)

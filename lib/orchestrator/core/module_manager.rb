@@ -65,7 +65,7 @@ module Orchestrator
                 if edge.host_active?
                     nil
                 else
-                    edge.proxy
+                    @instance = Orchestrator::Remote::Manager.new(@thread, @klass, @settings)
                 end
             end
 
@@ -142,7 +142,10 @@ module Orchestrator
                     # pass in any updated settings
                     @settings = mod
 
-                    if @instance
+                    if instance.is_a?(::Orchestrator::Remote::Manager)
+                        # Use mod as we don't want to use the old settings
+                        @instance&.reloaded(mod)
+                    elsif @instance
                         apply_config
 
                         if @instance.respond_to? :on_update, true

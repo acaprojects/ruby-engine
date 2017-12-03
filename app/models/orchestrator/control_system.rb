@@ -58,11 +58,9 @@ module Orchestrator
 
         # Returns the node currently running this module
         def node
-            return @nodes[@node_id] if @node_id
             # NOTE:: Same function in module.rb
-            @nodes ||= Control.instance.nodes
             @node_id ||= self.edge_id.to_sym
-            @nodes[@node_id]
+            Control.instance.nodes[@node_id]
         end
 
         ensure_unique :name do |name|
