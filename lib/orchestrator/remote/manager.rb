@@ -12,6 +12,9 @@ module Orchestrator
 
             attr_reader :thread, :settings, :klass, :stattrak
 
+            def running_locally?
+                false
+            end
 
             def running
                 proxy.running?(@settings.id).value
@@ -37,16 +40,37 @@ module Orchestrator
             end
 
 
-            # This returns self for status 
+            # This returns self for status, arity and respond_to?
             def instance
                 self
             end
 
+            def respond_to?(symbol, include_all)
+                if include_all
+                    @klass.instance_methods.include? symbol
+                else
+                    @klass.public_instance_methods.include? symbol
+                end
+            end
+
+            def method(arity_for) # Request arity of the remote method
+                @klass.instance_method(arity_for)
+            end
+
             def proxy
-                Control.instance.get_node_proxy(@settings.edge_id.to_sym)
+                @settings.node.proxy
+            end
+
+            def name
+                @settings.node.name
+            end
+
+            def host_origin
+                @settings.node.host_origin
             end
 
             def reloaded(mod_settings)
+                @settings = mod_settings
                 proxy.update_settings(mod_settings.id, mod_settings)
             end
 
