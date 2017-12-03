@@ -109,7 +109,7 @@ module Orchestrator
                             close_connection
                             @logger.warn "Connection to node #{@remote_node.id} (#{ip}) was closed due to bad credentials"
                         end
-                    else
+                    elsif @validated
                         begin
                             @proxy.process Marshal.load(msg)
                         rescue => e

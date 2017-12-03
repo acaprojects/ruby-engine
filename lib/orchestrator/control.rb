@@ -372,9 +372,11 @@ module Orchestrator
                 # Determine if we are the master node (either single master or load balanced masters)
                 this_node = @nodes[Remote::NodeId]
 
-                start_server
+                # Start remote node server and connect to nodes
+                @node_server = Remote::Master.new
                 @nodes.each_value do |remote_node|
-                    connect_to_node(this_node, remote_node) unless this_node == remote_node
+                    next if this_node == remote_node
+                    @connections[remote_node.id] = ::UV.connect remote_node.host, remote_node.server_port, Remote::Edge, this_node, remote_node
                 end
 
                 # Save a statistics snapshot every 5min on the master server
@@ -488,15 +490,5 @@ module Orchestrator
         # =================
         # END WATCHDOG CODE
         # =================
-
-
-        # Edge node connections
-        def start_server
-            @node_server = Remote::Master.new
-        end
-
-        def connect_to_node(this_node, remote_node)
-            @connections[remote_node.id] = ::UV.connect remote_node.host, remote_node.server_port, Remote::Edge, this_node, remote_node
-        end
     end
 end

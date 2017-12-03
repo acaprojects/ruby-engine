@@ -135,6 +135,8 @@ module Orchestrator
                                 connection.io.write "hello #{@node.password}\x00\x00\x00\x03"
                             end
                             @connected_to << node_id
+
+                            # this is the edge control model
                             edge.slave_connected connection.parser, start_time
                         else
                             ip, _ = connection.io.peername
