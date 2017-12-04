@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'ipaddress'
 require 'evented-ssh'
 
 module Orchestrator
@@ -23,7 +24,20 @@ module Orchestrator
             def reconnect
                 return if @terminated
 
-                connecting = ::ESSH.p_start(@settings.ip, @manager.username, **@manager.ssh_settings)
+                # Perform DNS lookup in reactor
+                ip_address = @settings.ip
+                if not IPAddress.valid? ip_address
+                    begin
+                        ip_address = @manager.thread.lookup(ip_address)[0][0]
+                        raise 'DNS successful however no IP address was found' if ip_address.nil?
+                    rescue => error
+                        connection_error(error)
+                        return
+                    end
+                end
+
+                # Connect using reactor aware version of ruby NET SSH
+                connecting = ::ESSH.p_start(ip_address, @manager.username, **@manager.ssh_settings)
                 connecting.then { |connection|
                     @connection = connection
                     @last_keepalive_sent_at = Time.now.to_i
@@ -43,18 +57,7 @@ module Orchestrator
                             open_shell(ch, success)
                         end
                     end
-                }.catch { |error|
-                    @connection = nil
-                    @manager.logger.print_error(error, 'initializing SSH transport')
-
-                    # reconnect after a cool down period as will probably continue to fail
-                    # this usually represents an issue with authentication
-                    variation = 1 + rand(2000)
-                    @connecting = @scheduler.in(5000 + variation) do
-                        @connecting = nil
-                        reconnect
-                    end
-                }
+                }.catch { |error| connection_error(error) }
             end
 
             def open_shell(ch, success)
@@ -227,9 +230,29 @@ module Orchestrator
             protected
 
 
+            def connection_error(error)
+                @connection = nil
+                @manager.logger.print_error(error, 'initializing SSH transport')
+
+                return if @terminated
+
+                # reconnect after a cool down period as will probably continue to fail
+                # this usually represents an issue with authentication
+                variation = 1 + rand(2000)
+                @connecting = @scheduler.in(5000 + variation) do
+                    @connecting = nil
+                    reconnect
+                end
+            end
+
             def init_connection
                 @connecting&.cancel
                 @connecting = nil
+
+                if @terminated
+                    disconnect
+                    return
+                end
 
                 # We only have to mark a queue online if more than 1 retry was required
                 @processor.queue.online if @retries > 1
