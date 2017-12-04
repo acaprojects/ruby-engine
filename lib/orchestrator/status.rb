@@ -111,7 +111,12 @@ module Orchestrator
 
             # Add to logger
             manager = @controller.loaded?(lookup)
-            manager.logger.register(callback) if manager
+            if manager
+                manager.logger.register(callback)
+                unless manager.running_locally?
+                    manager.remote_node { |proxy| proxy.debug(lookup, callback) }
+                end
+            end
 
             callback
         end
@@ -126,6 +131,7 @@ module Orchestrator
                 thread.schedule do
                     thread.observer.exec_debug_unsubscribe(lookup, callback)
                     manager.logger.remove(callback)
+                    manager.remote_node { |proxy| proxy.ignore(lookup, callback) }
                 end
             else
                 # Could be on any thread

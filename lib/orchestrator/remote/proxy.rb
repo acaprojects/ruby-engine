@@ -15,6 +15,8 @@ module Orchestrator
 
                 @sent = {}
                 @count = 0
+                @debugging = {}
+                @watching = {}
 
                 # reject requests when connection fails
                 tcp.finally do
@@ -22,14 +24,16 @@ module Orchestrator
                     e.set_backtrace([])
                     @sent.values.each do |defer|
                         defer.reject e
-                    end 
-                    @sent = {}
+                    end
+
+                    # Stop watching
+                    @watching.keys.each do |mod_id|
+                        do_ignore(mod_id)
+                    end
                 end
             end
 
-
             attr_reader :thread
-
 
             # ---------------------------------
             # Send commands to the remote node:
@@ -44,14 +48,42 @@ module Orchestrator
                 send_with_id(msg)
             end
 
-            def shutdown
-                msg = Request.new :push, nil, :shutdown
+            def update_settings(mod_id, mod_obj)
+                msg = Request.new :settings, mod_id, mod_obj
                 send_direct(msg)
             end
 
-            # TODO:: Expire System Cache
-            # TODO:: Reload module, system, dependency, zone (settings update)
-            # ------> Might also need to pass the settings down the wire to avoid race conditions
+            def running?(mod_id)
+                msg = Request.new :running, mod_id
+                send_with_id(msg)
+            end
+
+            def debug(id, callback)
+                callbacks = @debugging[id]
+                if callbacks
+                    callbacks << callback
+                else
+                    callbacks = @debugging[id] = []
+                    callbacks << callback
+                    msg = Request.new :debug, id
+                    send_direct(msg)
+                end
+            end
+
+            def ignore(id, callback)
+                callbacks = @debugging[id] || []
+                callbacks.delete callback
+
+                if callbacks.length == 0
+                    @debugging.delete(id)
+                    msg = Request.new :ignore, id
+                    send_direct(msg)
+                end
+            end
+
+            # ---------------------------------
+            # System level commands
+            # ---------------------------------
 
             def reload(dep_id)
                 msg = Request.new :push, dep_id, :reload
@@ -83,6 +115,10 @@ module Orchestrator
                 send_with_id(Request.new :clear)
             end
 
+            def shutdown
+                msg = Request.new :push, nil, :shutdown
+                send_direct(msg)
+            end
 
             # -------------------------------------
             # Processing data from the remote node:
@@ -116,12 +152,40 @@ module Orchestrator
                 when :clear
                     ::Orchestrator::System.clear_cache
                     send_resolution msg.id, true
+                when :settings
+                    settings_update(msg.ref, msg.value)
+                when :running
+                    send_resolution msg.id, !!(@ctrl.loaded?(msg.ref)&.running)
+                when :debug
+                    mod_id = msg.ref
+                    mod = @ctrl.loaded?(mod_id)
+                    puts "\ndebug requested for #{mod_id}"
+                    return if mod.nil?
+                    callback = @watching[mod_id] = proc { |klass, mod_id, level, msg|
+                        msg = Request.new :notify, mod_id, level, [klass, msg]
+                        send_direct(msg)
+                    }
+                    mod.logger.register callback
+                when :ignore
+                    puts "\nignore requested for #{msg.ref}"
+                    do_ignore(msg.ref)
+                when :notify
+                    mod_id = msg.ref
+                    callbacks = @debugging[mod_id.to_sym] || []
+                    puts "\nreceived notify for #{mod_id} -- #{callbacks.length}"
+                    klass, text = msg.args
+                    level = msg.value
+                    callbacks.each do |listener|
+                        begin
+                            listener.call(klass, mod_id, level, text)
+                        rescue Exception => e
+                            puts "\nerror notifying debug #{e.message}\n#{e.backtrace.join("\n")}"
+                        end
+                    end
                 end
             end
 
-
             protected
-
 
             def next_id
                 @count += 1
@@ -149,6 +213,14 @@ module Orchestrator
                 else
                     # TODO:: log a warning as we can't find this request
                 end
+            end
+
+            def do_ignore(mod_id)
+                callback = @watching.delete(mod_id)
+                return if callback.nil?
+                mod = @ctrl.loaded?(mod_id)
+                return if mod.nil?
+                mod.logger.remove(callback)
             end
 
 
@@ -187,7 +259,12 @@ module Orchestrator
                 end
             end
 
-            # This is a request that isn't looking for a response
+            def settings_update(mod_id, settings)
+                mod = @ctrl.loaded? mod_id
+                mod.reloaded(settings) if mod
+            end
+
+            # This is a request that is looking for a response
             def command(msg)
                 msg_type = msg.value
                 case msg_type
@@ -262,6 +339,9 @@ module Orchestrator
             def send_direct(msg)
                 output = Marshal.dump(msg)
                 @tcp.write "#{output}\x00\x00\x00\x03"
+            rescue => e
+                # TODO:: use proper logger
+                puts "Error requesting message: #{msg.inspect}\n#{e.message}\n#{e.backtrace.join("\n")}"
             end
 
             def promise_response(msg_id, promise)
@@ -277,7 +357,15 @@ module Orchestrator
                 response = Request.new :resolve
                 response.id = req_id
                 response.value = value
-                output = Marshal.dump(response)
+
+                output = begin
+                    Marshal.dump(response)
+                rescue => e
+                    # TODO:: use proper logger
+                    puts "Error marshalling resolution: #{value.inspect}\n#{e.message}"
+                    response.value = nil
+                    Marshal.dump(response)
+                end
 
                 @thread.schedule {
                     @tcp.write "#{output}\x00\x00\x00\x03"
@@ -288,7 +376,15 @@ module Orchestrator
                 response = Request.new :reject
                 response.id = req_id
                 response.value = reason
-                output = Marshal.dump(response)
+
+                output = begin
+                    Marshal.dump(response)
+                rescue => e
+                    # TODO:: use proper logger
+                    puts "Error marshalling rejection: #{value.inspect}\n#{e.message}"
+                    response.value = nil
+                    Marshal.dump(response)
+                end
 
                 @thread.schedule {
                     @tcp.write "#{output}\x00\x00\x00\x03"

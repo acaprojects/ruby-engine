@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+# encoding: ASCII-8BIT
 
 require 'set'
 
@@ -17,7 +18,6 @@ module Orchestrator
             puts "\nENGINE_NODE_ID env var not set\n"
             NodeId = :run_migrations_and_reboot
         end
-
 
         class Edge < ::UV::OutboundConnection
             def post_init(this_node, remote_node)
@@ -62,9 +62,7 @@ module Orchestrator
                 @proxy = Proxy.new(@ctrl, @dep_man, transport)
             end
 
-
             attr_reader :proxy
-
 
             def on_close
                 return if @terminated
@@ -97,7 +95,8 @@ module Orchestrator
             def on_read(data, *_)
                 @tokenise.extract(data).each do |msg|
                     if msg[0] == 'p'
-                            write("\x02pong\x03")
+                            # pong
+                            write("p\x00\x00\x00\x03")
                     elsif msg[0] == 'h'
                         # Message is: 'hello password'
                         # This very basic auth gives us some confidence that the remote is who they claim to be
@@ -110,7 +109,7 @@ module Orchestrator
                             close_connection
                             @logger.warn "Connection to node #{@remote_node.id} (#{ip}) was closed due to bad credentials"
                         end
-                    else
+                    elsif @validated
                         begin
                             @proxy.process Marshal.load(msg)
                         rescue => e

@@ -398,9 +398,7 @@ module Orchestrator
             # Start, stop, unload the module as required
             if should_run_on_this_host || is_failover_host
                 return load(settings).then do |mod|
-                    if host_active?
-                        mod.thread.schedule { mod.start_local }
-                    end
+                    mod.thread.schedule { mod.start_local } if host_active?
                     mod
                 end
             end

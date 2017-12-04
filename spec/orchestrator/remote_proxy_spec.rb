@@ -49,6 +49,35 @@ class MockCtrl
         ::Libuv.reactor
     end
 
+    def running
+        true
+    end
+
+    def reloaded(settings)
+        @log << settings
+    end
+
+    # ==========
+    # debug logging mocks
+    # ==========
+    def logger
+        self
+    end
+
+    def register(callback)
+        @cb = callback
+        @log << :registered
+    end
+
+    def remove(callback)
+        @log << :removed if @cb == callback
+        @cb = nil
+    end
+
+    def log(message)
+        @cb.call('MockCtrl', 'mod_111', :info, message)
+    end
+
     # ===============
     # This is emulating a module manager for status requests
     # ===============
@@ -309,6 +338,123 @@ describe Orchestrator::Remote::Proxy do
         end
 
         expect(failed).to be(false)
+    end
+
+    it "should check if the module is running on the remote node" do
+        failed = true
+        @reactor.run do
+            mock = MockCtrl.new(@log)
+            proxy = ::Orchestrator::Remote::Proxy.new(mock, mock, mock)
+
+            # Create request
+            req = proxy.running?('mod_111')
+            sent = ::Orchestrator::Remote::Request.new(
+                :running,
+                'mod_111',
+                nil,
+                nil,
+                nil,
+                1
+            )
+            expect(@log[0]).to eq(sent)
+
+            # Process request
+            proxy.process(@log[0])
+            @reactor.next_tick do
+                expect(@log[1].id).to eq(1)
+                expect(@log[1].type).to eq(:resolve)
+                expect(@log[1].value).to eq(true)
+
+                # Process response
+                proxy.process(@log[1])
+                req.then do |resp|
+                    failed = resp != true
+                end
+            end
+        end
+
+        expect(failed).to be(false)
+    end
+
+    it "should perform remote debugging" do
+        @reactor.run do
+            mock = MockCtrl.new(@log)
+            proxy = ::Orchestrator::Remote::Proxy.new(mock, mock, mock)
+
+            # Create request
+            callback = proc { |*args|
+                @log << args
+            }
+            req = proxy.debug(:mod_111, callback)
+            sent = ::Orchestrator::Remote::Request.new(
+                :debug,
+                :mod_111,
+                nil,
+                nil,
+                nil,
+                nil
+            )
+            expect(@log[0]).to eq(sent)
+
+            # Process request
+            proxy.process(@log[0])
+            expect(@log[1]).to be(:registered)
+            
+            # Check log debugging is forwarded
+            mock.log('test-logging')
+            sent = ::Orchestrator::Remote::Request.new(
+                :notify,
+                'mod_111',
+                :info,
+                ['MockCtrl', 'test-logging'],
+                nil,
+                nil
+            )
+            expect(@log[2]).to eq(sent)
+
+            # Ensure the debug callback is invoked
+            proxy.process(@log[2])
+            expect(@log[3]).to eq(['MockCtrl', 'mod_111', :info, 'test-logging'])
+
+            # Ingore debugging data
+            proxy.ignore(:mod_111, callback)
+            sent = ::Orchestrator::Remote::Request.new(
+                :ignore,
+                :mod_111,
+                nil,
+                nil,
+                nil,
+                nil
+            )
+            expect(@log[4]).to eq(sent)
+        end
+    end
+
+    it "should update module settings remotely" do
+        @reactor.run do
+            mock = MockCtrl.new(@log)
+            proxy = ::Orchestrator::Remote::Proxy.new(mock, mock, mock)
+
+            # Create request
+            mod = ::Orchestrator::Module.new
+            mod.ip = "10.10.10.10"
+            proxy.update_settings('mod_111', mod)
+            sent = ::Orchestrator::Remote::Request.new(
+                :settings,
+                'mod_111',
+                mod,
+                nil,
+                nil,
+                nil
+            )
+            expect(@log[0]).to eq(sent)
+
+            # Process request
+            proxy.process(@log[0])
+            @reactor.next_tick do
+                expect(@log[1]).to eq(mod)
+            end
+        end
     end
 
     it "should send an unload module request" do

@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module Orchestrator
     module Remote
         class Manager
@@ -8,16 +7,16 @@ module Orchestrator
                 @thread = thread        # Libuv Loop
                 @settings = settings    # Database model
                 @klass = klass
-
                 @stattrak = @thread.observer
-                @logger = ::Orchestrator::Logger.new(@thread, @settings)
             end
 
-            attr_reader :thread, :settings, :klass, :stattrak, :logger
+            attr_reader :thread, :settings, :klass, :stattrak
 
+            def running_locally?
+                false
+            end
 
             def running
-                # TODO::
                 proxy.running?(@settings.id).value
             end
 
@@ -41,32 +40,38 @@ module Orchestrator
             end
 
 
-            # This returns self for status 
+            # This returns self for status, arity and respond_to?
             def instance
                 self
             end
 
-            def proxy
-                Control.instance.get_node_proxy(@settings.edge_id.to_sym)
+            def respond_to?(symbol, include_all)
+                if include_all
+                    @klass.instance_methods.include? symbol
+                else
+                    @klass.public_instance_methods.include? symbol
+                end
             end
 
+            def method(arity_for) # Request arity of the remote method
+                @klass.instance_method(arity_for)
+            end
 
+            def proxy
+                @settings.node.proxy
+            end
+
+            def name
+                @settings.node.name
+            end
+
+            def host_origin
+                @settings.node.host_origin
+            end
 
             def reloaded(mod_settings)
-                # TODO::
-                proxy.reloaded(@settings.id, mod_settings)
-            end
-
-
-            # Proxy through subscriptions
-            def subscribe(status, callback)
-                # TODO::
-                proxy.subscribe(@settings.id, status, callback)
-            end
-
-            def unsubscribe(sub)
-                # TODO::
-                proxy.unsubscribe(@settings.id, sub)
+                @settings = mod_settings
+                proxy.update_settings(mod_settings.id, mod_settings)
             end
 
 
@@ -84,10 +89,11 @@ module Orchestrator
                 proxy.status(@settings.id, name).value
             end
 
-
             def inspect
                 "#<#{self.class}:0x#{self.__id__.to_s(16)} managing=#{@klass.to_s} id=#{@settings.id} remote_node_connected=#{proxy.connected?}>"
             end
+
+            # TODO:: __STATS__
         end
     end
 end
