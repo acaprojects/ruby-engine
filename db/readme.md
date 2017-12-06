@@ -46,3 +46,16 @@ cd C:\Program Files\Couchbase\Server\bin
 cbrestore C:/aca_apps/backups/2015-06-01 http://Administrator:password@localhost:8091/ --bucket-source=control --bucket-destination=control
 
 ```
+
+
+# Windows Backup
+
+Simple batch file
+
+```
+
+cd C:\Program Files\Couchbase\Server\bin
+rmdir /s /q C:\backups\%DATE:~0,3%
+cbbackup http://localhost:8091/ C:/backups/%DATE:~0,3% -u Administrator -p password
+
+```
