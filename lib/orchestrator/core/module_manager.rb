@@ -32,6 +32,10 @@ module Orchestrator
                 Thread.current[:user]
             end
 
+            def sync(statuses)
+                @status = statuses
+            end
+
 
             # Looks up the remote edge, if any for the module.
             # irrelevant of whether the module is running on this machine or not

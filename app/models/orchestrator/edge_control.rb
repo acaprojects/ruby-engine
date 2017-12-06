@@ -516,7 +516,6 @@ module Orchestrator
             end
         end
 
-
         def load_triggers
             defer = @thread.defer
 
@@ -538,9 +537,14 @@ module Orchestrator
         end
 
         def transfer_state
-
+            [:device, :logic, :trigger].each do |method|
+                @start_order.__send__(method).each do |mod|
+                    @proxy.sync_status(mod.settings.id, mod.status)
+                end
+            end
         rescue => e
             # TODO:: log this error
+            puts "Error transferring module status\n#{e.message}\n#{e.backtrace.join("\n")}"
         end
     end
 end

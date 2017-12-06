@@ -34,6 +34,10 @@ class MockCtrl
         self unless @do_fail
     end
 
+    def sync(statuses)
+        @log << statuses
+    end
+
     def update(mod, remote = true)
         defer = ::Libuv.reactor.defer
         @log << [:update, mod, remote]
@@ -191,7 +195,6 @@ describe Orchestrator::Remote::Proxy do
     end
 
     it "should send a set status request" do
-        failed = true
         @reactor.run do
             mock = MockCtrl.new(@log)
             proxy = ::Orchestrator::Remote::Proxy.new(mock, mock, mock)
@@ -204,7 +207,7 @@ describe Orchestrator::Remote::Proxy do
                 :status,
                 [:new_status, 'value'],
                 nil,
-                1
+                nil
             )
             expect(@log[0]).to eq(sent)
 
@@ -212,18 +215,37 @@ describe Orchestrator::Remote::Proxy do
             proxy.process(@log[0])
             expect(@log[1]).to eq([:new_status, 'value', false])
 
-            expect(@log[2].id).to eq(1)
-            expect(@log[2].type).to eq(:resolve)
-            expect(@log[2].value).to eq(true)
-
-            # Process response
-            proxy.process(@log[2])
-            req.then do |resp|
-                failed = resp != true
-            end
+            expect(@log[2]).to eq(nil)
         end
+    end
 
-        expect(failed).to be(false)
+    it "should send a status sync request" do
+        @reactor.run do
+            mock = MockCtrl.new(@log)
+            proxy = ::Orchestrator::Remote::Proxy.new(mock, mock, mock)
+
+            # Create request
+            status = ::Concurrent::Map.new
+            status[:connected] = true
+            status[:ip] = '192.168.0.2'
+            status[:complex] = { bob: [1, 2, 3] }
+            req = proxy.sync_status('mod_111', status)
+            sent = ::Orchestrator::Remote::Request.new(
+                :push,
+                'mod_111',
+                :sync,
+                status,
+                nil,
+                nil
+            )
+            expect(@log[0].ref).to eq('mod_111')
+            expect(@log[0].type).to eq(:push)
+            expect(@log[0].value).to eq(:sync)
+            proxy.process(@log[0])
+
+            expect(@log[1][:complex]).to eq({ bob: [1, 2, 3]})
+            expect(@log[1][:ip]).to eq('192.168.0.2')
+        end
     end
 
     it "should send a start module request" do
