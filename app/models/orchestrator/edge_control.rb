@@ -175,7 +175,7 @@ module Orchestrator
 
         def restore_slave_control
             stop_modules
-            # TODO:: send module status dump to slave
+            transfer_state
             @proxy.restore
         end
 
