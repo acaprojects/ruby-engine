@@ -129,6 +129,9 @@ module Orchestrator
 
 
         attr_reader :proxy
+
+        # The server representing this node has connected to this server.
+        # This function coordinates who should be controlling the devices
         def slave_connected(proxy, started_at)
             @proxy = proxy
 
@@ -136,63 +139,90 @@ module Orchestrator
                 @failover_timer.cancel
                 @failover_timer = nil
             end
-            
-            if is_failover_host
-                self.online = true
-                self.startup_time = started_at
 
+            # If this server is the failover host for this node / edge then
+            # we want to restore control of the devices to the host node.
+            if is_failover_host
+                self.reload # The slave may have taken back control
+
+                begin
+                    self.online = true
+                    self.startup_time = started_at
+                    self.save!(with_cas: true)
+                rescue ::Libcouchbase::Error::KeyExists
+                    self.reload
+                    retry
+                end
+
+                # We check if the host considered us in control of the devices
+                # If it did then we restore control.
                 if self.failover_active == true && self.failover_time < started_at
+
+                    # Window start indicates the best time to restore control
                     if window_start.nil?
                         restore_slave_control
                     else
                         # TODO implement recovery window timer
                     end
                 else
-                    # Ensure nothing is running
+                    # This was a network partition - the other node never went down
+                    # and is still controlling devices, we should make sure we are
+                    # not attempting to control anything.
                     stop_modules
                 end
-
-                # TODO:: These saves should use the CAS method as per
-                # Module manager status values
-                self.save!
             end
         end
 
         def restore_slave_control
             stop_modules
-            # TODO:: send module status dump to slave
+            transfer_state
             @proxy.restore
         end
 
 
-
+        # The server representing this node has disconnected from this server.
+        # The server might be down... We start the timer and take control as required
         def slave_disconnected
             @proxy = nil
 
             if @failover_timer.nil? && is_failover_host && @modules_started != true
+
+                # If the node reconnects then this timer will be cancelled
                 @failover_timer = @thread.scheduler.in(self.timeout) do
                     @failover_timer = nil
 
-                    self.online = false
-                    self.failover_active = true
-                    self.failover_time = Time.now.to_i
-
-                    # TODO:: These saves should use the CAS method as per
-                    # Module manager status values
-                    self.save!
+                    begin
+                        self.online = false
+                        self.failover_active = true
+                        self.failover_time = Time.now.to_i
+                        self.save!(with_cas: true)
+                    rescue ::Libcouchbase::Error::KeyExists
+                        self.reload
+                        retry
+                    end
 
                     start_modules
                 end
 
-                self.online = false
-                self.failover_active = false
-
-                self.save!
+                # Update state to indicate we've lost the node however the failover hasn't occured yet
+                begin
+                    self.online = false
+                    self.failover_active = false
+                    self.save!(with_cas: true)
+                rescue ::Libcouchbase::Error::KeyExists
+                    self.reload
+                    retry
+                end
             end
         end
 
+        # The connecting node is the failover host if this host goes down
+        # Each host passes their boot times - which is used to determine who should have control
+        # The slave connection mutates the database state - not the master connection
+        # (DB values are update here to match what the slave connection would persist)
         def master_connected(proxy, started_at, failover_at)
             @proxy = proxy
+            transfer_state if @modules_started
 
             if should_run_on_this_host
                 if failover_at && failover_at < started_at
@@ -204,25 +234,30 @@ module Orchestrator
                     self.online = true
                     self.failover_active = false
                     start_modules
-
-                    # TODO:: Send all status values to master
                 end
             end
         end
 
-        def slave_control_restored
-            self.online = true
-            self.failover_active = false
-            start_modules
-        end
-
+        # The failover host has disconnected - we assume the server has gone down
+        # We don't wait for any recover windows.
+        # If the master is down then we should be taking control
         def master_disconnected
-            # We don't wait for any recover windows.
-            # If the master is down then we should be taking control
             @proxy = nil
             slave_control_restored if should_run_on_this_host
         end
 
+        def slave_control_restored
+            self.reload
+            begin
+                self.online = true
+                self.failover_active = false
+                self.save!(with_cas: true)
+            rescue ::Libcouchbase::Error::KeyExists
+                self.reload
+                retry
+            end
+            start_modules
+        end
 
         def host
             @host ||= self.host_origin.split('//')[-1]
@@ -481,7 +516,6 @@ module Orchestrator
             end
         end
 
-
         def load_triggers
             defer = @thread.defer
 
@@ -500,6 +534,17 @@ module Orchestrator
             Process.kill 'SIGKILL', Process.pid
             @thread.sleep 200
             abort("Failed to load. Killing process.")
+        end
+
+        def transfer_state
+            [:device, :logic, :trigger].each do |method|
+                @start_order.__send__(method).each do |mod|
+                    @proxy.sync_status(mod.settings.id, mod.status)
+                end
+            end
+        rescue => e
+            # TODO:: log this error
+            puts "Error transferring module status\n#{e.message}\n#{e.backtrace.join("\n")}"
         end
     end
 end

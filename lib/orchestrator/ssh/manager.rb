@@ -43,7 +43,8 @@ module Orchestrator
                 ssh_settings.merge!({
                     port: @settings.port,
                     non_interactive: true,  # No password prompt
-                    keys_only: true,        # Don't use ssh-agent
+                    use_agent: false,       # Don't use ssh-agent
+                    auth_methods: ['none', 'publickey', 'password'],
                     logger: @logger
                 })
                 username = ssh_settings.delete(:username) || ''

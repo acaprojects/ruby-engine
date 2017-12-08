@@ -81,6 +81,12 @@ module Orchestrator
                 end
             end
 
+            def sync_status(mod_id, status)
+                puts "SYNCING STATUS => #{mod_id}"
+                msg = Request.new :push, mod_id, :sync, status
+                send_direct(msg)
+            end
+
             # ---------------------------------
             # System level commands
             # ---------------------------------
@@ -99,7 +105,7 @@ module Orchestrator
 
             def set_status(mod_id, status_name, value)
                 msg = Request.new :push, mod_id, :status, [status_name, value]
-                send_with_id(msg)
+                send_direct(msg)
             end
 
             def restore
@@ -294,23 +300,24 @@ module Orchestrator
                     result = @ctrl.unload(msg.ref, false)
                     promise_response(msg.id, result)
 
-                when :status
+                when :status, :sync
                     mod_id = msg.ref
                     mod = @ctrl.loaded?(mod_id)
 
                     if mod
-                        begin
-                            status_name, value = msg.args
-
-                            # The false indicates "don't send this update back to the remote node"
-                            mod.trak(status_name, value, false)
-                            send_resolution(msg.id, true)
-                            puts "Received status #{status_name} = #{value}"
-                        rescue => e
-                            send_rejection(msg.id, e)
+                        if msg_type == :status
+                            begin
+                                status_name, value = msg.args
+                                # The false indicates "don't send this update back to the remote node"
+                                mod.trak(status_name, value, false)
+                            rescue => e
+                                puts "Error setting #{status_name}\n#{e.message}\n#{e.backtrace.join("\n")}"
+                            end
+                        else
+                            mod.sync(msg.args)
                         end
                     else
-                        send_rejection(msg.id, 'module not loaded')
+                        puts "Error setting #{status_name} - #{mod_id} not loaded"
                     end
                 end
             end
