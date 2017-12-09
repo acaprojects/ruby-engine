@@ -319,9 +319,8 @@ module Orchestrator
             # thread safe
             def define_setting(name, value)
                 mod = Orchestrator::Module.find(@settings.id)
-                values = mod.settings.dup
-                values[name] = value
-                mod.settings = values
+                mod.settings_will_change!
+                mod.settings[name] = value
                 mod.save!(with_cas: true)
                 @settings = mod
                 value # Don't leak direct access to the database model
