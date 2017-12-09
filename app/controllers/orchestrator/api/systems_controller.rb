@@ -60,9 +60,8 @@ module Orchestrator
                 if @cs.modules.include? module_id
                     remove = true
 
-                    mods = @cs.modules.dup
-                    mods.delete(module_id)
-                    @cs.modules = mods
+                    @cs.modules_will_change!
+                    @cs.modules.delete(module_id)
                     @cs.save! with_cas: true
 
                     ControlSystem.using_module(module_id).each do |cs|
