@@ -31,17 +31,16 @@ module Orchestrator
                         self.id = ::CouchbaseOrm::IdGenerator.next(self) unless self.id
                         id = self.id
 
-                        crypt = proc {
-                            h[save_key] = ::Orchestrator::Encryption.encode_setting(id, save_key, v)
-                            h.delete(k)
-                        }
-
                         # We want this to work in the console etc
                         thread = ::Libuv.reactor
                         if thread.reactor_running? && thread.reactor_thread?
-                            thread.work(crypt).value # Wait for encryption to complete
+                            thread.work {
+                                h[save_key] = ::Orchestrator::Encryption.encode_setting(id, save_key, v)
+                                h.delete(k)
+                            }.value # Wait for encryption to complete
                         else
-                            crypt.call
+                            h[save_key] = ::Orchestrator::Encryption.encode_setting(id, save_key, v)
+                            h.delete(k)
                         end
                     end
                 end
