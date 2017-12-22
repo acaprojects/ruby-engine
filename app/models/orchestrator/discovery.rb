@@ -33,7 +33,22 @@ module Orchestrator
                     begin
                         load file
 
-                        klass_name = file[path.length..-4].camelize
+                        file_name = file[path.length..-4] # minus the .rb
+                        class_names = File.readlines(file).select { |line|
+                            line.include?('class ')
+                        }.collect { |line|
+                            klass = line.split("<")[0].gsub(/class/, "").strip
+                            klass.start_with?('::') ? klass : "::#{klass}"
+                        }.select { |klass|
+                            klass.underscore == file_name
+                        }
+
+                        if class_names.empty?
+                            ::STDERR.puts "no class names matched in file #{file}"
+                            next
+                        end
+
+                        klass_name = class_names[0]
                         klass = klass_name.constantize
 
                         # Check for existing entry
@@ -57,13 +72,13 @@ module Orchestrator
                             disc.save!
                         end
                     rescue Exception => e
-                        ::STDOUT.puts e.message
-                        ::STDOUT.puts e.backtrace.select { |line| line.include?(path) }.join("\n") if e.backtrace
+                        ::STDERR.puts "#{file} error #{e.message}"
+                        ::STDERR.puts e.backtrace.select { |line| line.include?(path) }.join("\n") if e.backtrace
                     end
                 end
             end
 
-            puts "Discovered #{count} drivers"
+            ::STDERR.puts "Discovered #{count} drivers"
         end
 
 
@@ -76,7 +91,7 @@ module Orchestrator
         # Expire both the zone cache and any systems that use the zone
         before_create :set_id
         def set_id
-            ::STDOUT.puts "* Discovered #{self.class_name} #{self.name}"
+            ::STDERR.puts "* Discovered #{self.class_name} #{self.name}"
             self.id = "disc-#{self.class_name}"
         end
     end
