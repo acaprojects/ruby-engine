@@ -45,7 +45,8 @@ module Orchestrator
                 flush_buffer_on_disconnect: false,
                 priority_bonus: 20,  # give commands bonus priority under certain conditions
                 update_status: true, # auto update connected status?
-                thrashing_threshold: 1500  # min milliseconds between connection retries
+                thrashing_threshold: 1500, # min milliseconds between connection retries
+                wait_ready_timeout: 10000  # time to wait for a remote system to accept commands
 
                 # Other options include:
                 # * inactivity_timeout (used with make and break)
