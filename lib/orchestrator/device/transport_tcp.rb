@@ -72,7 +72,7 @@ module Orchestrator
                 return init_connection unless @config[:wait_ready]
 
                 # Don't wait forever
-                @delay_timer = @manager.thread.scheduler.in(@processor.defaults[:timeout]) do
+                @delay_timer = @manager.thread.scheduler.in(@processor.config[:wait_ready_timeout]) do
                     @manager.logger.warn 'timeout waiting for device to be ready'
                     close_connection
                     @manager.notify_disconnected

@@ -82,6 +82,11 @@ module Orchestrator
             def on_connect(transport)
                 return transport.shutdown! if @terminated
                 return init_connection unless @config[:wait_ready]
+
+                @delay_timer = @manager.thread.scheduler.in(@config[:wait_ready_timeout]) do
+                    @manager.logger.warn 'timeout waiting for device to be ready'
+                    transport.shutdown!
+                end
                 @delaying = String.new
             end
 
@@ -101,6 +106,8 @@ module Orchestrator
                 result = @delaying.split(@config[:wait_ready], 2)
                 if result.length > 1
                     @delaying = nil
+                    @delay_timer.cancel
+                    @delay_timer = nil
                     rem = result[-1]
 
                     init_connection # This clears the buffer
@@ -121,6 +128,9 @@ module Orchestrator
                 @connecting&.cancel
                 @connecting = nil
 
+                @delay_timer&.cancel
+                @delay_timer = nil
+
                 @keep_alive&.cancel
                 @keep_alive = nil
 
@@ -132,6 +142,9 @@ module Orchestrator
 
                 @connecting&.cancel
                 @connecting = nil
+
+                @delay_timer&.cancel
+                @delay_timer = nil
 
                 @keep_alive&.cancel
                 @keep_alive = nil
