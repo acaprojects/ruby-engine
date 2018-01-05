@@ -105,6 +105,11 @@ if ($resultArr.length -gt 0) {
     $postParams = ConvertTo-Json @{module="LocateUser";method="lookup";args=@($resultArr)}
     $res = Invoke-WebRequest -UseBasicParsing -Uri https://engine.server.com/control/api/webhooks/trig-SwDJ35~kzR/notify?secret=3ad9d883f8e7a17d490510530b07bd90 -Method POST -Body $postParams -ContentType "application/json" -TimeoutSec 40
     Write-Host "Response code was:" $res.StatusCode;
+
+    if ($res.StatusCode -ne 202) {
+        Write-Host "Webhook post failed...";
+        exit 1
+    }
 } else {
     Write-Host "No results found...";
 }
