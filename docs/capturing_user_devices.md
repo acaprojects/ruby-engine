@@ -40,7 +40,7 @@ try {
 
     $events = Get-WinEvent -ComputerName "domain.controller.com" -Credential $Credential -LogName "Security" -FilterXPath @"
     *[System[Provider[@Name='Microsoft-Windows-Security-Auditing'] and
-      EventID=4768 and TimeCreated[timediff(@SystemTime) <= 60000]]] and
+      EventID=4768 and TimeCreated[timediff(@SystemTime) <= 90000]]] and
     *[EventData[Data[@Name='Status'] and (Data='0x0')]] and
     *[EventData[Data[@Name='TargetDomainName'] and (Data='YourDomain')]]
 "@
@@ -103,7 +103,8 @@ if ($resultArr.length -gt 0) {
 
     # Send to the server
     $postParams = ConvertTo-Json @{module="LocateUser";method="lookup";args=@($resultArr)}
-    Invoke-WebRequest -Uri https://engine.server.com/control/api/webhooks/trig-SwDJ35~kzR/notify?secret=3ad9d883f8e7a17d490510530b07bd90 -Method POST -Body $postParams -ContentType "application/json" -TimeoutSec 40
+    $res = Invoke-WebRequest -UseBasicParsing -Uri https://engine.server.com/control/api/webhooks/trig-SwDJ35~kzR/notify?secret=3ad9d883f8e7a17d490510530b07bd90 -Method POST -Body $postParams -ContentType "application/json" -TimeoutSec 40
+    Write-Host "Response code was:" $res.StatusCode;
 } else {
     Write-Host "No results found...";
 }
@@ -155,7 +156,7 @@ if ([string]::IsNullOrWhiteSpace($ip) -Or ($ip -eq "-") -Or [string]::IsNullOrWh
 
 # Post to details to server
 $postParams = ConvertTo-Json @{module="LocateUser";method="lookup";args=@(@($ip,$username,$domain))}
-Invoke-WebRequest -Uri https://engine.server.com/control/api/webhooks/trig-O6AXyP7jb5/notify?secret=f371579324eb56659b2f0b2c6f43d617 -Method POST -Body $postParams -ContentType "application/json"
+Invoke-WebRequest -UseBasicParsing -Uri https://engine.server.com/control/api/webhooks/trig-O6AXyP7jb5/notify?secret=f371579324eb56659b2f0b2c6f43d617 -Method POST -Body $postParams -ContentType "application/json"
 
 ```
 
