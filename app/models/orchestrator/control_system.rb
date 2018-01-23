@@ -33,7 +33,7 @@ module Orchestrator
         attribute :bookable, type: Boolean, default: false
 
         # Provide a email lookup helpers
-        ensure_unique :email, presence: false do |email|
+        index :email, presence: false do |email|
             email.to_s.strip.downcase
         end
 
