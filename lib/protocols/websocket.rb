@@ -17,9 +17,11 @@ class Protocols::Websocket
         @url = url
         @mod = driver
         @send = callback
+        @ready = false
         @driver = ::WebSocket::Driver::Client.new(self, options)
 
         @driver.on :close do |event|
+            @ready = false
             @mod.__send__(:disconnect)
             @mod.on_close(event) if @mod.respond_to?(:on_close)
         end
@@ -29,16 +31,13 @@ class Protocols::Websocket
         end
 
         @driver.on :error do |event|
+            @ready = false
             @mod.__send__(:disconnect)
-
-            if @mod.respond_to?(:on_error)
-                @mod.on_error(event)
-            elsif @mod.respond_to?(:on_close)
-                @mod.on_close(event)
-            end
+            @mod.on_error(event) if @mod.respond_to?(:on_error)
         end
 
         @driver.on :open do |event|
+            @ready = true
             @mod.on_open(event) if @mod.respond_to?(:on_open)
         end
 
@@ -49,10 +48,20 @@ class Protocols::Websocket
         @mod.__send__(:send, string, wait: false)
     end
 
+    def parse(data)
+        begin
+            @driver.parse data
+        rescue Exception => e
+            @mod.__send__(:disconnect)
+            raise e
+        end
+    end
+
     # Write some text to the websocket connection
     #
     # @param string [String] a string of data to be sent to the far end
     def text(string)
+        raise "websocket not ready!" unless @ready
         @driver.text(string.to_s)
     end
 
@@ -60,6 +69,7 @@ class Protocols::Websocket
     #
     # @param array [Array] an array of bytes to be sent to the far end
     def binary(array)
+        raise "websocket not ready!" unless @ready
         @driver.binary(array.to_a)
     end
 end
