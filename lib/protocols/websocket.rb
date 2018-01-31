@@ -30,6 +30,14 @@ class Protocols::Websocket
             @mod.on_message(event.data)
         end
 
+        @driver.on :ping do |event|
+            @mod.on_ping(event) if @mod.respond_to?(:on_ping)
+        end
+
+        @driver.on :pong do |event|
+            @mod.on_pong(event) if @mod.respond_to?(:on_pong)
+        end
+
         @driver.on :error do |event|
             @ready = false
             @mod.__send__(:disconnect)
