@@ -31,11 +31,11 @@ class Protocols::Websocket
         end
 
         @driver.on :ping do |event|
-            @mod.on_ping(event) if @mod.respond_to?(:on_ping)
+            @mod.on_ping(event.data) if @mod.respond_to?(:on_ping)
         end
 
         @driver.on :pong do |event|
-            @mod.on_pong(event) if @mod.respond_to?(:on_pong)
+            @mod.on_pong(event.data) if @mod.respond_to?(:on_pong)
         end
 
         @driver.on :error do |event|
