@@ -8,8 +8,9 @@ module Protocols; end
 
 class Protocols::Websocket
     extend ::Forwardable
-    def_delegators :@driver, :start, :ping, :protocol, :ready_state
-    def_delegators :@driver, :state, :close, :status, :headers
+    def_delegators :@driver, :start, :ping, :pong, :protocol, :ready_state
+    def_delegators :@driver, :headers, :version, :protocol, :add_extension
+    def_delegators :@driver, :state, :close, :status, :set_header
 
     attr_reader :url
 
@@ -47,8 +48,6 @@ class Protocols::Websocket
             @ready = true
             @mod.__send__(:on_open) if @mod.respond_to?(:on_open, true)
         end
-
-        @driver.start
     end
 
     def write(string)
