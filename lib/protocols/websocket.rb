@@ -16,37 +16,36 @@ class Protocols::Websocket
     def initialize(driver, url, **options)
         @url = url
         @mod = driver
-        @send = callback
         @ready = false
         @driver = ::WebSocket::Driver::Client.new(self, options)
 
         @driver.on :close do |event|
             @ready = false
             @mod.__send__(:disconnect)
-            @mod.on_close(event) if @mod.respond_to?(:on_close)
+            @mod.__send__(:on_close, event) if @mod.respond_to?(:on_close, true)
         end
 
         @driver.on :message do |event|
-            @mod.on_message(event.data)
+            @mod.__send__(:on_message, event.data)
         end
 
         @driver.on :ping do |event|
-            @mod.on_ping(event.data) if @mod.respond_to?(:on_ping)
+            @mod.__send__(:on_ping, event.data) if @mod.respond_to?(:on_ping, true)
         end
 
         @driver.on :pong do |event|
-            @mod.on_pong(event.data) if @mod.respond_to?(:on_pong)
+            @mod.__send__(:on_pong, event.data) if @mod.respond_to?(:on_pong, true)
         end
 
         @driver.on :error do |event|
             @ready = false
             @mod.__send__(:disconnect)
-            @mod.on_error(event) if @mod.respond_to?(:on_error)
+            @mod.__send__(:on_error, event) if @mod.respond_to?(:on_error, true)
         end
 
-        @driver.on :open do |event|
+        @driver.on :open do
             @ready = true
-            @mod.on_open(event) if @mod.respond_to?(:on_open)
+            @mod.__send__(:on_open) if @mod.respond_to?(:on_open, true)
         end
 
         @driver.start
