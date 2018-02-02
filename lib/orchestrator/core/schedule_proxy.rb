@@ -13,20 +13,24 @@ module Orchestrator
 
             attr_reader :schedules
 
-            def every(time, &block)
-                add_schedule @scheduler.every(time, &curry_user(block))
+            def every(time, immediate = false, &block)
+                sched = add_schedule @scheduler.every(time, &curry_user(block))
+                run_now(immediate, sched, block)
             end
 
-            def in(time, &block)
-                add_schedule @scheduler.in(time, &curry_user(block))
+            def in(time, immediate = false, &block)
+                sched = add_schedule @scheduler.in(time, &curry_user(block))
+                run_now(immediate, sched, block)
             end
 
-            def at(time, &block)
-                add_schedule @scheduler.at(time, &curry_user(block))
+            def at(time, immediate = false, &block)
+                sched = add_schedule @scheduler.at(time, &curry_user(block))
+                run_now(immediate, sched, block)
             end
 
-            def cron(schedule, timezone: nil, &block)
-                add_schedule @scheduler.cron(schedule, timezone: timezone, &curry_user(block))
+            def cron(schedule, immediate = false, timezone: nil, &block)
+                sched = add_schedule @scheduler.cron(schedule, timezone: timezone, &curry_user(block))
+                run_now(immediate, sched, block)
             end
 
             def clear
@@ -35,9 +39,7 @@ module Orchestrator
                 end
             end
 
-
             protected
-
 
             def add_schedule(schedule)
                 @schedules.add(schedule)
@@ -65,6 +67,17 @@ module Orchestrator
                         @manager.current_user = current_user
                     end
                 end
+            end
+
+            def run_now(immediate, schedule, block)
+                if immediate
+                    begin
+                        block.call
+                    rescue Exception => e
+                        @manager.logger.print_error(e, 'in scheduled task')
+                    end
+                end
+                schedule
             end
         end
     end
