@@ -33,9 +33,10 @@ $PWord = ConvertTo-SecureString -String "service_account_pass" -AsPlainText -For
 $Credential = New-Object -TypeName "System.Management.Automation.PSCredential" -ArgumentList $User, $PWord
 
 $results = New-Object System.Collections.Generic.List[System.Object]
-try {
-    $ips = @()
+$ips = @()
+$events = $null
 
+try {
     Write-Host "Requesting events from remote server...";
 
     $events = Get-WinEvent -ComputerName "domain.controller.com" -Credential $Credential -LogName "Security" -FilterXPath @"
@@ -44,26 +45,32 @@ try {
     *[EventData[Data[@Name='Status'] and (Data='0x0')]] and
     *[EventData[Data[@Name='TargetDomainName'] and (Data='YourDomain')]]
 "@
+} catch {
+    Write-Host "Server found no results...";
+    Write-Host $_.Exception.Message;
+    exit 0
+}
 
-    Write-Host "Events received from remote server";
+Write-Host "Events received from remote server";
 
-    # This makes the events look like they were requested locally
-    # (remote event requests come back as generic objects)
-    ForEach ($event in $events) {
-        $eventXML = [xml]$event.ToXml()
+# This makes the events look like they were requested locally
+# (remote event requests come back as generic objects)
+ForEach ($event in $events) {
+    $eventXML = [xml]$event.ToXml()
 
-        # Iterate through each one of the XML message properties
-        For ($i=0; $i -lt $eventXML.Event.EventData.Data.Count; $i++) {
-            # Append these as object properties
-            Add-Member -InputObject $event -MemberType NoteProperty -Force `
-                -Name  $eventXML.Event.EventData.Data[$i].name `
-                -Value $eventXML.Event.EventData.Data[$i].'#text'
-        }
+    # Iterate through each one of the XML message properties
+    For ($i=0; $i -lt $eventXML.Event.EventData.Data.Count; $i++) {
+        # Append these as object properties
+        Add-Member -InputObject $event -MemberType NoteProperty -Force `
+            -Name  $eventXML.Event.EventData.Data[$i].name `
+            -Value $eventXML.Event.EventData.Data[$i].'#text'
     }
+}
 
-    Write-Host "IP addresses discovered:";
+Write-Host "IP addresses discovered:";
 
-    $events | ForEach-Object {
+$events | ForEach-Object {
+    try {
         $ip = $_.IpAddress
         $username = $_.TargetUserName
         $domain = $_.TargetDomainName
@@ -89,10 +96,10 @@ try {
         if ((checkSubnet "127.0.0.0/16" $ip) -Or (checkSubnet "192.168.0.0/16" $ip)) {
             $results.Add(@($ip,$username,$domain))
         }
+    } catch {
+        Write-Host "Error parsing event";
+        Write-Host $_.Exception.Message;
     }
-} catch {
-    Write-Host "Server found no results...";
-    exit 0
 }
 
 $resultArr = $results.ToArray()
