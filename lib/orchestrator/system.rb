@@ -163,26 +163,30 @@ module Orchestrator
             # Failover hosts have a local copy of the remote hosts status variables
             # So binding and monitoring is simplified.
             if manager.nil?
-                if trigger
-                    node = @@ctrl.get_node(@config.edge_id)
-
-                    unless node.should_run_on_this_host || node.is_failover_host
-                        manager = Remote::Manager.new(@config)
-                        @@remote_modules[mod_id] = manager
-                    end
-                elsif !trigger
-                    settings = ::Orchestrator::Module.find_by_id(mod_id)
-
-                    if settings
-                        node = @@ctrl.get_node(settings.edge_id)
+                begin
+                    if trigger
+                        node = @@ctrl.get_node(@config.edge_id)
 
                         unless node.should_run_on_this_host || node.is_failover_host
-                            manager = Remote::Manager.new(settings)
+                            manager = Remote::Manager.new(@config)
                             @@remote_modules[mod_id] = manager
                         end
-                    else
-                        @@ctrl.logger.error "unable to index module #{mod_id} in system #{@config.id}, module not found!"
+                    elsif !trigger
+                        settings = ::Orchestrator::Module.find_by_id(mod_id)
+
+                        if settings
+                            node = @@ctrl.get_node(settings.edge_id)
+
+                            unless node.should_run_on_this_host || node.is_failover_host
+                                manager = Remote::Manager.new(settings)
+                                @@remote_modules[mod_id] = manager
+                            end
+                        else
+                            @@ctrl.logger.error "unable to index module #{mod_id} in system #{@config.id}, module not found!"
+                        end
                     end
+                rescue => e
+                    @@ctrl.logger.print_error e, "failure initializing remote manager"
                 end
             end
 
