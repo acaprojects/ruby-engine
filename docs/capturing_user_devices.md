@@ -82,8 +82,32 @@ $events | ForEach-Object {
 
         # Ensure IP address is of the correct type
         [IPAddress]$address = $ip
-        if ($address.IsIPv4MappedToIPv6) {
-            $ip = $address.MapToIPv4().IPAddressToString
+        if (($PSVersionTable.PSVersion.Major -ge 5) -Or (($PSVersionTable.PSVersion.Major -eq 4) -And ($PSVersionTable.PSVersion.Minor -ge 5)) {
+            if ($address.IsIPv4MappedToIPv6) {
+                $ip = $address.MapToIPv4().IPAddressToString
+            } else {
+                # Ignore IPv6
+                if ($address.AddressFamily.ToString() -eq "InterNetworkV6") {
+                    Write-Host "Ignoring IPv6 address: ", $ip
+                    return
+                }
+            }
+        } else {
+            # Check IPv6 Mapping manually
+            if (($address.AddressFamily.ToString() -eq "InterNetworkV6") -And $ip.StartsWith("::ffff:")) {
+                $new_ip = $ip.Split("::ffff:")[-1]
+
+                try {
+                    [IPAddress]$address = $new_ip
+                    if ($address.AddressFamily.ToString() -eq "InterNetwork") {
+                        $ip = $new_ip
+                    }
+                } catch {
+                    # we are not interested in this IP address
+                    Write-Host "Ignoring IPv6 address: ", $ip
+                    return
+                }
+            }
         }
 
         # Check the IP address hasn't been seen already
