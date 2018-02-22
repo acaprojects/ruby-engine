@@ -82,7 +82,7 @@ $events | ForEach-Object {
 
         # Ensure IP address is of the correct type
         [IPAddress]$address = $ip
-        if (($PSVersionTable.PSVersion.Major -ge 5) -Or (($PSVersionTable.PSVersion.Major -eq 4) -And ($PSVersionTable.PSVersion.Minor -ge 5)) {
+        if (($PSVersionTable.PSVersion.Major -ge 5) -Or (($PSVersionTable.PSVersion.Major -eq 4) -And ($PSVersionTable.PSVersion.Minor -ge 5))) {
             if ($address.IsIPv4MappedToIPv6) {
                 $ip = $address.MapToIPv4().IPAddressToString
             } else {
