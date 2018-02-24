@@ -1,0 +1,1129 @@
+swagger: "2.0"
+info:
+  version: "3.5.0"
+  title: "ACAEngine API"
+host: "staff.org.com"
+basePath: "/control/api"
+tags:
+- name: "systems"
+  description: "Listing, modifying and introspecting systems"
+  externalDocs:
+    description: "API Controller Code"
+    url: "https://github.com/acaprojects/ruby-engine/blob/master/app/controllers/orchestrator/api/systems_controller.rb"
+- name: "modules"
+  description: "Module operations"
+  externalDocs:
+    description: "API Controller Code"
+    url: "https://github.com/acaprojects/ruby-engine/blob/master/app/controllers/orchestrator/api/modules_controller.rb"
+- name: "dependencies"
+  description: "Dependency operations"
+  externalDocs:
+    description: "API Controller Code"
+    url: "https://github.com/acaprojects/ruby-engine/blob/master/app/controllers/orchestrator/api/dependencies_controller.rb"
+- name: "zones"
+  description: "Zone CRUD operations"
+  externalDocs:
+    description: "API Controller Code"
+    url: "https://github.com/acaprojects/ruby-engine/blob/master/app/controllers/orchestrator/api/zones_controller.rb"
+- name: "users"
+  description: "User CRUD operations"
+  externalDocs:
+    description: "API Controller Code"
+    url: "https://github.com/acaprojects/ruby-engine/blob/master/app/controllers/orchestrator/api/users_controller.rb"
+schemes:
+- "https"
+paths:
+  /users:
+    get:
+      tags:
+      - "users"
+      summary: "Get a paginated list of users"
+      description: ""
+      produces:
+      - "application/json"
+      parameters:
+        - $ref: "#/parameters/query"
+        - $ref: "#/parameters/limit"
+        - $ref: "#/parameters/offset"
+        - in: query
+          name: authority_id
+          type: string
+          description: "Returns only users from a particular domain"
+          required: false
+      responses:
+        200:
+          description: "A list of users: {\"total\": 123, \"results\": [{...}]}"
+          schema:
+            $ref: "#/definitions/User"
+  /users/current:
+    get:
+      tags:
+      - "users"
+      summary: "Gets the current user information"
+      description: ""
+      produces:
+      - "application/json"
+      responses:
+        200:
+          description: "The currently logged in users details"
+          schema:
+            $ref: "#/definitions/User"
+  /users/$dep_id:
+    get:
+      tags:
+      - "users"
+      summary: "Get the requested user information. Anonymised data only unless an admin user"
+      description: ""
+      produces:
+      - "application/json"
+      responses:
+        200:
+          description: "The requested user"
+          schema:
+            $ref: "#/definitions/User"
+        404:
+          description: "Not found"
+    put:
+      tags:
+      - "users"
+      summary: "Update an existing user"
+      description: ""
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "The updated user"
+        required: true
+        schema:
+          $ref: "#/definitions/User"
+      responses:
+        200:
+          description: "The saved record"
+          schema:
+            $ref: "#/definitions/User"
+        403:
+          description: "You do not have permissions to perform this operation"
+        404:
+          description: "Not found"
+        406:
+          description: "Validation exception"
+          schema:
+            $ref: "#/definitions/Errors"
+    delete:
+      tags:
+      - "users"
+      summary: "Deletes a user"
+      description: ""
+      responses:
+        200:
+          description: "Successful operation"
+        403:
+          description: "You do not have permissions to perform this operation"
+        404:
+          description: "Not found"
+  /dependencies:
+    get:
+      tags:
+      - "dependencies"
+      summary: "Get a paginated list of dependencies"
+      description: ""
+      produces:
+      - "application/json"
+      parameters:
+        - $ref: "#/parameters/query"
+        - $ref: "#/parameters/limit"
+        - $ref: "#/parameters/offset"
+        - in: query
+          name: role
+          type: string
+          description: "Returns only a particular type of dependency. One of ssh, device, service or logic"
+          required: false
+      responses:
+        200:
+          description: "A list of drivers: {\"total\": 123, \"results\": [{...}]}"
+          schema:
+            $ref: "#/definitions/Dependency"
+    post:
+      tags:
+      - "dependencies"
+      summary: "Add a new driver"
+      description: ""
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "Driver to be added"
+        required: true
+        schema:
+          $ref: "#/definitions/Dependency"
+      responses:
+        406:
+          description: "Validation exception"
+          schema:
+            $ref: "#/definitions/Errors"
+        200:
+          description: "The saved record"
+          schema:
+            $ref: "#/definitions/Dependency"
+        403:
+          description: "You do not have permissions to perform this operation"
+  /dependencies/$dep_id:
+    get:
+      tags:
+      - "dependencies"
+      summary: "Get the requested driver information"
+      description: ""
+      produces:
+      - "application/json"
+      responses:
+        200:
+          description: "The requested driver"
+          schema:
+            $ref: "#/definitions/Dependency"
+        404:
+          description: "Not found"
+    put:
+      tags:
+      - "dependencies"
+      summary: "Update an existing driver"
+      description: ""
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "The updated driver"
+        required: true
+        schema:
+          $ref: "#/definitions/Dependency"
+      responses:
+        200:
+          description: "The saved record"
+          schema:
+            $ref: "#/definitions/Dependency"
+        403:
+          description: "You do not have permissions to perform this operation"
+        404:
+          description: "Not found"
+        406:
+          description: "Validation exception"
+          schema:
+            $ref: "#/definitions/Errors"
+    delete:
+      tags:
+      - "dependencies"
+      summary: "Deletes a driver"
+      description: ""
+      responses:
+        200:
+          description: "Successful operation"
+        403:
+          description: "You do not have permissions to perform this operation"
+        404:
+          description: "Not found"
+  /dependencies/$dep_id/reload:
+    post:
+      tags:
+      - "dependencies"
+      summary: "Live loads or reloads the latest version of the driver code"
+      description: ""
+      responses:
+        200:
+          description: "Successful operation"
+        403:
+          description: "You do not have permissions to perform this operation"
+        404:
+          description: "Not found"
+  /modules:
+    get:
+      tags:
+      - "modules"
+      summary: "Get a paginated list of modules"
+      description: ""
+      produces:
+      - "application/json"
+      parameters:
+        - $ref: "#/parameters/query"
+        - $ref: "#/parameters/limit"
+        - $ref: "#/parameters/offset"
+        - in: query
+          name: system_id
+          type: string
+          description: "Returns only modules that are in the specified system"
+          required: false
+        - in: query
+          name: dependency_id
+          type: string
+          description: "Returns only modules that are children of the specified dependency_id"
+          required: false
+        - in: query
+          name: connected
+          type: boolean
+          description: "Returns only modules that are connected or not connected depending on the value"
+          required: false
+        - in: query
+          name: running
+          type: boolean
+          description: "Returns only modules that are running or not stopped"
+          required: false
+        - in: query
+          name: no_logic
+          type: boolean
+          description: "Returns modules that are not logic modules (i.e. they connect to a device or service)"
+          required: false
+        - in: query
+          name: as_of
+          type: integer
+          description: "Returns modules that have not been updated since the specified unix timestamp representing a datetime"
+          required: false
+      responses:
+        200:
+          description: "A list of modules: {\"total\": 123, \"results\": [{...}]}"
+          schema:
+            $ref: "#/definitions/Module"
+    post:
+      tags:
+      - "modules"
+      summary: "Add a new module"
+      description: ""
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "Module to be added"
+        required: true
+        schema:
+          $ref: "#/definitions/Module"
+      responses:
+        406:
+          description: "Validation exception"
+          schema:
+            $ref: "#/definitions/Errors"
+        200:
+          description: "The saved record"
+          schema:
+            $ref: "#/definitions/Module"
+        403:
+          description: "You do not have permissions to perform this operation"
+  /modules/$mod_id:
+    get:
+      tags:
+      - "modules"
+      summary: "Get the requested module information"
+      description: ""
+      produces:
+      - "application/json"
+      responses:
+        200:
+          description: "The requested module"
+          schema:
+            $ref: "#/definitions/Module"
+        404:
+          description: "Not found"
+    put:
+      tags:
+      - "modules"
+      summary: "Update an existing module"
+      description: ""
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "The updated module"
+        required: true
+        schema:
+          $ref: "#/definitions/Module"
+      responses:
+        200:
+          description: "The saved record"
+          schema:
+            $ref: "#/definitions/Module"
+        403:
+          description: "You do not have permissions to perform this operation"
+        404:
+          description: "Not found"
+        406:
+          description: "Validation exception"
+          schema:
+            $ref: "#/definitions/Errors"
+    delete:
+      tags:
+      - "modules"
+      summary: "Deletes a module"
+      description: ""
+      responses:
+        200:
+          description: "Successful operation"
+        403:
+          description: "You do not have permissions to perform this operation"
+        404:
+          description: "Not found"
+  /modules/$mod_id/start:
+    post:
+      tags:
+      - "modules"
+      summary: "Starts the specified module and clears any existing caches"
+      description: ""
+      responses:
+        200:
+          description: "Successful operation"
+        403:
+          description: "You do not have permissions to perform this operation"
+        404:
+          description: "Not found"
+  /modules/$mod_id/stop:
+    post:
+      tags:
+      - "modules"
+      summary: "Stops the specified module"
+      description: ""
+      responses:
+        200:
+          description: "Successful operation"
+        403:
+          description: "You do not have permissions to perform this operation"
+        404:
+          description: "Not found"
+  /modules/$mod_id/ping:
+    post:
+      tags:
+      - "modules"
+      summary: "Pings the IP address (or hostname) of the module"
+      description: ""
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            type: object
+            properties:
+              host:
+                type: string
+                description: "The IP address of the host"
+              pingable:
+                type: boolean
+                description: Did the host respond to ping?
+              warning:
+                type: string
+                description: Any warning messages
+              exception:
+                type: string
+                description: Any error messages
+        403:
+          description: "You do not have permissions to perform this operation"
+        404:
+          description: "Not found"
+        406:
+          description: "The module specified was a logic module"
+  /modules/$mod_id/state:
+    get:
+      tags:
+      - "modules"
+      summary: "Get the status state of the module specified"
+      description: ""
+      parameters:
+        - in: query
+          name: lookup
+          type: string
+          description: A specific status variable that is of interest. If set then only this value is returned
+          required: false
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            type: object
+        403:
+          description: "You do not have permissions to perform this operation"
+        404:
+          description: "Not found"
+  /modules/$mod_id/internal_state:
+    get:
+      tags:
+      - "modules"
+      summary: "Get the queue and schedule state of the module specified"
+      description: "This dumps internal counters, queue status and active schedule details. Used primarily for debugging"
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            type: object
+            properties:
+              queue_size:
+                type: integer
+                description: "number of queued requests waiting to be sent to the device"
+              queue_waiting:
+                type: boolean
+                description: Is the queue paused, waiting for a response or timeout
+              queue_state:
+                type: string
+                description: online or offline. Offline indicates that there are communication issues with the device.
+              last_send:
+                type: integer
+                description: Timestamp of when the last request was made
+              last_receive:
+                type: integer
+                description: Timestamp of when the message was recieved from the device
+              timeout:
+                type: object
+                description: Any active timeout schedules in place
+              time_now:
+                type: integer
+                description: The current time for comparison with last_send and last_receive
+              schedules:
+                type: array
+                description: Array of active schedules
+                items:
+                  type: object
+        403:
+          description: "You do not have permissions to perform this operation"
+        404:
+          description: "Not found"
+  /zones:
+    get:
+      tags:
+      - "zones"
+      summary: "Get a paginated list of zones"
+      description: ""
+      produces:
+      - "application/json"
+      parameters:
+        - $ref: "#/parameters/query"
+        - $ref: "#/parameters/limit"
+        - $ref: "#/parameters/offset"
+      responses:
+        200:
+          description: "A list of zones: {\"total\": 123, \"results\": [{...}]}"
+          schema:
+            $ref: "#/definitions/Zone"
+    post:
+      tags:
+      - "zones"
+      summary: "Add a new zone"
+      description: ""
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "Zone to be added"
+        required: true
+        schema:
+          $ref: "#/definitions/Zone"
+      responses:
+        406:
+          description: "Validation exception"
+          schema:
+            $ref: "#/definitions/Errors"
+        200:
+          description: "The saved record"
+          schema:
+            $ref: "#/definitions/Zone"
+        403:
+          description: "You do not have permissions to perform this operation"
+  /zones/$zone_id:
+    get:
+      tags:
+      - "zones"
+      summary: "Get the requested zone information"
+      description: ""
+      produces:
+      - "application/json"
+      parameters:
+        - in: query
+          name: complete
+          type: string
+          description: Includes trigger data in the response
+          required: false
+      responses:
+        200:
+          description: "The requested zone"
+          schema:
+            $ref: "#/definitions/Zone"
+        404:
+          description: "Not found"
+    put:
+      tags:
+      - "zones"
+      summary: "Update an existing zone"
+      description: ""
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "The updated zone"
+        required: true
+        schema:
+          $ref: "#/definitions/Zone"
+      responses:
+        200:
+          description: "The saved record"
+          schema:
+            $ref: "#/definitions/Zone"
+        403:
+          description: "You do not have permissions to perform this operation"
+        404:
+          description: "Not found"
+        406:
+          description: "Validation exception"
+          schema:
+            $ref: "#/definitions/Errors"
+    delete:
+      tags:
+      - "zones"
+      summary: "Deletes a zone"
+      description: ""
+      responses:
+        200:
+          description: "Successful operation"
+        403:
+          description: "You do not have permissions to perform this operation"
+        404:
+          description: "Not found"
+  /systems:
+    get:
+      tags:
+      - "systems"
+      summary: "Get a paginated list of systems"
+      description: ""
+      produces:
+      - "application/json"
+      parameters:
+        - $ref: "#/parameters/query"
+        - $ref: "#/parameters/limit"
+        - $ref: "#/parameters/offset"
+        - in: query
+          name: zone_id
+          type: string
+          description: "Returns only systems that are in the zone specified"
+          required: false
+        - in: query
+          name: module_id
+          type: string
+          description: "Returns only systems that include the driver specified"
+          required: false
+      responses:
+        200:
+          description: "A list of systems: {\"total\": 123, \"results\": [{...}]}"
+          schema:
+            $ref: "#/definitions/ControlSystem"
+    post:
+      tags:
+      - "systems"
+      summary: "Add a new system"
+      description: ""
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "System to be added"
+        required: true
+        schema:
+          $ref: "#/definitions/ControlSystem"
+      responses:
+        406:
+          description: "Validation exception"
+          schema:
+            $ref: "#/definitions/Errors"
+        200:
+          description: "The saved record"
+          schema:
+            $ref: "#/definitions/ControlSystem"
+        403:
+          description: "You do not have permissions to perform this operation"
+  /systems/$sys_id:
+    get:
+      tags:
+      - "systems"
+      summary: "Get the requested system information"
+      description: ""
+      produces:
+      - "application/json"
+      parameters:
+        - in: query
+          name: complete
+          type: string
+          description: Includes zone and module data in the response
+          required: false
+      responses:
+        200:
+          description: "The requested system"
+          schema:
+            $ref: "#/definitions/ControlSystem"
+        404:
+          description: "Not found"
+    put:
+      tags:
+      - "systems"
+      summary: "Update an existing system"
+      description: ""
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "The updated system definition"
+        required: true
+        schema:
+          $ref: "#/definitions/ControlSystem"
+      responses:
+        200:
+          description: "The saved record"
+          schema:
+            $ref: "#/definitions/ControlSystem"
+        403:
+          description: "You do not have permissions to perform this operation"
+        404:
+          description: "Not found"
+        406:
+          description: "Validation exception"
+          schema:
+            $ref: "#/definitions/Errors"
+    delete:
+      tags:
+      - "systems"
+      summary: "Deletes a system"
+      description: ""
+      responses:
+        200:
+          description: "Successful operation"
+        403:
+          description: "You do not have permissions to perform this operation"
+        404:
+          description: "Not found"
+  /systems/$sys_id/remove:
+    post:
+      tags:
+      - "systems"
+      summary: "Removes a module from the system and deletes it if not used elsewhere"
+      description: ""
+      parameters:
+        - in: query
+          name: module_id
+          type: string
+          format: "mod-XXX"
+          description: "The id of the module being removed from the system"
+          required: true
+      responses:
+        200:
+          description: "Successful operation"
+        403:
+          description: "You do not have permissions to perform this operation"
+        404:
+          description: "System not found"
+  /systems/$sys_id/start:
+    post:
+      tags:
+      - "systems"
+      summary: "Starts the specified system and clears any existing caches"
+      description: ""
+      responses:
+        200:
+          description: "Successful operation"
+        403:
+          description: "You do not have permissions to perform this operation"
+        404:
+          description: "Not found"
+  /systems/$sys_id/stop:
+    post:
+      tags:
+      - "systems"
+      summary: "Stops all modules in the system"
+      description: ""
+      responses:
+        200:
+          description: "Successful operation"
+        403:
+          description: "You do not have permissions to perform this operation"
+        404:
+          description: "Not found"
+  /systems/$sys_id/exec:
+    post:
+      tags:
+      - "systems"
+      summary: "Execute a function in a system module"
+      description: ""
+      parameters:
+        - $ref: "#/parameters/module"
+        - $ref: "#/parameters/index"
+        - in: query
+          name: method
+          type: string
+          description: The name of the function that should be executed
+          required: true
+        - in: query
+          name: args
+          type: array
+          items:
+            type: string
+          description: arguments to be sent to the function
+          required: false
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            type: object
+        403:
+          description: "You do not have permissions to perform this operation"
+        404:
+          description: "Not found"
+        500:
+          description: "Error occured executing the specified function. Backtrace returned"
+          schema:
+            type: array
+            items:
+              type: string
+  /systems/$sys_id/state:
+    get:
+      tags:
+      - "systems"
+      summary: "Get the state of a module in the system"
+      description: ""
+      parameters:
+        - $ref: "#/parameters/module"
+        - $ref: "#/parameters/index"
+        - in: query
+          name: lookup
+          type: string
+          description: A specific status variable that is of interest. If set then only this value is returned
+          required: false
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            type: object
+        404:
+          description: "Not found"
+  /systems/$sys_id/funcs:
+    get:
+      tags:
+      - "systems"
+      summary: "Get the list of functions in a module"
+      description: ""
+      parameters:
+        - $ref: "#/parameters/module"
+        - $ref: "#/parameters/index"
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            type: object
+            properties:
+              function_name:
+                type: object
+                description: "function details"
+                properties:
+                  arity:
+                    type: integer
+                    description: valid number of params
+                  params:
+                    type: array
+                    items:
+                      type: string
+                      description: parameter names
+        404:
+          description: "Not found"
+  /systems/$sys_id/count:
+    get:
+      tags:
+      - "systems"
+      summary: "The occurances of a particular type of module in a system"
+      description: ""
+      parameters:
+        - $ref: "#/parameters/module"
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            type: object
+            properties:
+              count:
+                type: integer
+                description: number of modules of this type in the system
+        404:
+          description: "Not found"
+  /systems/$sys_id/types:
+    get:
+      tags:
+      - "systems"
+      summary: "The list of different types of modules in a system and their counts"
+      description: ""
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            type: object
+            properties:
+              ModClass:
+                type: integer
+                description: number of modules of this type in the system
+        404:
+          description: "Not found"
+definitions:
+  Errors:
+    type: "object"
+    properties:
+      invalid_attribute:
+        type: "array"
+        description: "Array of reasons why this attribute was invalid"
+        items:
+          type: string
+  ControlSystem:
+    type: "object"
+    properties:
+      id:
+        type: "string"
+        format: "sys-XXX"
+        description: "ID of the system document"
+      edge_id:
+        type: "string"
+        format: "edge-XXX"
+        description: "ID of the preferred server node to run on"
+      name:
+        type: "string"
+        description: "Name of the control system"
+      description:
+        type: "string"
+        description: "Markdown formatted text that describes the system"
+      email:
+        type: "string"
+        description: "Calendar email that represents this system. Typically used for room scheduling / bookings"
+      capacity:
+        type: "integer"
+        description: "Max number of people that can be accommodated in this space"
+      features:
+        type: "string"
+        description: "List of features in the room for searching and filtering spaces"
+      bookable:
+        type: "boolean"
+        description: "Is this room typically bookable by typical staff members?"
+      installed_ui_devices:
+        type: "integer"
+        description: "Expected number of fixed installation touch panels"
+      zones:
+        type: "array"
+        description: "Array of zone ids that this system is a member of"
+        items:
+          type: string
+      modules:
+        type: "array"
+        description: "Array of driver ids that are accessible via this system"
+        items:
+          type: string
+      settings:
+        type: "object"
+        description: "JSON object representing the systems configuration"
+      created_at:
+        type: "integer"
+        description: "UNIX Epoc of creation time"
+      support_url:
+        type: "string"
+        description: "A URL linking to the primary interface for controlling this system"
+  Module:
+    type: "object"
+    properties:
+      dependency_id:
+        type: "string"
+        format: "dep-XXX"
+        description: "ID of driver definition that defines this module"
+      control_system_id:
+        type: "string"
+        format: "sys-XXX"
+        description: "ID of the control system this module is bound to (only set for logic modules)"
+      edge_id:
+        type: "string"
+        format: "edge-XXX"
+        description: "ID of the preferred server node to run on"
+      ip:
+        type: "string"
+        description: "IP address of the device this module connects to"
+      tls:
+        type: "boolean"
+        description: "Should transport layer security be enabled"
+      udp:
+        type: "boolean"
+        description: "Should UDP protocol be used instead of TCP"
+      port:
+        type: integer
+        description: "What is the communications port on the remote device"
+      makebreak:
+        type: "boolean"
+        description: "Should the connection to the device be broken during idle periods"
+      uri:
+        type: "string"
+        description: "The URI to use to connect to the remote service"
+      custom_name:
+        type: "string"
+        description: "The modules class name (Display, Lighting etc) if it should differ from the default defined in the dependency"
+      settings:
+        type: "object"
+        description: "JSON object representing configuration settings"
+      updated_at:
+        type: "integer"
+        description: "UNIX Epoc of last updated time"
+      created_at:
+        type: "integer"
+        description: "UNIX Epoc of creation time"
+      role:
+        type: "integer"
+        description: "Cache of the dependencies role field. 0 == ssh, 1 == device, 2 == service, 3 == logic"
+      notes:
+        type: "string"
+        description: "Markdown formatted text that describes the zone"
+      connected:
+        type: "boolean"
+        description: "Last known state of the transport for this module"
+      running:
+        type: "boolean"
+        description: "Is the module currently enabled"
+      ignore_connected:
+        type: "boolean"
+        description: "Do we want to ignore the connected state of this module when collecting metrics"
+  Zone:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+        description: "Name of the zone"
+      description:
+        type: "string"
+        description: "Markdown formatted text that describes the zone"
+      settings:
+        type: "object"
+        description: "JSON object representing configuration settings"
+      triggers:
+        type: array
+        description: "Array of trigger IDs that should be applied to every system in this zone"
+        items:
+          type: string
+          format: "trigger-XXX"
+      created_at:
+        type: "integer"
+        description: "UNIX Epoc of creation time"
+  Dependency:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+        description: "Name of the dependency"
+      description:
+        type: "string"
+        description: "Markdown formatted text that describes the dependency"
+      role:
+        type: "string"
+        description: "One of ssh, device, service or logic"
+      default:
+        type: "string"
+        description: "A URL or port number that is typical for this driver"
+      class_name:
+        type: "string"
+        description: "The Ruby class name of the driver"
+      module_name:
+        type: "string"
+        description: "The generic name for this driver. Such as Display or Lighting etc"
+      ignore_connected:
+        type: "boolean"
+        description: "Don't include this in statistics or disconnected searches"
+      settings:
+        type: "object"
+        description: "JSON object representing configuration settings"
+      created_at:
+        type: "integer"
+        description: "UNIX Epoc of creation time"
+  User:
+    type: "object"
+    properties:
+      authority_id:
+        type: "string"
+        description: "The domain this user has access to"
+      name:
+        type: "string"
+        description: "Name of the user"
+      email:
+        type: "string"
+        description: "The users email address"
+      email_digest:
+        type: "string"
+        description: "A private representation of the users email address"
+      phone:
+        type: "string"
+        description: "The users phone number"
+      country:
+        type: "string"
+        description: "The users country of residence"
+      image:
+        type: "string"
+        description: "A URL to location of the users image"
+      metadata:
+        type: "string"
+        description: "some additional data about a user. Various uses"
+      login_name:
+        type: "string"
+        description: "The users login name. Typlically for use on their Windows computers"
+      staff_id:
+        type: "string"
+        description: "A users staff ID if seperate from their login name"
+      first_name:
+        type: "string"
+        description: "The users first name"
+      last_name:
+        type: "string"
+        description: "The users last name"
+      created_at:
+        type: "integer"
+        description: "UNIX Epoc of creation time"
+parameters:
+  query:
+    in: query
+    name: q
+    type: string
+    description: >
+      A search filter supporting the following syntax
+      https://www.elastic.co/guide/en/elasticsearch/reference/5.5/query-dsl-simple-query-string-query.html
+    required: false
+  limit:
+    in: query
+    name: limit
+    type: integer
+    description: "(default 20) the number of results to return - max 500"
+    required: false
+  offset:
+    in: query
+    name: offset
+    type: integer
+    description: "the offset in the result set - max 10,000"
+    required: false
+  module:
+    in: query
+    name: module
+    type: string
+    description: Class name of the module. i.e. Display, Lighting etc
+    required: true
+  index:
+    in: query
+    name: index
+    type: integer
+    description: (default 1) Module index in the system. Indexes start at 1
+    required: false
