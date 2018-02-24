@@ -78,7 +78,7 @@ module Orchestrator
                     end
 
                     if filters.has_key? :no_logic
-                        filter['doc.role'] = [1, 2]
+                        filter['doc.role'] = [0, 1, 2]
                     end
 
                     if filters.has_key? :as_of
