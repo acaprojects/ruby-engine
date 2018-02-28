@@ -12,19 +12,21 @@ module Orchestrator
         Close = false
         Short = false
 
-        On_vars = Set.new([1, true, 'true', 'True', 
-                            :on, :On, 'on', 'On', 
-                            :yes, :Yes, 'yes', 'Yes', 
-                            'down', 'Down', :down, :Down, 
-                            'open', 'Open', :open, :Open,
-                            'active', 'Active', :active, :Active])
-        Off_vars = Set.new([0, false, 'false', 'False',
-                            :off, :Off, 'off', 'Off', 
-                            :no, :No, 'no', 'No',
-                            'up', 'Up', :up, :Up,
-                            'close', 'Close', :close, :Close,
-                            'short', 'Short', :short, :Short,
-                            'inactive', 'Inactive', :inactive, :Inactive])
+        On_vars = Set.new([1, true, 'true', 'True', 'TRUE',
+                            :on, :On, 'on', 'On', 'ON',
+                            :yes, :Yes, 'yes', 'Yes', 'YES',
+                            :down, :Down, 'down', 'Down', 'DOWN',
+                            :open, :Open, 'open', 'Open', 'OPEN',
+                            :active, :Active, 'active', 'Active', 'ACTIVE'
+                        ])
+        Off_vars = Set.new([0, false, 'false', 'False', 'FALSE',
+                            :off, :Off, 'off', 'Off', 'OFF',
+                            :no, :No, 'no', 'No', 'NO',
+                            :up, :Up, 'up', 'Up', 'UP',
+                            :close, :Close, 'close', 'Close', 'CLOSE',
+                            :short, :Short, 'short', 'Short', 'SHORT',
+                            :inactive, :Inactive, 'inactive', 'Inactive', 'INACTIVE'
+                        ])
 
 
         def in_range(num, max, min = 0)
