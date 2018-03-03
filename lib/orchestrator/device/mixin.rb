@@ -41,6 +41,10 @@ module Orchestrator
                 @__config__.settings.port
             end
 
+            def secure_transport?
+                @__config__.settings.tls
+            end
+
             def enable_multicast_loop(state = true)
                 transport = @__config__.connection
                 if transport.respond_to? :enable_multicast_loop
