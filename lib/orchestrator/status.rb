@@ -5,11 +5,11 @@ require 'concurrent/atomic/atomic_fixnum'
 
 module Orchestrator
     Subscription = Struct.new(:sys_name, :sys_id, :mod_name, :mod_id, :index, :status, :callback, :on_thread, :old_value, :subscription) do
-        @@sub_id = Concurrent::AtomicFixnum.new
+        SUB_ID = Concurrent::AtomicFixnum.new
 
         def initialize(*args)
             super(*args)
-            @sub_id = @@sub_id.increment
+            @sub_id = SUB_ID.increment
         end
 
         def notify(update, force = false)
