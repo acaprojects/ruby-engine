@@ -191,7 +191,7 @@ if ([string]::IsNullOrWhiteSpace($ip) -Or ($ip -eq "-") -Or [string]::IsNullOrWh
 }
 
 # Post to details to server
-$postParams = ConvertTo-Json @{module="LocateUser";method="lookup";args=@(@($ip,$username,$domain))}
+$postParams = ConvertTo-Json @{module="LocateUser";method="lookup";args=@(,@($ip,$username,$domain))}
 Invoke-WebRequest -UseBasicParsing -Uri https://engine.server.com/control/api/webhooks/trig-O6AXyP7jb5/notify?secret=f371579324eb56659b2f0b2c6f43d617 -Method POST -Body $postParams -ContentType "application/json"
 
 ```
@@ -218,3 +218,47 @@ add-type @"
 
 ```
 
+## Protocol violation errors
+
+Add this to ignore errors, see: https://stackoverflow.com/questions/35260354/powershell-wget-protocol-violation
+
+```powershell
+
+function Set-UseUnsafeHeaderParsing
+{
+    param(
+        [Parameter(Mandatory,ParameterSetName='Enable')]
+        [switch]$Enable,
+
+        [Parameter(Mandatory,ParameterSetName='Disable')]
+        [switch]$Disable
+    )
+
+    $ShouldEnable = $PSCmdlet.ParameterSetName -eq 'Enable'
+
+    $netAssembly = [Reflection.Assembly]::GetAssembly([System.Net.Configuration.SettingsSection])
+
+    if($netAssembly)
+    {
+        $bindingFlags = [Reflection.BindingFlags] 'Static,GetProperty,NonPublic'
+        $settingsType = $netAssembly.GetType('System.Net.Configuration.SettingsSectionInternal')
+
+        $instance = $settingsType.InvokeMember('Section', $bindingFlags, $null, $null, @())
+
+        if($instance)
+        {
+            $bindingFlags = 'NonPublic','Instance'
+            $useUnsafeHeaderParsingField = $settingsType.GetField('useUnsafeHeaderParsing', $bindingFlags)
+
+            if($useUnsafeHeaderParsingField)
+            {
+              $useUnsafeHeaderParsingField.SetValue($instance, $ShouldEnable)
+            }
+        }
+    }
+}
+
+# Call this before Invoke-WebRequest
+Set-UseUnsafeHeaderParsing -Enable
+
+```
