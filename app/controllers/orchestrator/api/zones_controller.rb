@@ -48,7 +48,7 @@ module Orchestrator
 
 
             ZONE_PARAMS = [
-                :name, :description,
+                :name, :description, :tags
                 {triggers: []}
             ]
             def safe_params
