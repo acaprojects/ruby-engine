@@ -4,26 +4,49 @@ module Orchestrator
     module Api
         class ZonesController < ApiController
             before_action :check_admin, except: [:index, :show]
-            before_action :check_support, only: [:index, :show]
             before_action :find_zone, only: [:show, :update, :destroy]
 
 
             @@elastic ||= Elastic.new(Zone)
+            ZONE_DATA = {only: [:id, :name, :tags, :created_at]}
 
 
             def index
                 query = @@elastic.query(params)
                 query.sort = NAME_SORT_ASC
-                query.search_field 'doc.name'
 
-                render json: @@elastic.search(query)
+                if params.has_key? :tags
+                    query.filter({
+                        "doc.tags" => [params.permit(:tags)[:tags]]
+                    })
+                else
+                    query.search_field 'doc.name'
+                end
+
+                results = @@elastic.search(query) do |zone|
+                    zone.as_json(ZONE_DATA)
+                end
+                render json: results
             end
 
             def show
-                if params.has_key? :complete
-                    render json: @zone.as_json(methods: [:trigger_data])
+                if params.has_key? :data
+                    key = params.permit(:data)[:data]
+                    info = @zone.settings[key]
+                    if info.is_a?(Array) || info.is_a?(Hash)
+                        render json: info
+                    else
+                        head :not_found
+                    end
                 else
-                    render json: @zone
+                    user = current_user
+                    return head :forbidden unless user && (user.support || user.sys_admin)
+
+                    if params.has_key? :complete
+                        render json: @zone.as_json(methods: [:trigger_data])
+                    else
+                        render json: @zone
+                    end
                 end
             end
 
