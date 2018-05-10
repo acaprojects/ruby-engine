@@ -4,7 +4,7 @@ module Orchestrator
     module Api
         class UsersController < ApiController
             before_action :check_authorization, only: [:update]
-            before_action :check_admin, only: [:index, :destroy]
+            before_action :check_admin, only: [:index, :destroy, :create]
 
 
             before_action :doorkeeper_authorize!
@@ -44,6 +44,12 @@ module Orchestrator
                 render json: current_user
             end
 
+            def create
+                user = User.new(safe_params)
+                user.authority = current_authority
+                save_and_respond user
+            end
+
 
             ##
             # Requests requiring authorization have already loaded the model
@@ -74,7 +80,7 @@ module Orchestrator
 
             def safe_params
                 if current_user.sys_admin
-                    params.require(:user).permit(:name, :first_name, :last_name, :country, :building, :email, :phone, :nickname, :sys_admin, :support).to_h
+                    params.require(:user).permit(:name, :first_name, :last_name, :country, :building, :email, :phone, :nickname, :sys_admin, :support, :password, :password_confirmation).to_h
                 else
                     params.require(:user).permit(:name, :first_name, :last_name, :country, :building, :email, :phone, :nickname).to_h
                 end
