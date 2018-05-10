@@ -80,9 +80,14 @@ module Orchestrator
 
             def safe_params
                 if current_user.sys_admin
-                    params.require(:user).permit(:name, :first_name, :last_name, :country, :building, :email, :phone, :nickname, :sys_admin, :support, :password, :password_confirmation).to_h
+                    params.require(:user).permit(
+                        :name, :first_name, :last_name, :country, :building, :email, :phone, :nickname,
+                        :card_number, :login_name, :staff_id, :sys_admin, :support, :password, :password_confirmation
+                    ).to_h
                 else
-                    params.require(:user).permit(:name, :first_name, :last_name, :country, :building, :email, :phone, :nickname).to_h
+                    params.require(:user).permit(
+                        :name, :first_name, :last_name, :country, :building, :email, :phone, :nickname
+                    ).to_h
                 end
             end
 
