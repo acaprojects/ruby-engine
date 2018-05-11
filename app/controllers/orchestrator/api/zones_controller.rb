@@ -16,8 +16,8 @@ module Orchestrator
                 query.sort = NAME_SORT_ASC
 
                 if params.has_key? :tags
-                    query.filter({
-                        "doc.tags" => [params.permit(:tags)[:tags]]
+                    query.and_filter({
+                        "doc.tags" => params.permit(:tags)[:tags].split(/\s+/)
                     })
                 else
                     query.search_field 'doc.name'
