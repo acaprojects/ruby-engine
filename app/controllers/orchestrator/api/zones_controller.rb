@@ -15,8 +15,8 @@ module Orchestrator
                 query.sort = NAME_SORT_ASC
 
                 if params.has_key? :tags
-                    tags = params.permit(:tags)[:tags].gsub(/[^0-9a-z ]/i,'').split(/\s+/).compact.uniq
-                    return head :not_found if tags.empty?
+                    tags = params.permit(:tags)[:tags].gsub(/[^0-9a-z ]/i,'').split(/\s+/).reject(&:empty?).uniq
+                    return head :bad_request if tags.empty?
 
                     query.and_filter({
                         "doc.tags" => tags
