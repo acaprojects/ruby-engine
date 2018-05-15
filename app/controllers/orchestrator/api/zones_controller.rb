@@ -8,7 +8,6 @@ module Orchestrator
 
 
             @@elastic ||= Elastic.new(Zone)
-            ZONE_DATA = {only: [:id, :name, :tags, :created_at]}
 
 
             def index
@@ -16,17 +15,19 @@ module Orchestrator
                 query.sort = NAME_SORT_ASC
 
                 if params.has_key? :tags
+                    tags = params.permit(:tags)[:tags].gsub(/[^0-9a-z ]/i,'').split(/\s+/).compact.uniq
+                    return head :not_found if tags.empty?
+
                     query.and_filter({
-                        "doc.tags" => params.permit(:tags)[:tags].split(/\s+/)
+                        "doc.tags" => tags
                     })
                 else
+                    user = current_user
+                    return head :forbidden unless user && (user.support || user.sys_admin)
                     query.search_field 'doc.name'
                 end
 
-                results = @@elastic.search(query) do |zone|
-                    zone.as_json(ZONE_DATA)
-                end
-                render json: results
+                render json: @@elastic.search(query)
             end
 
             def show
