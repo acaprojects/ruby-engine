@@ -6,8 +6,6 @@ module Orchestrator::StateBinder
     module Methods
         Binding = Struct.new :mod, :status, :handler
 
-        # Subscribe to updates to a modules status and bind to a system method
-        # or a handler block.
         def bind(mod, status, to: nil, &handler)
             handler = proc { |val| send to, val } unless to.nil?
             state_bindings << Binding.new(mod, status, handler)
@@ -25,12 +23,15 @@ module Orchestrator::StateBinder
     module Hooks
         def on_update
             super
+
+            return unless code_update
+
             @state_subscriptions&.each { |ref| unsubscribe ref }
 
             bindings = self.class.state_bindings
 
-            @state_subscriptions = bindings.reduce([]) do |refs, b|
-                refs << system.subscribe(b.mod, b.status) do |notify|
+            @state_subscriptions = bindings.map do |b|
+                system.subscribe(b.mod, b.status) do |notify|
                     instance_exec(notify.value, notify.old_value, &b.handler)
                 end
             end
