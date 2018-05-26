@@ -48,8 +48,8 @@ module Orchestrator
                 send_with_id(msg)
             end
 
-            def update_settings(mod_id, mod_obj)
-                msg = Request.new :settings, mod_id, mod_obj
+            def update_settings(mod_id, mod_obj, code_update)
+                msg = Request.new :settings, mod_id, mod_obj, code_update
                 send_direct(msg)
             end
 
@@ -159,7 +159,7 @@ module Orchestrator
                     ::Orchestrator::System.clear_cache
                     send_resolution msg.id, true
                 when :settings
-                    settings_update(msg.ref, msg.value)
+                    settings_update(msg.ref, msg.value, msg.args)
                 when :running
                     send_resolution msg.id, !!(@ctrl.loaded?(msg.ref)&.running)
                 when :debug
@@ -265,9 +265,9 @@ module Orchestrator
                 end
             end
 
-            def settings_update(mod_id, settings)
+            def settings_update(mod_id, settings, code_update)
                 mod = @ctrl.loaded? mod_id
-                mod.reloaded(settings) if mod
+                mod.reloaded(settings, code_update: code_update) if mod
             end
 
             # This is a request that is looking for a response

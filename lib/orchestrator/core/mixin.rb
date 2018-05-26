@@ -125,6 +125,11 @@ module Orchestrator
                 @__config__.current_user
             end
 
+            # Indicates if a code reload is triggering the update
+            def code_update
+                @__config__.code_update
+            end
+
             # Outputs any statistics collected on the module
             def __STATS__
                 stats = {}
