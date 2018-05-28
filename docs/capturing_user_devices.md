@@ -118,7 +118,9 @@ $events | ForEach-Object {
 
         # Filter IP ranges
         if ((checkSubnet "127.0.0.0/16" $ip) -Or (checkSubnet "192.168.0.0/16" $ip)) {
-            $results.Add(@($ip,$username,$domain))
+            # Optionally grab the computers hostname
+            $hostname = (Resolve-DnsName $ip)[0].NameHost
+            $results.Add(@($ip,$username,$domain,$hostname))
         }
     } catch {
         Write-Host "Error parsing event";
