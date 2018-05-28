@@ -26,8 +26,7 @@ function checkSubnet ([string]$cidr, [string]$ip) {
     $unetwork -eq ($mask -band $uip)
 }
 
-# For automated remote execution
-# - file permissions should be such that only this user can read this file.
+# Use a password file: https://blogs.technet.microsoft.com/robcost/2008/05/01/powershell-tip-storing-and-using-password-credentials/
 $User = "YourDomain\service_account"
 $PWord = ConvertTo-SecureString -String "service_account_pass" -AsPlainText -Force
 $Credential = New-Object -TypeName "System.Management.Automation.PSCredential" -ArgumentList $User, $PWord
