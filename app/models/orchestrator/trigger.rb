@@ -108,6 +108,7 @@ module Orchestrator
 
             case act[:type].to_sym
             when :exec
+                act[:args] ||= []
                 act[:index].is_a?(Integer) && act.has_key?(:mod) && act.has_key?(:func) && act[:args].is_a?(Array)
             when :email
                 if act[:emails]

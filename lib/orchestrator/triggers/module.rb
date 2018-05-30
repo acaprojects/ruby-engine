@@ -249,7 +249,8 @@ module Orchestrator
                         when :exec
                             # Execute the action
                             logger.debug { "executing action #{act[:mod]}_#{act[:index]}.#{act[:func]}(#{act[:args].join(', ')})" }
-                            system.get(act[:mod], act[:index]).method_missing(act[:func], *act[:args])
+                            args = act[:args].collect { |arg| arg.is_a?(Hash) ? arg.to_h.symbolize_keys : arg }
+                            system.get(act[:mod], act[:index]).method_missing(act[:func], *args)
                         when :email
                             logger.debug { "sending email to: #{act[:emails]}" }
 
