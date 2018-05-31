@@ -191,7 +191,7 @@ module Orchestrator
             end
 
             def buffer_size
-                if @buffer && @buffer.respond_to? :bytesize
+                if @buffer && @buffer.respond_to?(:bytesize)
                     @buffer.bytesize
                 else
                     0
