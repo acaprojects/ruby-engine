@@ -19,7 +19,8 @@ module Orchestrator
 
                 if IPAddress.valid? @ip
                     @attached_ip = @ip
-                    @udp_server.attach(@attached_ip, @port, @on_read)
+                    @attached_port = @processor.config[:udp_reply_port] || @port
+                    @udp_server.attach(@attached_ip, @attached_port, @on_read)
                     @reactor.next_tick do
                         # Call connected (we only need to do this once)
                         @processor.connected
@@ -63,7 +64,7 @@ module Orchestrator
                     @searching.cancel
                     @searching = nil
                 else
-                    @udp_server.detach(@attached_ip, @port)
+                    @udp_server.detach(@attached_ip, @attached_port)
                 end
 
                 @checker.cancel if @checker
@@ -90,12 +91,13 @@ module Orchestrator
             def update_ip(ip)
                 if ip != @attached_ip
                     if @attached_ip
-                        @udp_server.detach(@attached_ip, @port)
+                        @udp_server.detach(@attached_ip, @attached_port)
                     else
                         @processor.connected
                     end
                     @attached_ip = ip
-                    @udp_server.attach(@attached_ip, @port, @on_read)
+                    @attached_port = @processor.config[:udp_reply_port] || @port
+                    @udp_server.attach(@attached_ip, @attached_port, @on_read)
                 end
             end
         end
