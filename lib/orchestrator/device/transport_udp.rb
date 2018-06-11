@@ -18,18 +18,15 @@ module Orchestrator
                 @udp_server = @reactor.udp_service
 
                 if IPAddress.valid? @ip
-                    @attached_ip = @ip
-                    @attached_port = @processor.config[:udp_reply_port] || @port
-                    @udp_server.attach(@attached_ip, @attached_port, @on_read)
-                    @reactor.next_tick do
-                        # Call connected (we only need to do this once)
-                        @processor.connected
-                    end
+                    update_ip(@ip)
                 else
+                    # Check the hostname hasn't changed every so often
                     variation = 1 + rand(60000 * 5)  # 5min
-                    @checker = @manager.thread.scheduler.in(60000 * 5 + variation) do
+                    @checker = @manager.thread.scheduler.every(60000 * 5 + variation) do
                         find_ip(@ip)
                     end
+
+                    # Look up the IP address now
                     find_ip(@ip)
                 end
             end
@@ -77,7 +74,7 @@ module Orchestrator
 
 
             def find_ip(hostname)
-                @reactor.lookup(hostname).then(proc{ |result|
+                @reactor.lookup(hostname, wait: false).then(proc{ |result|
                     update_ip(result[0][0])
                 }, proc { |failure|
                     variation = 1 + rand(8000)
@@ -93,7 +90,9 @@ module Orchestrator
                     if @attached_ip
                         @udp_server.detach(@attached_ip, @attached_port)
                     else
-                        @processor.connected
+                        # Call connected
+                        # NOTE:: we only need to do this once
+                        @reactor.next_tick { @processor.connected }
                     end
                     @attached_ip = ip
                     @attached_port = @processor.config[:udp_reply_port] || @port
