@@ -21,11 +21,19 @@ module Orchestrator::StateBinder
     end
 
     module Hooks
+        def on_load
+            super
+            rebind_subscriptions
+        end
+
         def on_update
             super
+            rebind_subscriptions if code_update
+        end
 
-            return unless code_update
+        protected
 
+        def rebind_subscriptions
             @state_subscriptions&.each { |ref| unsubscribe ref }
 
             bindings = self.class.state_bindings
