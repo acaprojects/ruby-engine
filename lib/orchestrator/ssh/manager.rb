@@ -20,8 +20,8 @@ module Orchestrator
 
             attr_reader :username, :ssh_settings
 
-            def reloaded(mod)
-                super(mod)
+            def reloaded(mod, code_update: false)
+                super(mod, code_update: code_update)
 
                 # Check if the SSH settings have changed
                 @thread.schedule do

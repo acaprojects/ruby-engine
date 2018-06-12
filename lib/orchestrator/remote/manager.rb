@@ -69,7 +69,7 @@ module Orchestrator
                 @settings.node.host_origin
             end
 
-            def reloaded(mod_settings, code_update = false)
+            def reloaded(mod_settings, code_update: false)
                 @settings = mod_settings
                 if code_update
                     proxy.reload(mod_settings.dependency_id).then do
