@@ -111,12 +111,12 @@ $events | ForEach-Object {
 
         # Check the IP address hasn't been seen already
         if ($ips.Contains($ip)) { return }
-        $ips += $ip
 
-        Write-Host $ip;
+        # Filter IP ranges and computer name$
+        if (((checkSubnet "127.0.0.0/16" $ip) -Or (checkSubnet "192.168.0.0/16" $ip)) -and ($username[-1] -ne "$")) {
+            $ips += $ip
+            Write-Host $ip;
 
-        # Filter IP ranges
-        if ((checkSubnet "127.0.0.0/16" $ip) -Or (checkSubnet "192.168.0.0/16" $ip)) {
             # Optionally grab the computers hostname
             $hostname = (Resolve-DnsName $ip)[0].NameHost
             $results.Add(@($ip,$username,$domain,$hostname))
