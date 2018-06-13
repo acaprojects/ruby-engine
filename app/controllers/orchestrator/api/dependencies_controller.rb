@@ -71,7 +71,7 @@ module Orchestrator
                             manager = mod.manager
                             if manager
                                 updated += 1
-                                manager.reloaded(mod)
+                                manager.reloaded(mod, code_update: true)
                             end
                         end
 

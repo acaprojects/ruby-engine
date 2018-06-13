@@ -152,7 +152,10 @@ module Orchestrator
                 if not index.is_a?(Integer)
                     callback = status || block
                     status = index.to_sym
-                    index = 1
+                    get_parts(mod) do |name, i|
+                       mod_name = name
+                       index = i 
+                    end
                 else
                     status = status.to_sym
                     callback ||= block

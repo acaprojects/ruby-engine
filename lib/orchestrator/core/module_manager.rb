@@ -9,6 +9,7 @@ module Orchestrator
                 @klass = klass
 
                 @running = false
+                @code_update = false
 
                 # Bit of a hack - should make testing pretty easy though
                 @status = ::Concurrent::Map.new
@@ -20,7 +21,7 @@ module Orchestrator
 
 
             attr_reader :thread, :settings, :running, :klass
-            attr_reader :status, :stattrak, :logger
+            attr_reader :status, :stattrak, :logger, :code_update
 
 
             # Use fiber local variables for storing the current user
@@ -133,7 +134,7 @@ module Orchestrator
                 end
             end
 
-            def reloaded(mod)
+            def reloaded(mod, code_update: false)
                 # Eager load dependency data
                 begin
                     mod.dependency
@@ -148,15 +149,18 @@ module Orchestrator
 
                     if instance.is_a?(::Orchestrator::Remote::Manager)
                         # Use mod as we don't want to use the old settings
-                        @instance&.reloaded(mod)
+                        @instance&.reloaded(mod, code_update)
                     elsif @instance
                         apply_config
 
                         if @instance.respond_to? :on_update, true
                             begin
+                                @code_update = code_update
                                 @instance.__send__(:on_update)
                             rescue => e
                                 @logger.print_error(e, 'error in module update callback')
+                            ensure
+                                @code_update = false
                             end
                         end
                     end

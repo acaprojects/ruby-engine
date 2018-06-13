@@ -125,18 +125,26 @@ module Orchestrator
                 @__config__.current_user
             end
 
+            # Indicates if a code reload is triggering the update
+            def code_update
+                @__config__.code_update
+            end
+
             # Outputs any statistics collected on the module
             def __STATS__
                 stats = {}
                 if @__config__.respond_to? :processor
-                    stats[:queue_size] = @__config__.processor.queue.length
-                    stats[:queue_waiting] = !@__config__.processor.queue.waiting.nil?
-                    stats[:queue_state] = @__config__.processor.queue.state
+                    queue = @__config__.processor.queue
+                    stats[:queue_size] = queue.length
+                    stats[:queue_waiting] = !queue.waiting.nil?
+                    stats[:queue_state] = queue.state
 
-                    stats[:last_send] = @__config__.processor.last_sent_at
-                    stats[:last_receive] = @__config__.processor.last_receive_at
-                    if @__config__.processor.timeout
-                        stats[:timeout] = @__config__.processor.timeout
+                    processor = @__config__.processor
+                    stats[:buffered] = processor.buffer_size
+                    stats[:last_send] = processor.last_sent_at
+                    stats[:last_receive] = processor.last_receive_at
+                    if processor.timeout
+                        stats[:timeout] = processor.timeout
                     end
                 end
 

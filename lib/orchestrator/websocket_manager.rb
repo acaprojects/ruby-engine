@@ -512,7 +512,9 @@ module Orchestrator
             when nil, true, false, Hash, String, Integer, Array, Float, Symbol
                 object
             else
-                if object.respond_to? :to_json
+                if object.respond_to? :to_h
+                    object.to_h
+                elsif object.respond_to? :to_json
                     object.to_json
                 elsif object.respond_to? :to_s
                     object.to_s

@@ -496,13 +496,19 @@ paths:
       tags:
       - "zones"
       summary: "Get a paginated list of zones"
-      description: ""
+      description: "Response does not include setting data and any authenticated user can make this request"
       produces:
       - "application/json"
       parameters:
         - $ref: "#/parameters/query"
         - $ref: "#/parameters/limit"
         - $ref: "#/parameters/offset"
+        - in: query
+          name: tags
+          type: string
+          description: >
+            A space seperated list of tags that a zone must have to be returned in the result set
+          required: false
       responses:
         200:
           description: "A list of zones: {\"total\": 123, \"results\": [{...}]}"
@@ -547,7 +553,12 @@ paths:
         - in: query
           name: complete
           type: string
-          description: Includes trigger data in the response
+          description: Includes trigger data in the response (must have support or admin permissions)
+          required: false
+        - in: query
+          name: data
+          type: string
+          description: returns the specified settings key if the key exists in the zone (available to all authenticated users)
           required: false
       responses:
         200:

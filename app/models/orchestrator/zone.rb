@@ -8,6 +8,7 @@ module Orchestrator
 
         attribute :name,        type: String
         attribute :description, type: String
+        attribute :tags, type: String
         attribute :settings,    type: Hash,    default: lambda { {} }
         attribute :triggers,    type: Array,   default: lambda { [] }
 

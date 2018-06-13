@@ -26,8 +26,7 @@ function checkSubnet ([string]$cidr, [string]$ip) {
     $unetwork -eq ($mask -band $uip)
 }
 
-# For automated remote execution
-# - file permissions should be such that only this user can read this file.
+# Use a password file: https://blogs.technet.microsoft.com/robcost/2008/05/01/powershell-tip-storing-and-using-password-credentials/
 $User = "YourDomain\service_account"
 $PWord = ConvertTo-SecureString -String "service_account_pass" -AsPlainText -Force
 $Credential = New-Object -TypeName "System.Management.Automation.PSCredential" -ArgumentList $User, $PWord
@@ -112,13 +111,15 @@ $events | ForEach-Object {
 
         # Check the IP address hasn't been seen already
         if ($ips.Contains($ip)) { return }
-        $ips += $ip
 
-        Write-Host $ip;
+        # Filter IP ranges and computer name$
+        if (((checkSubnet "127.0.0.0/16" $ip) -Or (checkSubnet "192.168.0.0/16" $ip)) -and ($username[-1] -ne "$")) {
+            $ips += $ip
+            Write-Host $ip;
 
-        # Filter IP ranges
-        if ((checkSubnet "127.0.0.0/16" $ip) -Or (checkSubnet "192.168.0.0/16" $ip)) {
-            $results.Add(@($ip,$username,$domain))
+            # Optionally grab the computers hostname
+            $hostname = (Resolve-DnsName $ip)[0].NameHost
+            $results.Add(@($ip,$username,$domain,$hostname))
         }
     } catch {
         Write-Host "Error parsing event";
@@ -191,7 +192,7 @@ if ([string]::IsNullOrWhiteSpace($ip) -Or ($ip -eq "-") -Or [string]::IsNullOrWh
 }
 
 # Post to details to server
-$postParams = ConvertTo-Json @{module="LocateUser";method="lookup";args=@(@($ip,$username,$domain))}
+$postParams = ConvertTo-Json @{module="LocateUser";method="lookup";args=@(,@($ip,$username,$domain))}
 Invoke-WebRequest -UseBasicParsing -Uri https://engine.server.com/control/api/webhooks/trig-O6AXyP7jb5/notify?secret=f371579324eb56659b2f0b2c6f43d617 -Method POST -Body $postParams -ContentType "application/json"
 
 ```
@@ -218,3 +219,47 @@ add-type @"
 
 ```
 
+## Protocol violation errors
+
+Add this to ignore errors, see: https://stackoverflow.com/questions/35260354/powershell-wget-protocol-violation
+
+```powershell
+
+function Set-UseUnsafeHeaderParsing
+{
+    param(
+        [Parameter(Mandatory,ParameterSetName='Enable')]
+        [switch]$Enable,
+
+        [Parameter(Mandatory,ParameterSetName='Disable')]
+        [switch]$Disable
+    )
+
+    $ShouldEnable = $PSCmdlet.ParameterSetName -eq 'Enable'
+
+    $netAssembly = [Reflection.Assembly]::GetAssembly([System.Net.Configuration.SettingsSection])
+
+    if($netAssembly)
+    {
+        $bindingFlags = [Reflection.BindingFlags] 'Static,GetProperty,NonPublic'
+        $settingsType = $netAssembly.GetType('System.Net.Configuration.SettingsSectionInternal')
+
+        $instance = $settingsType.InvokeMember('Section', $bindingFlags, $null, $null, @())
+
+        if($instance)
+        {
+            $bindingFlags = 'NonPublic','Instance'
+            $useUnsafeHeaderParsingField = $settingsType.GetField('useUnsafeHeaderParsing', $bindingFlags)
+
+            if($useUnsafeHeaderParsingField)
+            {
+              $useUnsafeHeaderParsingField.SetValue($instance, $ShouldEnable)
+            }
+        }
+    }
+}
+
+# Call this before Invoke-WebRequest
+Set-UseUnsafeHeaderParsing -Enable
+
+```

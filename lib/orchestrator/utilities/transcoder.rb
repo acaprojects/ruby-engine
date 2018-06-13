@@ -45,11 +45,45 @@ module Orchestrator
             data.pack('c*')
         end
 
+        # Converts an integer into a byte array (reverse to change endianness)
+        #
+        # @param integer [Integer]
+        # @return [Array]
+        def int_to_array(integer, bytes: nil, pad: 0)
+            x = integer.to_i
+
+            # ensure positive x
+            negative = false
+            if x < 0
+                negative = true
+                x = x * -1
+            end
+
+            # Grab the positive bytes
+            result = []
+            until x == 0
+                result.unshift(x & 0xff)
+                x = x >> 8
+            end
+
+            if negative && bytes
+                # We can calculate the 2s compliment if we know the size of the structure
+                binary = result.map {|n| (n ^ 0xff).to_s(2).rjust(8, '0') }.join('').to_i(2) + 1
+                return int_to_array(binary, bytes: bytes, pad: 0xff)
+            elsif bytes
+                # Pad the result
+                padding = bytes - result.length
+                result = [pad] * padding + result if padding > 0
+            end
+
+            result
+        end
 
         # Makes the functions private when included
         module_function :hex_to_byte
         module_function :byte_to_hex
         module_function :str_to_array
         module_function :array_to_str
+        module_function :int_to_array
     end
 end

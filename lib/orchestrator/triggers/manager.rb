@@ -17,8 +17,7 @@ module Orchestrator
 
             def update_connected_status(connected); end
             def update_running_status(running); end
-            def reloaded(mod); end
-
+            def reloaded(mod, code_update: false); end
 
             # @settings (system model) used in: @logger, subscribe
         end

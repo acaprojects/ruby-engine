@@ -188,6 +188,15 @@ module Orchestrator
             end
 
 
+            # -----------
+            # UDP Config:
+            # -----------
+            def udp_reply_port(value)
+                @config ||= {}
+                @config[:udp_reply_port] = value.to_i
+            end
+
+
             # ------------------------
             # Service module specific:
             # ------------------------

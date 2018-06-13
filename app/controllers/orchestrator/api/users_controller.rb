@@ -4,7 +4,7 @@ module Orchestrator
     module Api
         class UsersController < ApiController
             before_action :check_authorization, only: [:update]
-            before_action :check_admin, only: [:index, :destroy]
+            before_action :check_admin, only: [:index, :destroy, :create]
 
 
             before_action :doorkeeper_authorize!
@@ -15,7 +15,7 @@ module Orchestrator
 
              # Admins can see a little more of the users data
             ADMIN_DATA = User::PUBLIC_DATA.dup
-            ADMIN_DATA[:only] += [:support, :sys_admin, :email]
+            ADMIN_DATA[:only] += [:support, :sys_admin, :email, :phone]
 
 
             def index
@@ -42,6 +42,12 @@ module Orchestrator
 
             def current
                 render json: current_user
+            end
+
+            def create
+                user = User.new(safe_params)
+                user.authority = current_authority
+                save_and_respond user
             end
 
 
@@ -74,9 +80,14 @@ module Orchestrator
 
             def safe_params
                 if current_user.sys_admin
-                    params.require(:user).permit(:name, :email, :nickname, :sys_admin, :support).to_h
+                    params.require(:user).permit(
+                        :name, :first_name, :last_name, :country, :building, :email, :phone, :nickname,
+                        :card_number, :login_name, :staff_id, :sys_admin, :support, :password, :password_confirmation
+                    ).to_h
                 else
-                    params.require(:user).permit(:name, :email, :nickname).to_h
+                    params.require(:user).permit(
+                        :name, :first_name, :last_name, :country, :building, :email, :phone, :nickname
+                    ).to_h
                 end
             end
 

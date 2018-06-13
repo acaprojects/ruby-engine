@@ -190,6 +190,14 @@ module Orchestrator
                 end
             end
 
+            def buffer_size
+                if @buffer && @buffer.respond_to?(:bytesize)
+                    @buffer.bytesize
+                else
+                    0
+                end
+            end
+
             def buffer(data)
                 @last_receive_at = @thread.now
 

@@ -53,4 +53,23 @@ describe Orchestrator::Transcoder do
         end
     end
 
+    describe '#int_to_array' do
+        it 'should be able to convert positive integers into a byte array' do
+            result = Orchestrator::Transcoder.int_to_array(400)
+            expect(result).to eq([1, 144])
+
+            result = Orchestrator::Transcoder.int_to_array(400, bytes: 4)
+            expect(result).to eq([0, 0, 1, 144])
+        end
+
+        it 'should be able to convert negative integers into a byte array' do
+            result = Orchestrator::Transcoder.int_to_array(-400, bytes: 4)
+            expect(result).to eq([255, 255, 254, 112])
+
+            # Check edge case where first byte overflows on 2s compliment
+            result = Orchestrator::Transcoder.int_to_array(-256, bytes: 3)
+            expect(result).to eq([255, 255, 0])
+        end
+    end
+
 end
