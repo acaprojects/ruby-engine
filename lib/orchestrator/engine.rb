@@ -12,6 +12,7 @@ module Orchestrator
         #
         config.before_initialize do |app|                        # Rails.configuration
             app.config.orchestrator = ActiveSupport::OrderedOptions.new
+            app.config.orchestrator.load_path = ::Dir.pwd
             app.config.orchestrator.module_paths = []
 
             # This is for trigger emails

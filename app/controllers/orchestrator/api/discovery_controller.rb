@@ -33,7 +33,11 @@ module Orchestrator
 
                 if @@last_spawn < time
                     @@last_spawn = time + 10
-                    spawn(DiscoverCommand)
+                    reactor.work {
+                        Dir.chdir(Rails.configuration.orchestrator.load_path) do
+                            spawn(DiscoverCommand)
+                        end
+                    }.value
                 end
 
                 head :ok
