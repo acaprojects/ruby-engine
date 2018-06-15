@@ -23,7 +23,7 @@ module Orchestrator::StateBinder
     module Hooks
         def on_load
             super
-            rebind_subscriptions
+            system.load_complete { rebind_subscriptions }
         end
 
         def on_update
