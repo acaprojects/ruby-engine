@@ -89,6 +89,16 @@ module Orchestrator
                 @thread.next_tick { update_connected_status(false) }
             end
 
+            def notify_hostname_resolution(ip)
+                if @instance.respond_to? :hostname_resolution, true
+                    begin
+                        @instance.__send__(:hostname_resolution, ip)
+                    rescue => e
+                        @logger.print_error(e, 'error in module hostname resolution callback')
+                    end
+                end
+            end
+
             def notify_received(data, resolve, command = nil)
                 begin
                     blk = command.nil? ? nil : command[:on_receive]

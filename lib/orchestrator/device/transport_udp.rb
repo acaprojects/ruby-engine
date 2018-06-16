@@ -97,6 +97,7 @@ module Orchestrator
                     @attached_ip = ip
                     @attached_port = @processor.config[:udp_reply_port] || @port
                     @udp_server.attach(@attached_ip, @attached_port, @on_read)
+                    @manager.notify_hostname_resolution(ip)
                 end
             end
         end

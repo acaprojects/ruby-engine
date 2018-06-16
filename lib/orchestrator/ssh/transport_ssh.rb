@@ -36,6 +36,8 @@ module Orchestrator
                     end
                 end
 
+                @manager.notify_hostname_resolution(ip_address)
+
                 # Connect using reactor aware version of ruby NET SSH
                 connecting = ::ESSH.p_start(ip_address, @manager.username, **@manager.ssh_settings)
                 connecting.then { |connection|
