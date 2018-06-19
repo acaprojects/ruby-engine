@@ -32,12 +32,7 @@ module Orchestrator
             # @param callback [Proc] the work to be processed on the thread pool
             # @return [::Libuv::Q::Promise] Returns a single promise
             def task
-                thread = @__config__.thread
-                defer = thread.defer
-                thread.schedule do
-                    defer.resolve(thread.work { yield })
-                end
-                defer.promise
+                @__config__.thread.work { yield }
             end
 
             # Thread safe status access
