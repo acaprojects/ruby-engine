@@ -38,18 +38,14 @@ module Orchestrator
             # Schedules code to run after the current flow of execution is complete
             # Similar to a task, except it will run on the same thread
             def next_tick
-                @__config__.thread.next_tick do
-                    begin
-                        yield
-                    rescue => e
-                        @__config__.logger.print_error e, 'in next tick callback'
-                    end
-                end
+                # We use scheduler as this maintains the current user context
+                @__config__.get_scheduler.in(0) { yield }
             end
 
             # Executes code in a fiber, starting that fiber immediately.
             # Once execution completes or the system waits for IO, it'll pass back execution where it left off
             def fiber_exec
+                # Current user is maintained in fiber exec
                 @__config__.thread.exec do
                     begin
                         yield
