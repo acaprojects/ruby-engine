@@ -35,6 +35,30 @@ module Orchestrator
                 @__config__.thread.work { yield }
             end
 
+            # Schedules code to run after the current flow of execution is complete
+            # Similar to a task, except it will run on the same thread
+            def next_tick
+                @__config__.thread.next_tick do
+                    begin
+                        yield
+                    rescue => e
+                        @__config__.logger.print_error e, 'in next tick callback'
+                    end
+                end
+            end
+
+            # Executes code in a fiber, starting that fiber immediately.
+            # Once execution completes or the system waits for IO, it'll pass back execution where it left off
+            def fiber_exec
+                @__config__.thread.exec do
+                    begin
+                        yield
+                    rescue => e
+                        @__config__.logger.print_error e, 'in fiber exec'
+                    end
+                end
+            end
+
             # Thread safe status access
             def [](name)
                 @__config__.status[name.to_sym]
