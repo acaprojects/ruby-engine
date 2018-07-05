@@ -49,8 +49,8 @@ module Orchestrator
                         on_close
                     end
 
-                    @connecting = @manager.thread.scheduler.in(8000) do
-                        @manager.logger.error('failed to initialize SSH shell after 8 seconds')
+                    @connecting = @manager.thread.scheduler.in(10000) do
+                        @manager.logger.error('failed to initialize SSH shell after 10 seconds')
                         connection.transport.shutdown!
                     end
 
@@ -211,6 +211,8 @@ module Orchestrator
                     end
 
                     @last_keepalive_sent_at = Time.now.to_i
+                elsif @shell.nil?
+                    cmd[:defer].reject(:disconnected)
                 else
                     data = cmd[:data]
 
