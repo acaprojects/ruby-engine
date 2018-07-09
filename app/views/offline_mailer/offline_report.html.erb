@@ -1,0 +1,40 @@
+
+<h1><%= @details.size %> Systems with active alerts</h1>
+
+<% @details.each do |system_id, issues| %>
+    <table class="issues">
+        <tr>
+            <th colspan="3">
+                System <a href="<%= "#{@backoffice}/#/?system=#{system_id}".html_safe %>">
+                    <%= issues[:name] %>
+                </a>
+            </th>
+        </tr>
+
+        <%
+            issues[:offline].each do |dev|
+                name = dev.dependency.name
+                type = dev.custom_name || dev.dependency.module_name
+                addr = dev.ip || dev.uri
+        %>
+            <tr>
+                <td><%= "#{type} - #{name}" %></td>
+                <td><%= addr %></td>
+                <td>offline <%= @from_now.time_ago_in_words(Time.at(dev.updated_at)) %></td>
+            </tr>
+        <% end %>
+
+        <%
+            issues[:trig].each do |inst|
+                name = inst.trigger.name
+        %>
+            <tr>
+                <td><%= name %></td>
+                <td>Triggered</td>
+                <td><%= @from_now.time_ago_in_words(Time.at(inst.updated_at)) %></td>
+            </tr>
+        <% end %>
+    </table>
+    <br />
+    <br />
+<% end %>
