@@ -40,4 +40,10 @@ namespace :check do
 
         puts "#{bad_ids.length} issues resolved"
     end
+
+    # Usage: rake check:offline['email@addresses,seperated@by.commas']
+    desc 'Checks for offline devices and notifies by email if issues are found'
+    task(:offline, [:emails] => [:environment])  do |task, args|
+        OfflineMailer.offline_report(args[:emails])
+    end
 end

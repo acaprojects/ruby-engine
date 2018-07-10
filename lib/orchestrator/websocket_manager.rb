@@ -170,7 +170,7 @@ module Orchestrator
                         end
                     }, proc { |err|
                         # Request proxy will log the error
-                        error_response(id, ERRORS[:request_failed], err.message)
+                        error_response(id, ERRORS[:request_failed], err.to_s)
                     })
                 else
                     @logger.debug("websocket exec could not find module: {sys: #{sys}, mod: #{mod}, index: #{index}, name: #{name}}")
@@ -230,7 +230,7 @@ module Orchestrator
         def check_binding(id, sys, mod, index, name)
             # Check websocket hasn't shutdown
             return unless @bindings
-            
+
             system = ::Orchestrator::System.get(sys)
 
             if system

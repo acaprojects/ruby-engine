@@ -152,7 +152,7 @@ if ($resultArr.length -gt 0) {
 ## Workstation Monitoring
 
 Where users log onto a shared resource and we want to know who is sitting at which workstation.
-We should attach an event to particular events using the filter below. More details on how to set this up [are here](https://docs.google.com/document/d/188Yu3pNGnxzg3z4xsnNsgwIEyf9TZGYdjJI3w5lweSc/edit?usp=sharing)
+We should attach an event to particular events using the filter below. More details on how to set this up [are here](https://docs.google.com/document/d/14XIJbnvJBg23Qc_oc3JN5Ub0geETTSmTWr8Sd8YryLM/edit?usp=sharing)
 
 * [Event Type Details](https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventID=4624)
 

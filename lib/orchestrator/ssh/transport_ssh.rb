@@ -36,6 +36,8 @@ module Orchestrator
                     end
                 end
 
+                @manager.notify_hostname_resolution(ip_address)
+
                 # Connect using reactor aware version of ruby NET SSH
                 connecting = ::ESSH.p_start(ip_address, @manager.username, **@manager.ssh_settings)
                 connecting.then { |connection|
@@ -47,8 +49,8 @@ module Orchestrator
                         on_close
                     end
 
-                    @connecting = @manager.thread.scheduler.in(8000) do
-                        @manager.logger.error('failed to initialize SSH shell after 8 seconds')
+                    @connecting = @manager.thread.scheduler.in(10000) do
+                        @manager.logger.error('failed to initialize SSH shell after 10 seconds')
                         connection.transport.shutdown!
                     end
 
@@ -209,6 +211,8 @@ module Orchestrator
                     end
 
                     @last_keepalive_sent_at = Time.now.to_i
+                elsif @shell.nil?
+                    cmd[:defer].reject(:disconnected)
                 else
                     data = cmd[:data]
 
