@@ -117,9 +117,13 @@ $events | ForEach-Object {
             $ips += $ip
             Write-Host $ip;
 
-            # Optionally grab the computers hostname
-            $hostname = (Resolve-DnsName $ip)[0].NameHost
-            $results.Add(@($ip,$username,$domain,$hostname))
+            # Try to grab the computers hostname
+            try {
+                $hostname = (Resolve-DnsName $ip -ErrorAction SilentlyContinue)[0].NameHost
+                $results.Add(@($ip,$username,$domain,$hostname))
+            } catch {
+                $results.Add(@($ip,$username,$domain))
+            }
         }
     } catch {
         Write-Host "Error parsing event";
