@@ -14,6 +14,8 @@ This grabs one minutes worth of details and should be run once a minute.
 * [Event details](https://docs.microsoft.com/en-us/windows/device-security/auditing/event-4768)
 
 ```powershell
+# Required for reliable Resolve-DnsName.
+import-module dnsclient
 
 # Helper for filtering IP addresses belonging to a subnet
 function checkSubnet ([string]$cidr, [string]$ip) {
