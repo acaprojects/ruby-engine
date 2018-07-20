@@ -162,7 +162,7 @@ module Orchestrator
             #
             # @return [true|false]
             def nil?
-                @mod.nil?
+                (@mod&.instance).nil?
             end
 
             # Returns true if the module responds to the given method
