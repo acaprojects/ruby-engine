@@ -9,7 +9,7 @@ module Orchestrator
             undef disconnect
             undef enable_multicast_loop
 
-            def request(method, path, options = {}, &blk)
+            def request(method, path, **options, &blk)
                 defer = @__config__.thread.defer
                 options[:method] = method
                 options[:path] = path
@@ -22,19 +22,19 @@ module Orchestrator
                 defer.promise
             end
 
-            def get(path, options = {}, &blk)
+            def get(path, **options, &blk)
                 request(:get, path, options, &blk)
             end
 
-            def post(path, options = {}, &blk)
+            def post(path, **options, &blk)
                 request(:post, path, options, &blk)
             end
 
-            def put(path, options = {}, &blk)
+            def put(path, **options, &blk)
                 request(:put, path, options, &blk)
             end
 
-            def delete(path, options = {}, &blk)
+            def delete(path, **options, &blk)
                 request(:delete, path, options, &blk)
             end
 
