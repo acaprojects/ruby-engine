@@ -149,7 +149,7 @@ module Orchestrator
 
                     if instance.is_a?(::Orchestrator::Remote::Manager)
                         # Use mod as we don't want to use the old settings
-                        @instance&.reloaded(mod, code_update)
+                        @instance&.reloaded(mod, code_update: code_update)
                     elsif @instance
                         apply_config
 
