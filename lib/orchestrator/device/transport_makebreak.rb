@@ -153,7 +153,7 @@ module Orchestrator
                         @last_retry = the_time
                         reconnect
                     else
-                        @processor.soft_disconnect
+                        @processor.thread.next_tick { @processor.soft_disconnect }
                     end
                 else # retries > 1
                     @write_queue.clear
@@ -170,7 +170,7 @@ module Orchestrator
                         @processor.disconnected
                         @processor.queue.offline(@config[:clear_queue_on_disconnect])
                     else
-                        @processor.soft_disconnect
+                        @processor.thread.next_tick { @processor.soft_disconnect }
                     end
                 end
             end
