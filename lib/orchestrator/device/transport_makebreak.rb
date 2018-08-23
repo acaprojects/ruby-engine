@@ -210,7 +210,7 @@ module Orchestrator
                 close_connection(:after_writing) if @connected
             end
 
-            def disconnect
+            def disconnect(user_initiated = false)
                 return unless @connected && !@disconnecting
 
                 if @delay_timer
@@ -222,6 +222,7 @@ module Orchestrator
                     @disconnecting = false
                 else
                     @disconnecting = true
+                    @last_retry = @retries = 0 if user_initiated
                     close_connection(:after_writing)
                 end
             end

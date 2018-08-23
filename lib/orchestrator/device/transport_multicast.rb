@@ -89,6 +89,8 @@ module Orchestrator
                 @processor.buffer(data)
             end
 
+            def disconnect(__user_initiated = nil); end
+
             def terminate
                 @terminated = true
                 @delay_timer.cancel if @delay_timer

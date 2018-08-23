@@ -23,7 +23,7 @@ module Orchestrator
                 end
             end
 
-            
+
             attr_reader :server
 
 
@@ -48,7 +48,7 @@ module Orchestrator
                                 @manager.trak(:connected, true)
                             end
                         end
-                        
+
                         # Make sure the request information is always available
                         result[:request] = cmd
                         result[:body] = result.body  # here for module compatibility
@@ -83,13 +83,15 @@ module Orchestrator
                             msg << "result: #{failure}"
                             msg
                         }
-                        
+
                         nil
                     }
                 )
 
                 nil
             end
+
+            def disconnect(__user_initiated = nil); end
 
             def terminate
                 @terminated = true

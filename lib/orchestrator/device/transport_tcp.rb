@@ -154,12 +154,12 @@ module Orchestrator
                 close_connection(:after_writing) if @transport.connected
             end
 
-            def disconnect
+            def disconnect(__user_initiated = nil)
                 if @delay_timer
                     @delay_timer.cancel
                     @delay_timer = nil
                 end
-                
+
                 # Shutdown quickly
                 close_connection
             end

@@ -274,7 +274,7 @@ module Orchestrator
                         @defer.promise.then @resp_success, @resp_failure
 
                         # Disconnect before processing the response
-                        transport.disconnect if cmd[:force_disconnect]
+                        transport.disconnect(true) if cmd[:force_disconnect]
 
                         # Send response, early resolver and command
                         resp = @man.notify_received(data, @resolver, cmd)
@@ -328,7 +328,7 @@ module Orchestrator
                             @queue.push(cmd, cmd[:priority] + @config[:priority_bonus])
                         end
 
-                        transport.disconnect if cmd[:disconnect]
+                        transport.disconnect(true) if cmd[:disconnect]
                     rescue => e
                         # Prevent the queue from ever pausing - this should never be called
                         @logger.print_error(e, 'error handling request failure')
@@ -365,7 +365,7 @@ module Orchestrator
                     check_next    # Process pending
 
                     if cmd[:disconnect]
-                        transport.disconnect
+                        transport.disconnect true
                         # Send the next command
                         @thread.next_tick { @queue.pop }
                     else
