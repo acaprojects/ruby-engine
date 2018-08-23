@@ -17,7 +17,7 @@ module Orchestrator
 
             def disconnect
                 @__config__.thread.schedule do
-                    @__config__.connection.disconnect
+                    @__config__.connection.disconnect true
                 end
             end
 
