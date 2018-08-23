@@ -348,13 +348,13 @@ module Orchestrator
             #  is guaranteed to have completed
             # Check for queue wait as we may have gone offline
             def resp_success(result)
-                if @queue.waiting && result && result != :ignore
+                cmd = @queue.waiting
+                if cmd && result && result != :ignore
                     if result == :abort
-                        cmd = @queue.waiting
                         err = Error::CommandFailure.new "module aborted command with #{result}: <#{cmd[:name] || UNNAMED}> #{(cmd[:data] || cmd[:path]).inspect}"
-                        @queue.waiting[:defer].reject(err)
+                        cmd[:defer].reject(err)
                     else
-                        @queue.waiting[:defer].resolve(result)
+                        cmd[:defer].resolve(result)
                         call_emit @queue.waiting
                     end
 
@@ -373,8 +373,7 @@ module Orchestrator
                     end
 
                     # Else it must have been a nil or :ignore
-                elsif @queue.waiting
-                    cmd = @queue.waiting
+                elsif cmd
                     cmd[:wait_count] ||= 0
                     cmd[:wait_count] += 1
                     if cmd[:wait_count] > cmd[:max_waits]
