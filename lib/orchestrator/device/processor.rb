@@ -355,7 +355,7 @@ module Orchestrator
                         cmd[:defer].reject(err)
                     else
                         cmd[:defer].resolve(result)
-                        call_emit @queue.waiting
+                        call_emit cmd
                     end
 
                     clear_timers
