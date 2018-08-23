@@ -95,7 +95,6 @@ module Orchestrator
                 @last_sent_at = 0
                 @last_receive_at = 0
 
-
                 # Used to indicate when we can start the next response processing
                 @head = ::Libuv::Q::ResolvedPromise.new(@thread, true)
                 @tail = ::Libuv::Q::ResolvedPromise.new(@thread, true)
@@ -185,8 +184,16 @@ module Orchestrator
                 resp_failure(:disconnected) if @queue.waiting
             end
 
+            def soft_disconnect
+                if @queue.waiting
+                    resp_failure(:disconnected)
+                elsif @queue.length > 0
+                    @queue.pop
+                end
+            end
+
             def buffer_size
-                if @buffer && @buffer.respond_to?(:bytesize)
+                if @buffer&.respond_to?(:bytesize)
                     @buffer.bytesize
                 else
                     0
@@ -352,13 +359,18 @@ module Orchestrator
                     end
 
                     clear_timers
-                    transport.disconnect if cmd[:disconnect]
 
                     @wait = false
                     @queue.waiting = nil
                     check_next    # Process pending
 
-                    @queue.pop    # Send the next command
+                    if cmd[:disconnect]
+                        transport.disconnect
+                        # Send the next command
+                        @thread.next_tick { @queue.pop }
+                    else
+                        @queue.pop    # Send the next command
+                    end
 
                     # Else it must have been a nil or :ignore
                 elsif @queue.waiting
@@ -367,7 +379,6 @@ module Orchestrator
                     cmd[:wait_count] += 1
                     if cmd[:wait_count] > cmd[:max_waits]
                         resp_failure(:max_waits_exceeded)
-                        transport.disconnect if cmd[:disconnect]
                     else
                         @wait = false
                         check_next
