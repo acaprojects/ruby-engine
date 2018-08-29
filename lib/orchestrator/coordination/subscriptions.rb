@@ -44,7 +44,11 @@ class Orchestrator::Subscriptions
 
     # TODO:: subscribe and unsubscribe methods
     # System cache mappings for calculating mod_id
-    # System cache callbacks for updating dangling subscriptions
+
+    # TODO:: System cache callbacks for updating dangling subscriptions
+    def reloaded_system(sys_id, system)
+        
+    end
 
     protected
 

@@ -64,7 +64,7 @@ class Orchestrator::ModuleLoader
                 retry if retries > 0
 
                 # If we hit this then we need to wait for the failsafe
-                Rails.logger.error [
+                @logger.error [
                     'error processing cluster state changes',
                     e.message,
                     e.backtrace&.join("\n")
