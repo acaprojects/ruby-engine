@@ -47,6 +47,17 @@ module Orchestrator
             end
         end
 
+        def deep_decrypt(hash = self.settings)
+            hash.keys.each do |key|
+                value = hash[key]
+                if value.is_a?(Hash)
+                    deep_decrypt(value)
+                elsif value.is_a?(String) && value[0] == "\e"
+                    hash[key] = ::Orchestrator::Encryption.decode_setting(self.id, key, value)
+                end
+            end
+        end
+
         def self.encode_setting(id, key, clear_text)
             # Always use a new random salt for each encoding (protects the password)
             salt = ::SCrypt::Engine.generate_salt
