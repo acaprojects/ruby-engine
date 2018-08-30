@@ -39,9 +39,11 @@ class Orchestrator::SystemCache
 
         # Check if we are already loading this abstraction
         wait = nil
+        reactor = nil
         @critical.synchronize {
             loading = @loading[id]
             if loading.nil?
+                reactor = ::Libuv::Reactor.current
                 wait = reactor.defer
                 @loading[id] = wait.promise
             end
@@ -61,6 +63,7 @@ class Orchestrator::SystemCache
             end
 
             # We create the abstraction and store it in the cache
+            reactor.work { sys.deep_decrypt }.value
             system = ::Orchestrator::SystemAbstraction.new(sys)
             @systems[id] = system
             wait.resolve(system)
@@ -71,7 +74,7 @@ class Orchestrator::SystemCache
         rescue => error
             # Sleep the current reactor fiber
             if tries >= 0
-                ::Libuv::Reactor.current.sleep 200
+                reactor.sleep 200
                 tries -= 1
                 retry
             else

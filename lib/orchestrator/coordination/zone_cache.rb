@@ -39,9 +39,11 @@ class Orchestrator::ZoneCache
 
         # Check if we are already loading this abstraction
         wait = nil
+        reactor = nil
         @critical.synchronize {
             loading = @loading[id]
             if loading.nil?
+                reactor = ::Libuv::Reactor.current
                 wait = reactor.defer
                 @loading[id] = wait.promise
             end
@@ -61,7 +63,7 @@ class Orchestrator::ZoneCache
             end
 
             # We create the abstraction and store it in the cache
-            Libuv::Reactor.current.work { zone.deep_decrypt }.value
+            reactor.work { zone.deep_decrypt }.value
             @zones[id] = zone
             wait.resolve(zone)
             @loading.delete id
@@ -71,7 +73,7 @@ class Orchestrator::ZoneCache
         rescue => error
             # Sleep the current reactor fiber
             if tries >= 0
-                ::Libuv::Reactor.current.sleep 200
+                reactor.sleep 200
                 tries -= 1
                 retry
             else

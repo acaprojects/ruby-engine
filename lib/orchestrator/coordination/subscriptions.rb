@@ -46,8 +46,8 @@ class Orchestrator::Subscriptions
     # System cache mappings for calculating mod_id
 
     # TODO:: System cache callbacks for updating dangling subscriptions
-    def reloaded_system(sys_id, system)
-        
+    def reloaded_system(sys_id, system_abstraction)
+
     end
 
     protected

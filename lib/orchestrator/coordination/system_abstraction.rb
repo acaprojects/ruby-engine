@@ -10,10 +10,7 @@ class Orchestrator::SystemAbstraction
 
     def initialize(control_system)
         @modules = {}
-
-        # Cache decrypted settings
         @config = control_system
-        @config.deep_decrypt
 
         # Index triggers (exposed as __Triggers__)
         state = ::Orchestrator::ClusterState.instance
@@ -40,7 +37,7 @@ class Orchestrator::SystemAbstraction
     end
 
     def all(mod)
-        Array(@modules[mod])
+        ::Array(@modules[mod])
     end
 
     def count(name)
@@ -58,12 +55,8 @@ class Orchestrator::SystemAbstraction
 
     protected
 
-    def index_module(state, modules, mod_id, trigger = false)
-        manager = if state.running_locally? mod_id
-            modules.get(mod_id)
-        else
-            Remote::Manager.get(mod_id, trigger)
-        end
+    def index_module(state, modules, mod_id)
+        manager = modules.get(mod_id)
 
         if manager
             # TODO:: implement manager.module_name
