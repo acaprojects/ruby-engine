@@ -84,33 +84,6 @@ class Orchestrator::ModuleLoader
 
     private
 
-    def sync_sched(error_message, *args)
-        @state_mutex.synchronize do
-            @thread.schedule do
-                retries = 4
-                begin
-                    yield
-                rescue => e
-                    retries -= 1
-                    retry if retries > 0
-
-                    # If we hit this then we need to wait for the failsafe
-                    @logger.error [
-                        format(error_message, *args),
-                        e.message,
-                        e.backtrace&.join("\n")
-                    ].join("\n")
-                ensure
-                    # synchronize is called here to minimize the possibility that
-                    # this call to synchronize ever actually blocks anything
-                    # purely a structure coordination
-                    @state_mutex.synchronize { @state_loaded.broadcast }
-                end
-            end
-            @state_loaded.wait(@state_mutex)
-        end
-    end
-
     # This ensures that changes to actively running modules are serialised.
     # NOTE:: This is only tracking what is loaded. Not starting or stopping anything
     def process_changes!
@@ -225,6 +198,33 @@ class Orchestrator::ModuleLoader
             @statistics.cancel
             @statistics = nil
             @logger.warn "stop: collecting statistics"
+        end
+    end
+
+    def sync_sched(error_message, *args)
+        @state_mutex.synchronize do
+            @thread.schedule do
+                retries = 4
+                begin
+                    yield
+                rescue => e
+                    retries -= 1
+                    retry if retries > 0
+
+                    # If we hit this then we need to wait for the failsafe
+                    @logger.error [
+                        format(error_message, *args),
+                        e.message,
+                        e.backtrace&.join("\n")
+                    ].join("\n")
+                ensure
+                    # synchronize is called here to minimize the possibility that
+                    # this call to synchronize ever actually blocks anything
+                    # purely a structure coordination
+                    @state_mutex.synchronize { @state_loaded.broadcast }
+                end
+            end
+            @state_loaded.wait(@state_mutex)
         end
     end
 end

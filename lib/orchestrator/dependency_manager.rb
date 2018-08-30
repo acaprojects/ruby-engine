@@ -29,9 +29,10 @@ module Orchestrator
             begin
                 defer.resolve(load_helper(classname, dependency.role, force))
             rescue Exception => e
-                msg = String.new(e.message)
-                msg << "\n#{e.backtrace.join("\n")}" if e&.backtrace&.respond_to?(:join)
-                @logger.error(msg)
+                @logger.error [
+                    e.message,
+                    e.&backtrace&.join("\n")
+                ].join("\n")
                 defer.reject(e)
             end
 
