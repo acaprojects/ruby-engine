@@ -84,90 +84,98 @@ class Orchestrator::ModuleLoader
 
     private
 
-    # This ensures that load changes are serialised.
-    # NOTE:: This is only tracking what is loaded. Not start or stopped state
-    def process_changes!
-        loop do
-            defer, change, mod_id = @queue.pop
-            @processing = true
-
-            if mod_id
+    def sync_sched(error_message, *args)
+        @state_mutex.synchronize do
+            @thread.schedule do
                 retries = 4
                 begin
-                    mod = ::Orchestrator::Module.find mod_id
-                    change ? load_module(mod_id, defer) : unload_module(mod_id, defer)
+                    yield
                 rescue => e
                     retries -= 1
                     retry if retries > 0
 
                     # If we hit this then we need to wait for the failsafe
                     @logger.error [
-                        "error changing state #{change}",
+                        format(error_message, *args),
                         e.message,
                         e.backtrace&.join("\n")
                     ].join("\n")
+                ensure
+                    # synchronize is called here to minimize the possibility that
+                    # this call to synchronize ever actually blocks anything
+                    # purely a structure coordination
+                    @state_mutex.synchronize { @state_loaded.broadcast }
+                end
+            end
+            @state_loaded.wait(@state_mutex)
+        end
+    end
+
+    # This ensures that changes to actively running modules are serialised.
+    # NOTE:: This is only tracking what is loaded. Not starting or stopping anything
+    def process_changes!
+        loop do
+            defer, change, mod_id = @queue.pop
+            @processing = true
+
+            # individual module change
+            if mod_id
+                sync_sched('error changing %s, state: %s', mod_id, change) do
+                    change ? load_module(mod_id, nil, defer) : unload_module(mod_id, defer)
                 end
             else
-                cluster_state_changed
+                # complete state change - node added or removed from the cluster
+                new_count = @state.get_and_set(nil)
+                if new_count
+                    sync_sched('error processing cluster state changes') do
+                        # This might be retrying so the state check is worth while
+                        new_count = @state.get_and_set(nil) || new_count
+                        update_state(new_count)
+                        @current_count = new_count
+                    end
+                end
+
+                # TODO:: Implement node ready coordination
+                @nodes.signal_ready(@current_count) if @queue.empty?
             end
 
             @processing = !@queue.empty?
         end
     end
 
-    def cluster_state_changed
-        new_count = nil
-        retries = 4
-        begin
-            # We might be retrying so new_count might not be nil
-            new_count = @state.get_and_set(nil) || new_count
-            if new_count
-                update_state(new_count)
-                @current_count = new_count
-                new_count = nil
-            end
-            @nodes.signal_ready(@current_count) if @queue.empty?
-        rescue => e
-            retries -= 1
-            retry if retries > 0
+    def load_module(mod_id, mod: nil, defer: nil, run_locally: nil)
+        mod = ::Orchestrator::Module.find(mod_id) unless mod
+        local_device = @nodes.running_locally?(mod_id)
+        mod = @modules[mod_id]
 
-            # If we hit this then we need to wait for the failsafe
-            @logger.error [
-                'error processing cluster state changes',
-                e.message,
-                e.backtrace&.join("\n")
-            ].join("\n")
+        if local_device
+
+        else
+
+        end
+
+        if mod && && mod.is_a?(::Orchestrator::Remote::Manager)
+
+            mod = nil
+        end
+
+        # We want to load the module
+        if mod.nil?
+
         end
     end
 
+    def unload_module(mod_id, defer = nil)
+
+    end
+
     def update_state(node_count)
-        error = nil
-
-        # Coordinate the updating of the state
-        @state_mutex.synchronize do
-            @thread.schedule do
-                begin
-                    # These operations block the current fiber
-                    if node_count > @current_count
-                        stop_modules
-                    else
-                        start_modules
-                    end
-                rescue => e
-                    # save the error for raising later
-                    error = e
-                ensure
-                    # This synchronize is exectured on a different thread
-                    # we signal that we've finished processing
-                    # synchronize is called here to minimize the possibility that
-                    # this call to synchronize ever actually blocks anything
-                    @state_mutex.synchronize { @state_loaded.broadcast }
-                end
-            end
-            @state_loaded.wait(@state_mutex)
+        # These operations block the current fiber
+        if node_count > @current_count
+            stop_modules
+        else
+            start_modules
         end
-
-        raise error if error
 
         # Check if this node should be collecting statistics
         if @nodes.is_master_node?
@@ -179,9 +187,12 @@ class Orchestrator::ModuleLoader
 
     # Run through all modules and start any that should be running
     def start_modules
-        load = []
+        device = []
+        logic = []
+        trigger = []
         ::Orchestrator::Module.all.stream do |mod|
-            load << mod.id if @nodes.running_locally?(mod.id)
+            next unless @nodes.running_locally?(mod.id)
+
         end
     end
 
