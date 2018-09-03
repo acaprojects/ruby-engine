@@ -203,7 +203,7 @@ Write-Host "MAC addresses discovered:";
 $events | ForEach-Object {
     try {
         $mac_address = $_.CallingStationID
-        # Username in user@domain format
+        # Username in domain\username format
         $username = $_.FullyQualifiedSubjectUserName
 
         # Ensure the event includes the username and device mac address
