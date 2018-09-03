@@ -154,7 +154,7 @@ if ($resultArr.length -gt 0) {
 
 ```
 
-### Querying a MS Network Policy Server
+### Querying a MS Network Policy Server (RADIUS)
 
 This allows us to grab MAC addresses of BYOD devices. Useful if tracking mobile phones on the wifi is desirable.
 
@@ -204,7 +204,7 @@ $events | ForEach-Object {
     try {
         $mac_address = $_.CallingStationID
         # Username in user@domain format
-        $username = $_.SubjectUserName
+        $username = $_.FullyQualifiedSubjectUserName
 
         # Ensure the event includes the username and device mac address
         if ([string]::IsNullOrWhiteSpace($mac_address) -Or ($mac_address -eq "-") -Or [string]::IsNullOrWhiteSpace($username) -Or ($username -eq "-")) {
