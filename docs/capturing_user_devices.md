@@ -154,6 +154,97 @@ if ($resultArr.length -gt 0) {
 
 ```
 
+### Querying a MS Network Policy Server
+
+This allows us to grab MAC addresses of BYOD devices. Useful if tracking mobile phones on the wifi is desirable.
+
+```powershell
+# Use a password file: https://blogs.technet.microsoft.com/robcost/2008/05/01/powershell-tip-storing-and-using-password-credentials/
+$User = "YourDomain\service_account"
+$PWord = ConvertTo-SecureString -String "service_account_pass" -AsPlainText -Force
+$Credential = New-Object -TypeName "System.Management.Automation.PSCredential" -ArgumentList $User, $PWord
+
+$results = New-Object System.Collections.Generic.List[System.Object]
+$macs = @()
+$events = $null
+
+try {
+    Write-Host "Requesting events from Network Policy Server...";
+
+    $events = Get-WinEvent -ComputerName "radius.server.com" -Credential $Credential -LogName "Security" -FilterXPath @"
+    *[System[Provider[@Name='Microsoft-Windows-Security-Auditing'] and
+      EventID=6278 and TimeCreated[timediff(@SystemTime) <= 90000]]] and
+    *[EventData[Data[@Name='SubjectDomainName'] and (Data='YourDomain')]]
+"@
+} catch {
+    Write-Host "Server found no results...";
+    Write-Host $_.Exception.Message;
+    exit 0
+}
+
+Write-Host "Events received from remote server";
+
+# This makes the events look like they were requested locally
+# (remote event requests come back as generic objects)
+ForEach ($event in $events) {
+    $eventXML = [xml]$event.ToXml()
+
+    # Iterate through each one of the XML message properties
+    For ($i=0; $i -lt $eventXML.Event.EventData.Data.Count; $i++) {
+        # Append these as object properties
+        Add-Member -InputObject $event -MemberType NoteProperty -Force `
+            -Name  $eventXML.Event.EventData.Data[$i].name `
+            -Value $eventXML.Event.EventData.Data[$i].'#text'
+    }
+}
+
+Write-Host "MAC addresses discovered:";
+
+$events | ForEach-Object {
+    try {
+        $mac_address = $_.CallingStationID
+        # Username in user@domain format
+        $username = $_.SubjectUserName
+
+        # Ensure the event includes the username and device mac address
+        if ([string]::IsNullOrWhiteSpace($mac_address) -Or ($mac_address -eq "-") -Or [string]::IsNullOrWhiteSpace($username) -Or ($username -eq "-")) {
+            return
+        }
+
+        # Check the IP address hasn't been seen already
+        if ($macs.Contains($mac_address)) { return }
+
+        # Filter IP ranges and computer name$
+        $macs += $mac_address
+        Write-Host $mac_address
+        $results.Add(@($mac_address,$username))
+    } catch {
+        Write-Host "Error parsing event";
+        Write-Host $_.Exception.Message;
+    }
+}
+
+$resultArr = $results.ToArray()
+
+# Only post to the server if there are results
+if ($resultArr.length -gt 0) {
+    Write-Host "Posting to control server";
+
+    # Send to the server
+    $postParams = ConvertTo-Json @{module="LocateUser";method="associate";args=@($resultArr)}
+    $res = Invoke-WebRequest -UseBasicParsing -Uri https://engine.server.com/control/api/webhooks/trig-SwDJ35~kzR/notify?secret=3ad9d883f8e7a17d490510530b07bd90 -Method POST -Body $postParams -ContentType "application/json" -TimeoutSec 40
+    Write-Host "Response code was:" $res.StatusCode;
+
+    if ($res.StatusCode -ne 202) {
+        Write-Host "Webhook post failed...";
+        exit 1
+    }
+} else {
+    Write-Host "No results found...";
+}
+
+```
+
 
 ## Workstation Monitoring
 
