@@ -94,7 +94,7 @@ class Orchestrator::ModuleLoader
             # individual module change
             if mod_id
                 sync_sched('error changing %s, state: %s', mod_id, change) do
-                    change ? load_module(mod_id, nil, defer) : unload_module(mod_id, defer)
+                    change ? load_module(mod_id, defer: defer) : unload_module(mod_id, defer: defer)
                 end
             else
                 # complete state change - node added or removed from the cluster
@@ -117,11 +117,14 @@ class Orchestrator::ModuleLoader
     end
 
     def load_module(mod_id, mod: nil, defer: nil, run_locally: nil)
+        run_locally = @nodes.running_locally?(mod_id) if run_locally.nil?
         mod = ::Orchestrator::Module.find(mod_id) unless mod
-        local_device = @nodes.running_locally?(mod_id)
-        mod = @modules[mod_id]
 
-        if local_device
+        if mod.nil?
+            defer.reject # ERROR.new "module_id not found"
+        end
+
+        if run_locally
 
         else
 
@@ -138,8 +141,11 @@ class Orchestrator::ModuleLoader
         end
     end
 
-    def unload_module(mod_id, defer = nil)
-
+    def unload_module(mod_id, defer: nil)
+        manager = @modules.delete(mod_id)
+        # stop local as we don't want to update the database state
+        manager&.stop_local
+        defer.resolve(true) if defer
     end
 
     def update_state(node_count)
@@ -160,45 +166,59 @@ class Orchestrator::ModuleLoader
 
     # Run through all modules and start any that should be running
     def start_modules
-        device = []
         logic = []
+        device = []
         trigger = []
+
+        # Run through all the modules collecting all the devices that should be started
         ::Orchestrator::Module.all.stream do |mod|
             next unless @nodes.running_locally?(mod.id)
+            manager = @modules[mod.id]
+            next if manager && !manager.is_a?(::Orchestrator::Remote::Manager)
 
+            (mod.role < 3 ? device : logic) << mod
+        end
+
+        # TODO:: get the triggers by running through all the systems
+
+        # Start all the modules
+        [device, logic, trigger].each do |mods|
+            mods.each { |mod| load_module(mod.id, mod: mod, run_locally: true) }
         end
     end
 
     # Run through loaded modules and stop any that should no longer be running
     def stop_modules
+        @modules.keys.each do |mod_id|
+            next if @nodes.running_locally?(mod_id)
+            manager = @modules[mod_id]
+            next if manager.nil? || manager.is_a?(::Orchestrator::Remote::Manager)
 
+            unload_module(mod_id)
+        end
     end
 
     def start_statistics
-        @thread.schedule do
-            next if @statistics
-            @statistics = @reactor.scheduler.every('5m') do
-                begin
-                    ::Orchestrator::Stats.new.save
-                rescue => e
-                    @logger.warn [
-                        'exception saving statistics',
-                        e.message,
-                        e.backtrace&.join("\n")
-                    ].join("\n")
-                end
-            end
-            @logger.warn "init: collecting statistics"
-        end
+        next if @statistics
+        @statistics = @reactor.scheduler.every('5m') { save_statistics }
+        @logger.warn "init: collecting statistics"
     end
 
     def stop_statistics
-        @thread.schedule do
-            next if @statistics.nil?
-            @statistics.cancel
-            @statistics = nil
-            @logger.warn "stop: collecting statistics"
-        end
+        next if @statistics.nil?
+        @statistics.cancel
+        @statistics = nil
+        @logger.warn "stop: collecting statistics"
+    end
+
+    def save_statistics
+        ::Orchestrator::Stats.new.save
+    rescue => error
+        @logger.warn [
+            'exception saving statistics',
+            error.message,
+            error.backtrace&.join("\n")
+        ].join("\n")
     end
 
     def sync_sched(error_message, *args)
