@@ -21,6 +21,15 @@ class Orchestrator::ModuleLoader
         # Both solid and remote proxies
         @modules = ::Concurrent::Map.new
 
+        # These are decrypted database models
+        @dependencies = ::Orchestrator::DependencyCache.instance
+
+        # These are the loaded ruby classes
+        @loader = ::Orchestrator::DependencyManager.instance
+
+        # This coordinates API interactions
+        @control = ::Orchestrator::Control.instance
+
         # block this thread until updates are completed on the reactor thread
         @state_mutex = ::Mutex.new
         @state_loaded = ::ConditionVariable.new
@@ -120,24 +129,46 @@ class Orchestrator::ModuleLoader
         run_locally = @nodes.running_locally?(mod_id) if run_locally.nil?
         mod = ::Orchestrator::Module.find(mod_id) unless mod
 
-        if mod.nil?
-            defer.reject # ERROR.new "module_id not found"
-        end
+        # TODO:: need to handle loading of triggers
+
+        raise 'module not found' if mod.nil?
 
         if run_locally
+            # load dependency model from cache (encryption is pre-processed)
+            mod.dependency = @dependencies.get(mod.dependency_id)
+            klass = @loader.load(mod.dependency).value
+            thread = @control.next_thread
 
+            # decrypt the settings
+            reactor.work { mod.deep_decrypt }.value
+
+            # This performs the actual load of the module
+            defer = @thread.defer
+            thread.schedule do
+                defer.resolve init_manager(thread, klass, mod)
+            end
+            @modules[mod_id] = defer.promise.value
         else
-
+            # TODO:: laod the remote proxy
         end
 
-        if mod && && mod.is_a?(::Orchestrator::Remote::Manager)
+    rescue
+        # ensure there aren't any expired references
+        @modules.delete(mod_id)
+        defer.resolve(nil) if defer
+    end
 
-            mod = nil
-        end
-
-        # We want to load the module
-        if mod.nil?
-
+    def init_manager(thread, klass, settings)
+        # Initialize the connection / logic / service handler here
+        case settings.dependency.role
+        when :ssh
+            ::Orchestrator::Ssh::Manager.new(thread, klass, settings)
+        when :device
+            ::Orchestrator::Device::Manager.new(thread, klass, settings)
+        when :service
+            ::Orchestrator::Service::Manager.new(thread, klass, settings)
+        else
+            ::Orchestrator::Logic::Manager.new(thread, klass, settings)
         end
     end
 
@@ -166,9 +197,9 @@ class Orchestrator::ModuleLoader
 
     # Run through all modules and start any that should be running
     def start_modules
-        logic = []
-        device = []
-        trigger = []
+        logics = []
+        devices = []
+        triggers = []
 
         # Run through all the modules collecting all the devices that should be started
         ::Orchestrator::Module.all.stream do |mod|
@@ -176,15 +207,16 @@ class Orchestrator::ModuleLoader
             manager = @modules[mod.id]
             next if manager && !manager.is_a?(::Orchestrator::Remote::Manager)
 
-            (mod.role < 3 ? device : logic) << mod
+            (mod.role < 3 ? devices : logics) << mod
         end
-
-        # TODO:: get the triggers by running through all the systems
 
         # Start all the modules
-        [device, logic, trigger].each do |mods|
+        [devices, logics].each do |mods|
             mods.each { |mod| load_module(mod.id, mod: mod, run_locally: true) }
         end
+
+        # Triggers are a special case
+        # TODO:: get the triggers by running through all the systems
     end
 
     # Run through loaded modules and stop any that should no longer be running
