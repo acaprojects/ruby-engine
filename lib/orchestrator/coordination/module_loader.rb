@@ -23,6 +23,7 @@ class Orchestrator::ModuleLoader
 
         # These are decrypted database models
         @dependencies = ::Orchestrator::DependencyCache.instance
+        @systems = Orchestrator::SystemCache.instance
 
         # These are the loaded ruby classes
         @loader = ::Orchestrator::DependencyManager.instance
@@ -103,7 +104,17 @@ class Orchestrator::ModuleLoader
             # individual module change
             if mod_id
                 sync_sched('error changing %s, state: %s', mod_id, change) do
-                    change ? load_module(mod_id, defer: defer) : unload_module(mod_id, defer: defer)
+                    if change
+                        # Triggers have their own special load function
+                        locally = @nodes.running_locally?(mod_id)
+                        if mod_id.start_with?('s') && locally
+                            load_trigger(@systems.get(mod_id).config, defer: defer)
+                        else
+                            load_module(mod_id, defer: defer, run_locally: locally)
+                        end
+                    else
+                        unload_module(mod_id, defer: defer)
+                    end
                 end
             else
                 # complete state change - node added or removed from the cluster
@@ -129,8 +140,6 @@ class Orchestrator::ModuleLoader
         run_locally = @nodes.running_locally?(mod_id) if run_locally.nil?
         mod = ::Orchestrator::Module.find(mod_id) unless mod
 
-        # TODO:: need to handle loading of triggers
-
         raise 'module not found' if mod.nil?
 
         if run_locally
@@ -147,12 +156,21 @@ class Orchestrator::ModuleLoader
             thread.schedule do
                 defer.resolve init_manager(thread, klass, mod)
             end
-            @modules[mod_id] = defer.promise.value
+
+            loaded = defer.promise.value
+            @modules[mod_id] = loaded
+            defer.resolve(loaded) if defer
         else
             # TODO:: laod the remote proxy
         end
 
-    rescue
+    rescue => error
+        @logger.warn [
+            'failed to load module',
+            error.message,
+            error.backtrace&.join("\n")
+        ].join("\n")
+
         # ensure there aren't any expired references
         @modules.delete(mod_id)
         defer.resolve(nil) if defer
@@ -177,6 +195,31 @@ class Orchestrator::ModuleLoader
         # stop local as we don't want to update the database state
         manager&.stop_local
         defer.resolve(true) if defer
+    end
+
+    def load_trigger(system, defer: nil)
+        sys_id = system.id
+        thread = @control.next_thread
+
+        # This performs the actual load of the module
+        defer = @thread.defer
+        thread.schedule do
+            mod = Triggers::Manager.new(thread, ::Orchestrator::Triggers::Module, system)
+            defer.resolve mod
+        end
+        mod = defer.promise.value
+        @modules[mod_id] = mod
+        defer.resolve(mod) if defer
+    rescue => error
+        @logger.warn [
+            'failed to load trigger',
+            error.message,
+            error.backtrace&.join("\n")
+        ].join("\n")
+
+        # ensure there aren't any expired references
+        @modules.delete(system.id)
+        defer.resolve(nil) if defer
     end
 
     def update_state(node_count)
@@ -216,7 +259,18 @@ class Orchestrator::ModuleLoader
         end
 
         # Triggers are a special case
-        # TODO:: get the triggers by running through all the systems
+        ::Orchestrator::ControlSystem.all.stream do |system|
+            triggers << system if @nodes.running_locally?(system.id)
+        end
+        triggers.each { |system| load_trigger(system) }
+
+        # Start everything that was just loaded
+        [devices, logics, triggers].each do |mods|
+            mods.each do |mod|
+                man = @modules[mod.id]
+                man.thread.schedule { man.start_local } if man && mod.running
+            end
+        end
     end
 
     # Run through loaded modules and stop any that should no longer be running
