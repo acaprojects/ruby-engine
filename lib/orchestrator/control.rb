@@ -174,7 +174,7 @@ module Orchestrator
                             result.then do |mod|
                                 # Signal the remote node to load this module
                                 mod.remote_node {|proxy| remote.load(mod_id) } if do_proxy
-                                
+
                                 # Expire the system cache
                                 ControlSystem.using_module(id).each do |sys|
                                     expire_cache sys.id, no_update: true
@@ -419,7 +419,7 @@ module Orchestrator
         def attach_watchdog(thread)
             @last_seen[thread] = @watchdog.now
 
-            thread.scheduler.every 1000 do
+            thread.scheduler.every 3000 do
                 @last_seen[thread] = @watchdog.now
             end
         end
@@ -436,9 +436,7 @@ module Orchestrator
             Thread.new do
                 thread.notifier { |*args| log_unhandled_exception(*args) }
                 thread.run do |thread|
-                    thread.scheduler.every 2000 do
-                        check_threads
-                    end
+                    thread.scheduler.every 8000 { check_threads }
                 end
             end
             @watchdog = thread
@@ -452,10 +450,10 @@ module Orchestrator
             @threads.each do |thread|
                 difference = now - (@last_seen[thread] || 0)
 
-                if difference > 12000
+                if difference > 30000
                     should_kill = true
                     watching = Rails.env.production?
-                elsif difference > 3000
+                elsif difference > 12000
                     watching = true
                 end
             end
@@ -470,7 +468,7 @@ module Orchestrator
             if should_kill
                 if Rails.env.production?
                     @logger.fatal "SYSTEM UNRESPONSIVE - FORCING SHUTDOWN"
-                    Process.kill 'SIGKILL', Process.pid
+                    Process.kill 'KILL', Process.pid
                 else
                     @logger.error "SYSTEM UNRESPONSIVE - in development mode a shutdown isn't forced"
                 end
