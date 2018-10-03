@@ -82,6 +82,12 @@ module Orchestrator
             end
         end
 
+        def module_name
+            name = self.custom_name
+            return name.to_sym if name.present?
+            self.dependency.module_name.to_sym
+        end
+
 
         protected
 
@@ -157,7 +163,7 @@ module Orchestrator
         before_destroy :unload_module
         def unload_module
             ::Orchestrator::Control.instance.unload(self.id)
-            
+
             # Find all the systems with this module ID and remove it
             self.systems.each do |cs|
                 cs.modules.delete(self.id)

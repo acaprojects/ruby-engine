@@ -33,6 +33,10 @@ module Orchestrator
                 Thread.current[:user]
             end
 
+            def module_name
+                @settings.module_name
+            end
+
             def sync(statuses)
                 @status = statuses
             end
@@ -365,7 +369,7 @@ module Orchestrator
                         model = ::Orchestrator::Module.find_by_id id
                         retry
                     end
-                    
+
                     # report any errors updating the model
                     @logger.print_error(e, 'error updating connected state in database model')
 

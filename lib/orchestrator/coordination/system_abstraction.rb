@@ -14,11 +14,11 @@ class Orchestrator::SystemAbstraction
 
         # Index triggers (exposed as __Triggers__)
         state = ::Orchestrator::ClusterState.instance
-        modules = ::Orchestrator::ModuleLoader.instance
-        index_module state, modules, control_system.id, true
+        loader = ::Orchestrator::ModuleLoader.instance
+        index_module state, loader, control_system.id
 
         # Index the real modules
-        @config.modules.each { |id| index_module(state, modules, id) }
+        @config.modules.each { |id| index_module(state, loader, id) }
 
         # Build an ordered zone cache for setting lookup
         zones = ::Orchestrator::ZoneCache.instance
@@ -29,20 +29,18 @@ class Orchestrator::SystemAbstraction
 
     def get(mod, index)
         mods = @modules[mod]
-        if mods
-            mods[index - 1]
-        else
-            nil # As subscriptions can be made to modules that don't exist
-        end
+        mods[index - 1] if mods
     end
 
     def all(mod)
+        # We use the array helper here as to prevent returning nil
         ::Array(@modules[mod])
     end
 
     def count(name)
-        mod = @modules[name.to_sym]
-        mod&.length || 0
+        mod = @modules[name]
+        # nil.to_i == 0
+        mod&.length.to_i
     end
 
     def modules
@@ -55,11 +53,10 @@ class Orchestrator::SystemAbstraction
 
     protected
 
-    def index_module(state, modules, mod_id)
-        manager = modules.get(mod_id)
+    def index_module(state, loader, mod_id)
+        manager = loader.get(mod_id)
 
         if manager
-            # TODO:: implement manager.module_name
             mod_name = manager.module_name
             @modules[mod_name] ||= []
             @modules[mod_name] << manager

@@ -14,7 +14,7 @@
         <%
             issues[:offline].each do |dev|
                 name = dev.dependency.name
-                type = dev.custom_name || dev.dependency.module_name
+                type = dev.module_name
                 addr = dev.ip || dev.uri
         %>
             <tr>

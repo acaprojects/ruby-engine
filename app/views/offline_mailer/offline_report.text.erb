@@ -8,7 +8,7 @@ System <%= issues[:name] %>: <%= "#{@backoffice}/#/?system=#{system_id}" %>
     <%
         issues[:offline].each do |dev|
             name = dev.dependency.name
-            type = dev.custom_name || dev.dependency.module_name
+            type = dev.module_name
             addr = dev.ip || dev.uri
     %>
     <%= "#{type} - #{name}\t#{addr} (offline #{@from_now.time_ago_in_words(Time.at(dev.updated_at))})" %>

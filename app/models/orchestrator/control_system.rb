@@ -107,7 +107,7 @@ module Orchestrator
 
         # Methods for obtaining the modules and zones as objects
         def module_data
-            Array(::Orchestrator::Module.find_by_id(modules)).collect do |mod| 
+            Array(::Orchestrator::Module.find_by_id(modules)).collect do |mod|
                 mod.as_json({
                     include: {
                         dependency: {
@@ -130,7 +130,7 @@ module Orchestrator
 
         # For trigger logic module compatibility
         def running; true; end
-        def custom_name; :__Triggers__; end
+        def module_name; :__Triggers__; end
 
 
         # This is called by the API directly for coordination purposes.
@@ -152,7 +152,7 @@ module Orchestrator
                     }
                 end
             end
-            
+
             # Unload the triggers
             wait << ctrl.unload(self.id)
 
