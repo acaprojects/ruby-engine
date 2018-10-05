@@ -3,6 +3,10 @@
 require 'set'
 require 'active_support/all'
 
+# Replace the default JSON parser
+require 'json'
+require 'yajl/json_gem'
+
 module Orchestrator
     class Engine < ::Rails::Engine
         isolate_namespace Orchestrator
