@@ -11,8 +11,7 @@ module Orchestrator
             @reactor = ws.reactor
 
             @bindings = ::Concurrent::Map.new
-            @stattrak = @reactor.observer
-            @notify_update = proc { |u| notify_update(u) }
+            @stattrak = ::Orchestrator::Subscriptions.instance
 
             @logger = ::Orchestrator::Logger.new(@reactor, user)
 
@@ -234,7 +233,7 @@ module Orchestrator
             system = ::Orchestrator::System.get(sys)
 
             if system
-                lookup = :"#{sys}_#{mod}_#{index}_#{name}"
+                lookup = "#{sys}_#{mod}_#{index}_#{name}"
                 binding = @bindings[lookup]
 
                 if binding.nil?
@@ -259,77 +258,31 @@ module Orchestrator
         end
 
         def try_bind(id, sys, system, mod_name, index, name, lookup)
-            options = {
-                sys_id: sys,
-                sys_name: system.config.name,
-                mod_name: mod_name,
-                index: index,
-                status: name,
-                callback: @notify_update,
-                on_thread: @reactor
-            }
-
-            # if the module exists, subscribe on the correct thread
-            # use a bit of promise magic as required
-            mod_man = system.get(mod_name, index)
-            defer = @reactor.defer
-
-            # Ensure browser sees this before the first status update
-            # At this point subscription will be successful
-            @bindings[lookup] = defer.promise
-            @ws.text({
-                id: id,
-                type: :success,
-                meta: {
-                    sys: sys,
-                    mod: mod_name,
-                    index: index,
-                    name: name
-                }
-            }.to_json)
-
-            if mod_man
-                options[:mod_id] = mod_man.settings.id.to_sym
-                options[:mod] = mod_man
-                thread = mod_man.thread
-                thread.schedule do
-                    defer.resolve (
-                        thread.observer.subscribe(options)
+            callback = proc do |value|
+                @reactor.schedule do
+                    @ws.text(
+                        %Q!{"type":"notify","value":"#{value}","meta":{"sys":"#{sys}","mod":"#{mod_name}","index":"#{index}","name":"#{name}"}}!
                     )
                 end
-            else
-                @reactor.schedule do
-                    defer.resolve @stattrak.subscribe(options)
-                end
             end
-        end
 
-        def notify_update(update)
-            output = {
-                type: :notify,
-                value: prepare_json(update.value),
-                meta: {
-                    sys: update.sys_id,
-                    mod: update.mod_name,
-                    index: update.index,
-                    name: update.status
-                }
-            }
+            subscription = Orchestrator::Subscriptions::Subscription.new(
+                callback, true, name, system.config.name, sys, mod_name, index
+            )
 
-            begin
-                @ws.text(output.to_json)
-            rescue Exception => e
-                # respond with nil if object cannot be converted
-                begin
-                    @logger.warn "status #{output[:meta]} update failed, could not generate JSON data for #{output[:value]}"
-                rescue Exception => e
-                    @logger.warn "status #{output[:meta]} update failed, could not generate JSON data for value"
-                end
-                output[:value] = nil
-                @ws.text(output.to_json)
+            # Check if the module exists in the current system
+            mod_man = system.get(mod_name, index)
+            if mod_man
+                subscription.mod_id = mod_man.settings.id
+                subscription.mod = mod_man
             end
-        end
 
+            @stattrak.subscribe(subscription)
+            @bindings[lookup] = subscription
+            @ws.text(
+                %Q!{"id":"#{id}","type":"success","meta":{"sys":"#{sys}","mod":"#{mod_name}","index":"#{index}","name":"#{name}"}}!
+            )
+        end
 
         def debug(params)
             id = params[:id]

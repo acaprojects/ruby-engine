@@ -24,7 +24,7 @@ class Orchestrator::SystemAbstraction
         zones = ::Orchestrator::ZoneCache.instance
         @zones = @config.zones.map { |zone_id| zones.get(zone_id) }
 
-        ::Orchestrator::Subscriptions.reloaded_system(@config.id, self)
+        ::Orchestrator::Subscriptions.instance.reloaded_system(@config.id, self)
     end
 
     def get(mod, index)
