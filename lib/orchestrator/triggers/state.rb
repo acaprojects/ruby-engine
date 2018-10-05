@@ -172,8 +172,12 @@ module Orchestrator
                 sub_keys = val_key[:keys]
                 if sub_keys.present?
                     begin
-                        sub_keys.each do |key|
-                            value = value[key] || value[key.to_sym]
+                        value = sub_keys.reduce(value) do |sub_val, key|
+                            if sub_val.is_a? Array
+                                sub_val[key.to_i]
+                            else
+                                sub_val[key] || sub_val[key.to_sym]
+                            end
                         end
                     rescue => e
                         # warn of potential issue here
