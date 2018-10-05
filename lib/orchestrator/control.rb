@@ -419,7 +419,7 @@ module Orchestrator
         def attach_watchdog(thread)
             @last_seen[thread] = @watchdog.now
 
-            thread.scheduler.every 1000 do
+            thread.scheduler.every 3000 do
                 @last_seen[thread] = @watchdog.now
             end
         end
@@ -436,7 +436,7 @@ module Orchestrator
             Thread.new do
                 thread.notifier { |*args| log_unhandled_exception(*args) }
                 thread.run do |thread|
-                    thread.scheduler.every 2000 do
+                    thread.scheduler.every 8000 do
                         check_threads
                     end
                 end
@@ -452,10 +452,10 @@ module Orchestrator
             @threads.each do |thread|
                 difference = now - (@last_seen[thread] || 0)
 
-                if difference > 12000
+                if difference > 30000
                     should_kill = true
                     watching = Rails.env.production?
-                elsif difference > 3000
+                elsif difference > 12000
                     watching = true
                 end
             end
