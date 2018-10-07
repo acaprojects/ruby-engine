@@ -25,6 +25,7 @@ class Orchestrator::Subscriptions
         @subscriptions = ::Concurrent::Map.new
         @status_cache = ::Orchestrator::RedisStatus.instance
         @system_cache = ::Orchestrator::SystemCache.instance
+        @module_cache = ::Orchestrator::ModuleLoader.instance
 
         # Updates created on this server to notify subscribers
         @updates = ::Queue.new
@@ -47,7 +48,15 @@ class Orchestrator::Subscriptions
 
     # Value received from REDIS (always on redis update thread)
     def push(mod_id, status, json_value)
-        @subscriptions[mod_id]&.[](status)&.notify(json_value)
+        # update the local cache only if it exists.
+        mod = @module_cache.check(mod_id)
+        if mod
+            ruby_value = JSON.parse(json_value, symbolize_names: true)
+            mod.status[status] = ruby_value
+            @subscriptions[mod_id]&.[](status)&.notify(json_value, ruby_value)
+        else
+            @subscriptions[mod_id]&.[](status)&.notify(json_value)
+        end
     end
 
     # System cache callback for updating dangling subscriptions
@@ -55,7 +64,15 @@ class Orchestrator::Subscriptions
         @thread.schedule { perform_reload(sys_id, system_abstraction) }
     end
 
-    # TODO:: debugging subscriptions!
+    def debug_subscribe(mod_id, callback)
+        manager = @module_cache.get(mod_id)
+        manager.thread.schedule { manager.debug_register(callback) }
+    end
+
+    def debug_unsubscribe(mod_id, callback)
+        manager = @module_cache.get(mod_id)
+        manager.thread.schedule { manager.debug_remove(callback) }
+    end
 
     protected
 

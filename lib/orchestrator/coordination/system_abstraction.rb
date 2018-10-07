@@ -24,6 +24,7 @@ class Orchestrator::SystemAbstraction
         zones = ::Orchestrator::ZoneCache.instance
         @zones = @config.zones.map { |zone_id| zones.get(zone_id) }
 
+        # Notify the subscription service that something might have changed
         ::Orchestrator::Subscriptions.instance.reloaded_system(@config.id, self)
     end
 

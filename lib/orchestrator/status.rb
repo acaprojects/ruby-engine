@@ -66,7 +66,7 @@ module Orchestrator
                 @subscriptions[sub.mod_id][sub.status][sub.sub_id] = sub
 
                 # Check for existing status to send to subscriber
-                # 
+                #
                 value = mod.status[sub.status]
                 sub.notify(value) unless value.nil?
             end

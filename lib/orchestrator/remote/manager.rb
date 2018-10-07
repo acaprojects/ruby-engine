@@ -29,6 +29,13 @@ module Orchestrator
                 Thread.current[:user]
             end
 
+            def debug_register(callback)
+                # TODO
+            end
+
+            def debug_remove(callback)
+                # TODO
+            end
 
             # Basic Operations
             def stop

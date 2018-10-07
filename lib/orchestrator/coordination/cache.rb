@@ -15,6 +15,10 @@ class Orchestrator::Cache
         @cache[id] || ::Libuv::Reactor.current ? load(id) : blocking_load(id)
     end
 
+    def check(id)
+        @cache[id]
+    end
+
     def expire(id)
         @cache.delete(id)
     end

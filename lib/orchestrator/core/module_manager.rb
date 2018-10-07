@@ -19,10 +19,8 @@ module Orchestrator
                 @nodes = Control.instance.nodes
             end
 
-
             attr_reader :thread, :settings, :running, :klass
             attr_reader :status, :stattrak, :logger, :code_update
-
 
             # Use fiber local variables for storing the current user
             def current_user=(user)
@@ -37,10 +35,13 @@ module Orchestrator
                 @settings.module_name
             end
 
-            def sync(statuses)
-                @status = statuses
+            def debug_register(callback)
+                @logger.register(callback)
             end
 
+            def debug_remove(callback)
+                @logger.remove(callback)
+            end
 
             # Looks up the remote edge, if any for the module.
             # irrelevant of whether the module is running on this machine or not
@@ -77,7 +78,6 @@ module Orchestrator
                     @instance = Orchestrator::Remote::Manager.new(@thread, @klass, @settings)
                 end
             end
-
 
             # Should always be called on the module thread
             def stop

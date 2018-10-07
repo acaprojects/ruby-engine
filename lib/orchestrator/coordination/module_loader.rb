@@ -92,6 +92,10 @@ class Orchestrator::ModuleLoader
         mod
     end
 
+    def check(mod_id)
+        @modules[mod_id]
+    end
+
     private
 
     # This ensures that changes to actively running modules are serialised.
