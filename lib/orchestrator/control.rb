@@ -59,13 +59,13 @@ module Orchestrator
 
                 logger.debug 'init: Mounting Engine'
 
-                # 5min fail safe check to ensure system has booted.
+                # 8min fail safe check to ensure system has booted.
                 # Couchbase sometimes never responds when it is booting.
-                @reactor.scheduler.in('5m') do
+                @reactor.scheduler.in('8m') do
                     if not @ready
                         STDERR.puts "\n\nSYSTEM BOOT FAILURE:\n\n"
                         dump_thread_backtraces
-                        @reactor.next_tick { Process.kill('SIGKILL', Process.pid) }
+                        @reactor.next_tick { Process.kill('KILL', Process.pid) }
                     end
                 end
 
