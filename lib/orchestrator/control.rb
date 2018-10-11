@@ -30,13 +30,7 @@ module Orchestrator
             @reactor = ::Libuv::Reactor.default
 
             @next_thread = Concurrent::AtomicFixnum.new
-
-            @ready = false
-            @ready_defer = @reactor.defer
-            @ready_promise = @ready_defer.promise
-            @ready_promise.then do
-                @ready = true
-            end
+            reset_ready
 
             logger = ::Logger.new(STDOUT)
             logger.formatter = proc { |severity, datetime, progname, msg|
@@ -45,9 +39,17 @@ module Orchestrator
             @logger = ::ActiveSupport::TaggedLogging.new(logger)
         end
 
+        def reset_ready
+            @ready = false
+            @ready_defer = @reactor.defer
+            @ready_promise = @ready_defer.promise
+            @ready_promise.then do
+                @ready = true
+            end
+        end
 
-        attr_reader :logger, :reactor, :ready, :ready_promise, :zones, :nodes, :threads
-
+        attr_reader :logger, :reactor, :zones, :nodes, :threads
+        attr_reader :ready, :ready_promise, :ready_defer
 
         # Start the control reactor
         def mount
@@ -353,51 +355,6 @@ module Orchestrator
         protected
 
 
-        # Grab the modules from the database and load them
-        def load_all
-            loading = []
-
-            logger.debug 'init: Loading edge node details'
-
-            nodes = ::Orchestrator::EdgeControl.all
-            nodes.each do |node|
-                @nodes[node.id.to_sym] = node
-                loading << node.boot(@loaded)
-            end
-
-            # Once load is complete we'll accept websockets
-            @reactor.finally(*loading).finally do
-                logger.debug 'init: Connecting to edge nodes'
-
-                # Determine if we are the master node (either single master or load balanced masters)
-                this_node = @nodes[Remote::NodeId]
-
-                # Start remote node server and connect to nodes
-                @node_server = Remote::Master.new
-                @nodes.each_value do |remote_node|
-                    next if this_node == remote_node
-                    @connections[remote_node.id] = ::UV.connect remote_node.host, remote_node.server_port, Remote::Edge, this_node, remote_node
-                end
-
-                # Save a statistics snapshot every 5min on the master server
-                # TODO:: we could have this auto-negotiated in the future
-                unless ENV['COLLECT_STATS'] == 'false'
-                    logger.debug 'init: Collecting cluster statistics'
-                    @reactor.scheduler.every(300_000) do
-                        begin
-                            Orchestrator::Stats.new.save
-                        rescue => e
-                            @logger.warn "exception saving statistics: #{e.message}"
-                        end
-                    end
-                end
-
-                logger.debug 'init: Init complete'
-                @ready_defer.resolve(true)
-            end
-        end
-
-
         ##
         # Methods called when we manage the threads:
         def start_thread(num)
@@ -411,7 +368,6 @@ module Orchestrator
                 end
             end
         end
-
 
         # =============
         # WATCHDOG CODE
@@ -450,7 +406,7 @@ module Orchestrator
             @threads.each do |thread|
                 difference = now - (@last_seen[thread] || 0)
 
-                if difference > 30000
+                if difference > 60000
                     should_kill = true
                     watching = Rails.env.production?
                 elsif difference > 12000

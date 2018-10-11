@@ -132,8 +132,8 @@ class Orchestrator::ModuleLoader
                     end
                 end
 
-                # TODO:: Implement node ready coordination
-                @nodes.signal_ready(@current_count) if @queue.empty?
+                # Implement node ready coordination
+                @nodes.signal_ready(@current_count)
             end
 
             @processing = !@queue.empty?

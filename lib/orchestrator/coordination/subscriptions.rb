@@ -23,7 +23,6 @@ class Orchestrator::Subscriptions
 
         # mod_id => status_name => Subscriptions
         @subscriptions = ::Concurrent::Map.new
-        @status_cache = ::Orchestrator::RedisStatus.instance
         @system_cache = ::Orchestrator::SystemCache.instance
         @module_cache = ::Orchestrator::ModuleLoader.instance
 
@@ -173,6 +172,7 @@ class Orchestrator::Subscriptions
     # All local updates must be converted to JSON as we are going to send them
     # to redis for cluster distribution.
     def local_updates!
+        status_cache = ::Orchestrator::RedisStatus.instance
         loop do
             retries = 0
             begin
@@ -180,7 +180,7 @@ class Orchestrator::Subscriptions
                 json_value = serialise(mod_id, status, value)
 
                 # Notify redis of the value change
-                @status_cache.update(mod_id, status, json_value)
+                status_cache.update(mod_id, status, json_value)
 
                 # Notify any local subscribers
                 @subscriptions[mod_id]&.[](status)&.notify(json_value, value)
