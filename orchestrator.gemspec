@@ -17,7 +17,7 @@ Gem::Specification.new do |s|
     s.add_dependency 'rake',    '~> 12.2'     # Task running framework
     s.add_dependency 'rspec',   '~> 3.5'    # Testing framework
     s.add_dependency 'rails',   '~> 5.0'    # Web framework
-    s.add_dependency 'libuv',   '~> 4.1'    # High performance IO reactor for ruby
+    s.add_dependency 'libuv',   '4.0.9'    # High performance IO reactor for ruby
     s.add_dependency 'oauth',   '~> 0.5'    # OAuth protocol support
     s.add_dependency 'xorcist', '~> 1.0'    # Inproves string XOR speed for netsnmp
     s.add_dependency 'netsnmp', '~> 0.1'    # SNMP protocol support
