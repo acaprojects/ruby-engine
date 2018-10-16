@@ -150,21 +150,6 @@ module Orchestrator
                     end
                 end
             end
-
-
-            def init_node_states
-                # If we are the undisputed master then we want to start our modules straight away
-                # These modules would have no failover node
-                @node.start_modules if @node.is_only_master?
-
-                @ctrl.nodes.each_pair do |id, node|
-                    node.slave_disconnected if id != NodeId
-                end
-            end
-
-            def node_added(node_id)
-                # TODO:: init this nodes state
-            end
         end
     end
 end

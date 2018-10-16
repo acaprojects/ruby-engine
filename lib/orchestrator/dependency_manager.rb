@@ -31,7 +31,7 @@ module Orchestrator
             rescue Exception => e
                 @logger.error [
                     e.message,
-                    e.&backtrace&.join("\n")
+                    (e.&backtrace&.join("\n"))
                 ].join("\n")
                 defer.reject(e)
             end

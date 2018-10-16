@@ -77,7 +77,7 @@ module Orchestrator
             end
 
             # Iterates over the modules in the system. Can also specify module types.
-            # 
+            #
             # @param mod_name [String, Symbol] the optional names of modules to iterate over
             # @yield [Module Instance, Symbol, Integer] yields the modules with their name and index
             def each(*args)
@@ -107,7 +107,7 @@ module Orchestrator
 
             # Returns the system name as defined in the database
             #
-            # @return [String] the name of the system 
+            # @return [String] the name of the system
             def name
                 system.config.name
             end
@@ -154,7 +154,7 @@ module Orchestrator
                     status = index.to_sym
                     get_parts(mod_name) do |name, i|
                        mod_name = name
-                       index = i 
+                       index = i
                     end
                 else
                     status = status.to_sym
@@ -226,7 +226,7 @@ module Orchestrator
 
                 # We create a new promise that resolves on this thread
                 defer = @thread.defer
-                
+
                 promise = ::Orchestrator::Control.instance.ready_promise
                 promise.then do
                     @thread.schedule do

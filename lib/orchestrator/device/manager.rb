@@ -101,7 +101,7 @@ module Orchestrator
 
             def notify_received(data, resolve, command = nil)
                 begin
-                    blk = command.nil? ? nil : command[:on_receive]
+                    blk = command[:on_receive] if command
                     if blk.respond_to? :call
                         blk.call(data, resolve, command)
                     elsif @instance.respond_to? :received, true

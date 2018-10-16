@@ -61,6 +61,22 @@ module Orchestrator
 
             # Start the control system by initializing it
             ctrl = ::Orchestrator::Control.instance
+            ::User.bucket.connection.reactor.schedule do
+                handle = ::User.bucket.connection.handle
+                ::Libcouchbase::Ext.cntl_setu32(handle, 0, 90_000_000)
+                ::Libcouchbase::Ext.cntl_setu32(handle, 1, 90_000_000)
+                ::Libcouchbase::Ext.cntl_setu32(handle, 13, 90_000_000)
+                ::Libcouchbase::Ext.cntl_setu32(handle, 15, 90_000_000)
+                ::Libcouchbase::Ext.cntl_setu32(handle, 61, 90_000_000)
+                ::Libcouchbase::Ext.cntl_setu32(handle, 61, 90_000_000)
+
+                # Configure retries
+                # LCB_RETRYOPT_CREATE = Proc.new { |mode, policy| ((mode << 16) | policy) }
+                # val = LCB_RETRYOPT_CREATE(LCB_RETRY_ON_SOCKERR, LCB_RETRY_CMDS_SAFE);
+                # ::Libcouchbase::Ext.cntl_setu32(handle, LCB_CNTL_RETRYMODE, val)
+                retry_config = (1 << 16) | 3
+                ::Libcouchbase::Ext.cntl_setu32(handle, 0x24, retry_config)
+            end
 
             # Don't auto-load if running in the console or as a rake task
             unless ENV['ORC_NO_BOOT'] || defined?(Rails::Console) || Rails.env.test? || defined?(::Rake::Task)

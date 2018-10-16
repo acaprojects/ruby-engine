@@ -8,19 +8,12 @@ module Orchestrator
         design_document :sys
         include Encryption
 
-
         # Allows us to lookup systems by names
         after_save     :expire_caches, if: :control_running?
         before_save    :update_features
 
         # We only want to run this callback if run within a rails console
         before_destroy :cleanup_modules, unless: :control_running?
-
-
-        # Defines the default affinity for modules in this system and triggers
-        # Of course it doesn't mean the module has to be located on this machine
-        belongs_to :edge, class_name: 'Orchestrator::EdgeControl'
-
 
         attribute :name,        type: String
         attribute :description, type: String
@@ -50,17 +43,9 @@ module Orchestrator
         # Provide a field for simplifying support
         attribute :support_url, type: String
 
-
         # Used in triggers::manager for accssing a system proxy
         def control_system_id
             self.id
-        end
-
-        # Returns the node currently running this module
-        def node
-            # NOTE:: Same function in module.rb
-            @node_id ||= self.edge_id.to_sym
-            Control.instance.nodes[@node_id]
         end
 
         ensure_unique :name do |name|
@@ -69,41 +54,14 @@ module Orchestrator
 
         def expire_cache(noUpdate = nil)
             ::Orchestrator::System.expire(self.id || @old_id)
-            remote = node
-
-            # Only the active host should reload the modules
-            if remote&.host_active?
-                ctrl = ::Orchestrator::Control.instance
-
-                # If not deleted and control is running
-                # then we want to trigger updates on the logic modules
-                if !@old_id && noUpdate.nil? && ctrl.ready
-                    # Start the triggers if not already running (must occur on the same thread)
-                    cs = self
-                    ctrl.reactor.schedule do
-                        ctrl.nodes[cs.edge_id.to_sym].load_triggers_for(cs)
-                    end
-
-                    # Reload the running modules
-                    Array(::Orchestrator::Module.find_by_id(self.modules)).each do |mod|
-                        if mod.control_system_id
-                            manager = ctrl.loaded? mod.id
-                            manager.reloaded(mod) if manager
-                        end
-                    end
-                end
-            end
         end
-
 
         index_view :modules, find_method: :using_module, validate: false
         index_view :zones,   find_method: :in_zone
 
         def self.all
-            by_edge_id
+            by_zones
         end
-        index_view :edge_id, find_method: :on_node
-
 
         # Methods for obtaining the modules and zones as objects
         def module_data
@@ -122,7 +80,6 @@ module Orchestrator
             Array(::Orchestrator::Zone.find_by_id(zones))
         end
 
-
         # Triggers
         def triggers
             TriggerInstance.for(self.id)
@@ -131,7 +88,6 @@ module Orchestrator
         # For trigger logic module compatibility
         def running; true; end
         def module_name; :__Triggers__; end
-
 
         # This is called by the API directly for coordination purposes.
         # The callback is only used if running within a console.
@@ -167,9 +123,7 @@ module Orchestrator
             wait
         end
 
-
         protected
-
 
         # Zones and settings are only required for confident coding
         validates :name,        presence: true
@@ -219,7 +173,6 @@ module Orchestrator
         def expire_caches
             ::Orchestrator::Control.instance.expire_cache(self.id)
         end
-
 
         # =======================
         # Zone Trigger Management

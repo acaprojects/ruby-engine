@@ -392,7 +392,7 @@ module Orchestrator
             Thread.new do
                 thread.notifier { |*args| log_unhandled_exception(*args) }
                 thread.run do |thread|
-                    thread.scheduler.every 8000 { check_threads }
+                    thread.scheduler.every(8000) { check_threads }
                 end
             end
             @watchdog = thread
