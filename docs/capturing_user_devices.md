@@ -19,7 +19,7 @@ import-module dnsclient
 
 # Helper for filtering IP addresses belonging to a subnet
 function checkSubnet ([string]$cidr, [string]$ip) {
-    $network, [tint]$subnetlen = $cidr.Split('/')
+    $network, [uint32]$subnetlen = $cidr.Split('/')
     $a = [uint32[]]$network.split('.')
     [uint32] $unetwork = ($a[0] -shl 24) + ($a[1] -shl 16) + ($a[2] -shl 8) + $a[3]
     $mask = (-bnot [uint32]0) -shl (32 - $subnetlen)
