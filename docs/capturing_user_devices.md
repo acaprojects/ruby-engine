@@ -159,6 +159,9 @@ if ($resultArr.length -gt 0) {
 This allows us to grab MAC addresses of BYOD devices. Useful if tracking mobile phones on the wifi is desirable.
 
 ```powershell
+# Required for reliable Resolve-DnsName.
+import-module dnsclient
+
 # Use a password file: https://blogs.technet.microsoft.com/robcost/2008/05/01/powershell-tip-storing-and-using-password-credentials/
 $User = "YourDomain\service_account"
 $PWord = ConvertTo-SecureString -String "service_account_pass" -AsPlainText -Force
@@ -217,7 +220,14 @@ $events | ForEach-Object {
         # Filter IP ranges and computer name$
         $macs += $mac_address
         Write-Host $mac_address
-        $results.Add(@($mac_address,$username))
+
+        # Try to grab the computers hostname
+        try {
+            $hostname = (Resolve-DnsName $ip -ErrorAction SilentlyContinue)[0].NameHost
+            $results.Add(@($mac_address,$username,$hostname))
+        } catch {
+            $results.Add(@($mac_address,$username))
+        }
     } catch {
         Write-Host "Error parsing event";
         Write-Host $_.Exception.Message;
