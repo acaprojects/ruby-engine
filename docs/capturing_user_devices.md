@@ -161,6 +161,7 @@ This allows us to grab MAC addresses of BYOD devices. Useful if tracking mobile 
 ```powershell
 # Required for reliable Resolve-DnsName.
 import-module dnsclient
+import-module dhcpserver
 
 # Use a password file: https://blogs.technet.microsoft.com/robcost/2008/05/01/powershell-tip-storing-and-using-password-credentials/
 $User = "YourDomain\service_account"
@@ -208,6 +209,15 @@ $events | ForEach-Object {
         $mac_address = $_.CallingStationID
         # Username in domain\username format
         $username = $_.FullyQualifiedSubjectUserName
+        $ip = $null
+
+        # Grab the IP address assigned to the MAC address
+        try {
+            $ip = Get-DhcpServerv4Scope -ComputerName "dhcpserver.contoso.com" -ScopeId 192.168.4.0 | Get-DhcpServerv4Lease -ComputerName "dhcpserver.contoso.com" | where {$_.Clientid -like "$mac_address"}
+            $ip = $ip.IPAddress.IPAddressToString
+        } catch {
+            # Ignore errors as it just means we won't able find the hostname
+        }
 
         # Ensure the event includes the username and device mac address
         if ([string]::IsNullOrWhiteSpace($mac_address) -Or ($mac_address -eq "-") -Or [string]::IsNullOrWhiteSpace($username) -Or ($username -eq "-")) {
