@@ -31,14 +31,47 @@ namespace :check do
 
         exit 0 if bad_ids.length == 0
 
+        errors = []
         bad_ids.each do |sys_id, issues|
-            sys = Orchestrator::ControlSystem.find(sys_id)
-            sys.modules = sys.modules - issues[:mods]
-            sys.zones = sys.zones - issues[:zones]
-            sys.save!
+            begin
+                sys = Orchestrator::ControlSystem.find(sys_id)
+                begin
+                    sys.modules = sys.modules - issues[:mods]
+                    sys.zones = sys.zones - issues[:zones]
+                    sys.save! with_cas: true
+                rescue ::Libcouchbase::Error::KeyExists
+                    sys.reload
+                    retry
+                end
+            rescue => e
+                errors << sys.id
+            end
         end
 
-        puts "#{bad_ids.length} issues resolved"
+        puts "#{bad_ids.length - errors.length} issues resolved"
+        puts "The following systems failed to save:\n\t#{errors.join("\n\t")}" if errors.present?
+
+        puts "resetting metrics indicators..."
+        failed = []
+        Orchestrator::Module.all.each do |mod|
+            begin
+                 begin
+                    mod.connected = true
+                    mod.save! with_cas: true
+                rescue ::Libcouchbase::Error::KeyExists
+                    mod.reload
+                    retry
+                end
+            rescue => e
+                failed << mod.id
+            end
+        end
+
+        if failed.empty?
+            puts "metrics reset"
+        else
+            puts "The following modules failed to save:\n\t#{failed.join("\n\t")}" if failed.present?
+        end
     end
 
     # Usage: rake check:offline['email@addresses,seperated@by.commas']
