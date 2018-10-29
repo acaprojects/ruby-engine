@@ -15,7 +15,7 @@ module Orchestrator
 
                 @retries = 0        # Connection retries
                 @connecting = nil   # Connection timer
-                
+
                 reconnect
             end
 
@@ -156,7 +156,7 @@ module Orchestrator
 
             def delaying; false; end
 
-            def disconnect
+            def disconnect(__user_initiated = nil)
                 return unless @connection
                 conn = @connection
 

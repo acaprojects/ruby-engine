@@ -107,7 +107,7 @@ module Orchestrator
 
         # Methods for obtaining the modules and zones as objects
         def module_data
-            Array(::Orchestrator::Module.find_by_id(modules)).collect do |mod| 
+            Array(::Orchestrator::Module.find_by_id(modules)).collect do |mod|
                 mod.as_json({
                     include: {
                         dependency: {
@@ -152,7 +152,7 @@ module Orchestrator
                     }
                 end
             end
-            
+
             # Unload the triggers
             wait << ctrl.unload(self.id)
 
@@ -248,8 +248,8 @@ module Orchestrator
                 trigs = triggers.to_a
 
                 @remove_zones.collect { |zone_id|
-                    ::Orchestrator::Zone.find(zone_id)
-                }.each do |zone|
+                    ::Orchestrator::Zone.find_by_id(zone_id)
+                }.reject(&:nil?).each do |zone|
                     zone.triggers.each do |trig_id|
                         trigs.each do |trig|
                             if trig.trigger_id == trig_id && trig.zone_id == zone.id
@@ -261,7 +261,8 @@ module Orchestrator
             end
 
             @add_zones.each do |zone_id|
-                zone = ::Orchestrator::Zone.find(zone_id)
+                zone = ::Orchestrator::Zone.find_by_id(zone_id)
+                next unless zone
                 zone.triggers.each do |trig_id|
                     inst = ::Orchestrator::TriggerInstance.new
                     inst.control_system = self

@@ -31,7 +31,7 @@ module Orchestrator
 
             # Provides a callback to pass the next command to.
             # The callback is always perfomed in the next tick so that
-            # 
+            #
             def pop(blk = @default)
                 return if @waiting
                 @callback = blk
@@ -76,7 +76,6 @@ module Orchestrator
                     cmd = current[1]
                     cmd[:defer].resolve(command[:defer].promise) if cmd
 
-                    
                     current[1] = command   # replace the old command
                     priors = current[0]
 

@@ -49,7 +49,7 @@ module Orchestrator
                             @manager.logger.print_error(err, 'error in before_buffering callback')
                         end
                     end
-                    
+
                     @processor.buffer(data)
                 end
             end
@@ -67,7 +67,7 @@ module Orchestrator
                 @checker.cancel if @checker
             end
 
-            def disconnect; end
+            def disconnect(__user_initiated = nil); end
 
 
             protected

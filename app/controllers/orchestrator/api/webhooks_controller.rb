@@ -5,9 +5,10 @@ module Orchestrator
         class WebhooksController < ::ActionController::Base
             before_action :find_hook
 
-
             # Provide details of the webhooks operation
             def show
+                exec = params.permit(:exec)[:exec]
+                return notify if exec == 'true'
                 render json: @trigger
             end
 

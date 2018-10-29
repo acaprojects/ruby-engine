@@ -21,6 +21,18 @@ module Orchestrator
 
             attr_reader :delaying
 
+            def stats
+                {
+                    connected: @connected,
+                    connecting: !!@connecting,
+                    disconnecting: @disconnecting,
+                    last_retry: @last_retry,
+                    retries: @retries,
+                    write_queue: @write_queue.length,
+                    activity: !!@activity
+                }
+            end
+
             def transmit(cmd)
                 return if @terminated
 
@@ -140,6 +152,8 @@ module Orchestrator
                         # We reconnect here as there are pending writes
                         @last_retry = the_time
                         reconnect
+                    else
+                        @processor.thread.next_tick { @processor.soft_disconnect }
                     end
                 else # retries > 1
                     @write_queue.clear
@@ -155,6 +169,8 @@ module Orchestrator
                     if @retries == 2 || (@retries == 3 && @last_retry == 0)
                         @processor.disconnected
                         @processor.queue.offline(@config[:clear_queue_on_disconnect])
+                    else
+                        @processor.thread.next_tick { @processor.soft_disconnect }
                     end
                 end
             end
@@ -170,7 +186,7 @@ module Orchestrator
                 end
 
                 return @processor.buffer(data) unless @delaying
-                
+
                 @delaying << data
                 result = @delaying.split(@config[:wait_ready], 2)
                 if result.length > 1
@@ -178,7 +194,7 @@ module Orchestrator
                     @delay_timer.cancel
                     @delay_timer = nil
                     rem = result[-1]
-                    
+
                     init_connection(true)
                     @processor.buffer(rem) unless rem.empty?
                 end
@@ -194,7 +210,7 @@ module Orchestrator
                 close_connection(:after_writing) if @connected
             end
 
-            def disconnect
+            def disconnect(user_initiated = false)
                 return unless @connected && !@disconnecting
 
                 if @delay_timer
@@ -206,6 +222,7 @@ module Orchestrator
                     @disconnecting = false
                 else
                     @disconnecting = true
+                    @last_retry = @retries = 0 if user_initiated
                     close_connection(:after_writing)
                 end
             end

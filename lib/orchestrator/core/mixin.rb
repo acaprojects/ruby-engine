@@ -158,9 +158,8 @@ module Orchestrator
                     stats[:buffered] = processor.buffer_size
                     stats[:last_send] = processor.last_sent_at
                     stats[:last_receive] = processor.last_receive_at
-                    if processor.timeout
-                        stats[:timeout] = processor.timeout
-                    end
+                    stats[:timeout] = processor.timeout if processor.timeout
+                    stats[:transport] = processor.transport&.stats if processor.transport
                 end
 
                 stats[:time_now] = Time.now.to_i

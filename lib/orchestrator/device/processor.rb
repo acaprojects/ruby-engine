@@ -30,12 +30,13 @@ module Orchestrator
                 hex_string: false,          # Does the input need conversion
                 timeout: 5000,              # Time we will wait for a response
                 priority: 50,               # Priority of a send
-                force_disconnect: false     # Mainly for use with make and break
+                force_disconnect: false     # Will disconnect once a response has been buffered
 
                 # Other options include:
                 # * emit callback to occur once command complete (may be discarded if a named command)
                 # * on_receive (alternative to received function)
                 # * clear_queue (clear further commands once this has run)
+                # * disconnect: true (disconnect once the command has finally been processed)
             }
 
             CONFIG_DEFAULTS = {
@@ -93,7 +94,6 @@ module Orchestrator
 
                 @last_sent_at = 0
                 @last_receive_at = 0
-
 
                 # Used to indicate when we can start the next response processing
                 @head = ::Libuv::Q::ResolvedPromise.new(@thread, true)
@@ -165,9 +165,7 @@ module Orchestrator
                 @connected = true
                 new_buffer
                 @man.notify_connected
-                if @config[:update_status]
-                    @man.trak(:connected, true)
-                end
+                @man.trak(:connected, true) if @config[:update_status]
             end
 
             def connected?
@@ -177,21 +175,25 @@ module Orchestrator
             def disconnected
                 @connected = false
                 @man.notify_disconnected
-                if @config[:update_status]
-                    @man.trak(:connected, false)
-                end
+                @man.trak(:connected, false) if @config[:update_status]
                 if @buffer && @config[:flush_buffer_on_disconnect]
                     check_data(@buffer.flush)
                 end
                 @buffer = nil
 
+                resp_failure(:disconnected) if @queue.waiting
+            end
+
+            def soft_disconnect
                 if @queue.waiting
                     resp_failure(:disconnected)
+                elsif @queue.length > 0
+                    @queue.pop
                 end
             end
 
             def buffer_size
-                if @buffer && @buffer.respond_to?(:bytesize)
+                if @buffer&.respond_to?(:bytesize)
                     @buffer.bytesize
                 else
                     0
@@ -210,16 +212,12 @@ module Orchestrator
                     end
                 else
                     # tokenizing buffer above will enforce encoding
-                    if @config[:encoding]
-                        data.force_encoding(@config[:encoding])
-                    end
+                    data.force_encoding(@config[:encoding]) if @config[:encoding]
                     @responses << data
                 end
 
                 # if we are waiting we don't want to process this data just yet
-                if !@wait
-                    check_next
-                end
+                check_next if !@wait
             end
 
             def terminate
@@ -232,6 +230,7 @@ module Orchestrator
                 end
             end
 
+            # This keeps the response processing in lock step
             def check_next
                 return if @checking.locked? || @responses.length <= 0
                 @checking.synchronize {
@@ -275,7 +274,7 @@ module Orchestrator
                         @defer.promise.then @resp_success, @resp_failure
 
                         # Disconnect before processing the response
-                        transport.disconnect if cmd[:force_disconnect]
+                        transport.disconnect(true) if cmd[:force_disconnect]
 
                         # Send response, early resolver and command
                         resp = @man.notify_received(data, @resolver, cmd)
@@ -328,6 +327,8 @@ module Orchestrator
                             cmd[:wait_count] = 0      # reset our ignore count
                             @queue.push(cmd, cmd[:priority] + @config[:priority_bonus])
                         end
+
+                        transport.disconnect(true) if cmd[:disconnect]
                     rescue => e
                         # Prevent the queue from ever pausing - this should never be called
                         @logger.print_error(e, 'error handling request failure')
@@ -347,14 +348,14 @@ module Orchestrator
             #  is guaranteed to have completed
             # Check for queue wait as we may have gone offline
             def resp_success(result)
-                if @queue.waiting && result && result != :ignore
+                cmd = @queue.waiting
+                if cmd && result && result != :ignore
                     if result == :abort
-                        cmd = @queue.waiting
                         err = Error::CommandFailure.new "module aborted command with #{result}: <#{cmd[:name] || UNNAMED}> #{(cmd[:data] || cmd[:path]).inspect}"
-                        @queue.waiting[:defer].reject(err)
+                        cmd[:defer].reject(err)
                     else
-                        @queue.waiting[:defer].resolve(result)
-                        call_emit @queue.waiting
+                        cmd[:defer].resolve(result)
+                        call_emit cmd
                     end
 
                     clear_timers
@@ -363,11 +364,16 @@ module Orchestrator
                     @queue.waiting = nil
                     check_next    # Process pending
 
-                    @queue.pop    # Send the next command
+                    if cmd[:disconnect]
+                        transport.disconnect true
+                        # Send the next command
+                        @thread.next_tick { @queue.pop }
+                    else
+                        @queue.pop    # Send the next command
+                    end
 
                     # Else it must have been a nil or :ignore
-                elsif @queue.waiting
-                    cmd = @queue.waiting
+                elsif cmd
                     cmd[:wait_count] ||= 0
                     cmd[:wait_count] += 1
                     if cmd[:wait_count] > cmd[:max_waits]
@@ -430,7 +436,7 @@ module Orchestrator
 
                     if gap > 0
                         defer = @thread.defer
-                        
+
                         sched = schedule.in(gap) do
                             defer.resolve(process_send(command))
                         end

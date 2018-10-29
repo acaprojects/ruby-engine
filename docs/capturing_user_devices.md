@@ -14,10 +14,12 @@ This grabs one minutes worth of details and should be run once a minute.
 * [Event details](https://docs.microsoft.com/en-us/windows/device-security/auditing/event-4768)
 
 ```powershell
+# Required for reliable Resolve-DnsName.
+import-module dnsclient
 
 # Helper for filtering IP addresses belonging to a subnet
 function checkSubnet ([string]$cidr, [string]$ip) {
-    $network, [tint]$subnetlen = $cidr.Split('/')
+    $network, [uint32]$subnetlen = $cidr.Split('/')
     $a = [uint32[]]$network.split('.')
     [uint32] $unetwork = ($a[0] -shl 24) + ($a[1] -shl 16) + ($a[2] -shl 8) + $a[3]
     $mask = (-bnot [uint32]0) -shl (32 - $subnetlen)
@@ -117,9 +119,13 @@ $events | ForEach-Object {
             $ips += $ip
             Write-Host $ip;
 
-            # Optionally grab the computers hostname
-            $hostname = (Resolve-DnsName $ip)[0].NameHost
-            $results.Add(@($ip,$username,$domain,$hostname))
+            # Try to grab the computers hostname
+            try {
+                $hostname = (Resolve-DnsName $ip -ErrorAction SilentlyContinue)[0].NameHost
+                $results.Add(@($ip,$username,$domain,$hostname))
+            } catch {
+                $results.Add(@($ip,$username,$domain))
+            }
         }
     } catch {
         Write-Host "Error parsing event";
@@ -135,6 +141,117 @@ if ($resultArr.length -gt 0) {
 
     # Send to the server
     $postParams = ConvertTo-Json @{module="LocateUser";method="lookup";args=@($resultArr)}
+    $res = Invoke-WebRequest -UseBasicParsing -Uri https://engine.server.com/control/api/webhooks/trig-SwDJ35~kzR/notify?secret=3ad9d883f8e7a17d490510530b07bd90 -Method POST -Body $postParams -ContentType "application/json" -TimeoutSec 40
+    Write-Host "Response code was:" $res.StatusCode;
+
+    if ($res.StatusCode -ne 202) {
+        Write-Host "Webhook post failed...";
+        exit 1
+    }
+} else {
+    Write-Host "No results found...";
+}
+
+```
+
+### Querying a MS Network Policy Server (RADIUS)
+
+This allows us to grab MAC addresses of BYOD devices. Useful if tracking mobile phones on the wifi is desirable.
+
+```powershell
+# Required for reliable Resolve-DnsName.
+import-module dnsclient
+import-module dhcpserver
+
+# Use a password file: https://blogs.technet.microsoft.com/robcost/2008/05/01/powershell-tip-storing-and-using-password-credentials/
+$User = "YourDomain\service_account"
+$PWord = ConvertTo-SecureString -String "service_account_pass" -AsPlainText -Force
+$Credential = New-Object -TypeName "System.Management.Automation.PSCredential" -ArgumentList $User, $PWord
+
+$results = New-Object System.Collections.Generic.List[System.Object]
+$macs = @()
+$events = $null
+
+try {
+    Write-Host "Requesting events from Network Policy Server...";
+
+    $events = Get-WinEvent -ComputerName "radius.server.com" -Credential $Credential -LogName "Security" -FilterXPath @"
+    *[System[Provider[@Name='Microsoft-Windows-Security-Auditing'] and
+      EventID=6278 and TimeCreated[timediff(@SystemTime) <= 90000]]] and
+    *[EventData[Data[@Name='SubjectDomainName'] and (Data='YourDomain')]]
+"@
+} catch {
+    Write-Host "Server found no results...";
+    Write-Host $_.Exception.Message;
+    exit 0
+}
+
+Write-Host "Events received from remote server";
+
+# This makes the events look like they were requested locally
+# (remote event requests come back as generic objects)
+ForEach ($event in $events) {
+    $eventXML = [xml]$event.ToXml()
+
+    # Iterate through each one of the XML message properties
+    For ($i=0; $i -lt $eventXML.Event.EventData.Data.Count; $i++) {
+        # Append these as object properties
+        Add-Member -InputObject $event -MemberType NoteProperty -Force `
+            -Name  $eventXML.Event.EventData.Data[$i].name `
+            -Value $eventXML.Event.EventData.Data[$i].'#text'
+    }
+}
+
+Write-Host "MAC addresses discovered:";
+
+$events | ForEach-Object {
+    try {
+        $mac_address = $_.CallingStationID
+        # Username in domain\username format
+        $username = $_.FullyQualifiedSubjectUserName
+        $ip = $null
+
+        # Grab the IP address assigned to the MAC address
+        try {
+            $ip = Get-DhcpServerv4Scope -ComputerName "dhcpserver.contoso.com" -ScopeId 192.168.4.0 | Get-DhcpServerv4Lease -ComputerName "dhcpserver.contoso.com" | where {$_.Clientid -like "$mac_address"}
+            $ip = $ip.IPAddress.IPAddressToString
+        } catch {
+            # Ignore errors as it just means we won't able find the hostname
+        }
+
+        # Ensure the event includes the username and device mac address
+        if ([string]::IsNullOrWhiteSpace($mac_address) -Or ($mac_address -eq "-") -Or [string]::IsNullOrWhiteSpace($username) -Or ($username -eq "-")) {
+            return
+        }
+
+        # Check the IP address hasn't been seen already
+        if ($macs.Contains($mac_address)) { return }
+
+        # Filter IP ranges and computer name$
+        $macs += $mac_address
+        Write-Host $mac_address
+
+        # Try to grab the computers hostname
+        try {
+            $hostname = (Resolve-DnsName $ip -ErrorAction SilentlyContinue)[0].NameHost
+            $results.Add(@($mac_address,$username,$hostname))
+        } catch {
+            $results.Add(@($mac_address,$username))
+        }
+    } catch {
+        Write-Host "Error parsing event";
+        Write-Host $_.Exception.Message;
+    }
+}
+
+$resultArr = $results.ToArray()
+
+# Only post to the server if there are results
+if ($resultArr.length -gt 0) {
+    Write-Host "Posting to control server";
+
+    # Send to the server
+    $postParams = ConvertTo-Json @{module="LocateUser";method="associate";args=@($resultArr)}
     $res = Invoke-WebRequest -UseBasicParsing -Uri https://engine.server.com/control/api/webhooks/trig-SwDJ35~kzR/notify?secret=3ad9d883f8e7a17d490510530b07bd90 -Method POST -Body $postParams -ContentType "application/json" -TimeoutSec 40
     Write-Host "Response code was:" $res.StatusCode;
 

@@ -16,12 +16,13 @@ module Orchestrator
             attr_reader :trace
             attr_reader :modules
 
-            # Provide Enumerable support
+            # Provide Enumerable support (ignore stopped devices)
             def each
                 return enum_for(:each) unless block_given?
 
                 @modules.each do |mod|
-                    yield RequestProxy.new(@thread, mod, @user)
+                    proxy = RequestProxy.new(@thread, mod, @user)
+                    yield(proxy) unless proxy.nil?
                 end
             end
 
