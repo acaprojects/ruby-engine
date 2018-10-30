@@ -280,7 +280,7 @@ module Orchestrator
             # the count of each of those types
             def types
                 sys = System.get(id)
-                
+
                 if sys
                     result = {}
                     mods = sys.modules
@@ -309,7 +309,7 @@ module Orchestrator
                 }
             ]
             # We need to support an arbitrary settings hash so have to
-            # work around safe params as per 
+            # work around safe params as per
             # http://guides.rubyonrails.org/action_controller_overview.html#outside-the-scope-of-strong-parameters
             def safe_params
                 settings = params[:settings]
