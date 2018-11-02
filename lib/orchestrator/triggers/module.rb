@@ -184,7 +184,7 @@ module Orchestrator
             end
 
             def update_model(id, state)
-                # Ensure that updates don't build queues and 
+                # Ensure that updates don't build queues and
                 if @writing[id]
                     @pending[id] = state
                 else
@@ -230,11 +230,15 @@ module Orchestrator
 
                 # If an update occured while we were processing
                 # This means there is no more than a queue of 1 (good for memory)
-                if @pending[id].nil?
-                    @writing.delete(id)
-                else
+                if @pending[id]
                     new_state = @pending.delete(id)
-                    perform_update_model(id, new_state) if new_state != state
+                    if new_state == state
+                        @writing.delete(id)
+                    else
+                        perform_update_model(id, new_state)
+                    end
+                else
+                    @writing.delete(id)
                 end
             end
 
