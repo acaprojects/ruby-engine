@@ -74,7 +74,7 @@ module Orchestrator
                     end
                 end
 
-                @thread.next_tick { update_connected_status(true) }
+                @thread.next_tick { update_connected_status }
             end
 
             def notify_disconnected
@@ -86,7 +86,7 @@ module Orchestrator
                     end
                 end
 
-                @thread.next_tick { update_connected_status(false) }
+                @thread.next_tick { update_connected_status }
             end
 
             def notify_hostname_resolution(ip)

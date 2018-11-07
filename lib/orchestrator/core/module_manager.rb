@@ -351,24 +351,22 @@ module Orchestrator
             protected
 
 
-            def update_connected_status(connected)
+            def update_connected_status
                 id = settings.id
-
-                model = ::Orchestrator::Module.find_by_id id
-                return unless model && model.connected != connected
-
                 tries = 0
                 begin
+                    model = ::Orchestrator::Module.find_by_id id
+                    connected = @status[:connected]
+                    return unless model && model.connected != connected
                     model.connected = connected
                     model.updated_at = Time.now.to_i
                     model.save!(with_cas: true)
                     @settings = model
+                rescue ::Libcouchbase::Error::KeyExists
+                    retry
                 rescue => e
                     tries += 1
-                    if tries < 5
-                        model = ::Orchestrator::Module.find_by_id id
-                        retry
-                    end
+                    retry if tries < 5
 
                     # report any errors updating the model
                     @logger.print_error(e, 'error updating connected state in database model')
