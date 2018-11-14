@@ -14,10 +14,8 @@ class TriggerMailer < ApplicationMailer
         @trigger_desc = trigger_desc
         @user_content = user_content
 
-        emails_actual = emails.split(",").map { |email| email.strip }.reject { |email| email.empty? }
-
         mail(
-            to: emails_actual,
+            to: emails,
             subject: "Trigger fired: #{trigger_name}"
         )
     end
