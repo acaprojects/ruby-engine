@@ -74,6 +74,7 @@ $events | ForEach-Object {
     try {
         $ip = $_.IpAddress
         $username = $_.TargetUserName
+        $userlower = $username.ToLower()
         $domain = $_.TargetDomainName
 
         # Ensure the event includes the IP address
@@ -114,8 +115,17 @@ $events | ForEach-Object {
         # Check the IP address hasn't been seen already
         if ($ips.Contains($ip)) { return }
 
-        # Filter IP ranges and computer name$
-        if (((checkSubnet "127.0.0.0/16" $ip) -Or (checkSubnet "192.168.0.0/16" $ip)) -and ($username[-1] -ne "$")) {
+        # Filter IP ranges, service accounts and computer names$
+        if ( `
+            ( `
+                (checkSubnet "127.0.0.0/16" $ip) -Or `
+                (checkSubnet "192.168.0.0/16" $ip) -Or `
+                (checkSubnet "192.155.0.0/16" $ip) `
+            ) -and `
+            (!$userlower.StartsWith("sccm.")) -and `
+            (!$userlower.StartsWith("svc.")) -and `
+            ($username[-1] -ne "$") `
+        ) {
             $ips += $ip
             Write-Host $ip;
 
