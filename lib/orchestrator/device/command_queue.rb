@@ -64,6 +64,7 @@ module Orchestrator
             def push(command, priority)
                 # Ignore non-named commands when we are offline
                 if @state == :offline && command[:name].nil?
+                    command[:defer]&.reject(RuntimeError.new("device offline"))
                     return
                 end
 

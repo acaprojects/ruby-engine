@@ -15,7 +15,7 @@ module Orchestrator
                 raise NOT_IMPLEMENTED
             end
 
-            def update_connected_status(connected); end
+            def update_connected_status; end
             def update_running_status(running); end
             def reloaded(mod, code_update: false); end
 

@@ -75,7 +75,7 @@ module Orchestrator
 
                 # Find will raise a 404 (not found) if there is an error
                 @trigger = TriggerInstance.find(args[:id])
-                unless @trigger.webhook_secret == args[:secret] && @trigger.conditions[0][0] == 'webhook'
+                unless @trigger.enabled && @trigger.webhook_secret == args[:secret] && @trigger.conditions[0][0] == 'webhook'
                     head :not_found
                 end
             end

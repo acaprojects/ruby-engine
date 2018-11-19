@@ -85,6 +85,11 @@ module Orchestrator
                 @defaults = SEND_DEFAULTS.dup
                 @config = CONFIG_DEFAULTS.dup
 
+                # Track the delay timings
+                @last_request = {
+                    delay: 0,
+                    delay_on_receive: 0
+                }
                 @queue = CommandQueue.new(@thread, proc { |c| send_next(c) })
                 @responses = []
                 @wait = false
@@ -409,8 +414,8 @@ module Orchestrator
             # Callback for queued commands
             def send_next(command)
                 # Check for any required delays between sends
-                if command[:delay] > 0
-                    gap = @last_sent_at + command[:delay] - @thread.now
+                if @last_request[:delay] > 0
+                    gap = @last_sent_at + @last_request[:delay] - @thread.now
                     if gap > 0
                         defer = @thread.defer
                         sched = schedule.in(gap) do
@@ -431,8 +436,8 @@ module Orchestrator
 
             def process_send(command)
                 # delay on receive
-                if command[:delay_on_receive] > 0
-                    gap = @last_receive_at + command[:delay_on_receive] - @thread.now
+                if @last_request[:delay_on_receive] > 0
+                    gap = @last_receive_at + @last_request[:delay_on_receive] - @thread.now
 
                     if gap > 0
                         defer = @thread.defer
@@ -454,6 +459,7 @@ module Orchestrator
             end
 
             def transport_send(command)
+                @last_request = command
                 @transport.transmit(command)
                 @last_sent_at = @thread.now
 
