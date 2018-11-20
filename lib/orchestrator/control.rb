@@ -174,7 +174,7 @@ module Orchestrator
                             result.then do |mod|
                                 # Signal the remote node to load this module
                                 mod.remote_node {|proxy| remote.load(mod_id) } if do_proxy
-                                
+
                                 # Expire the system cache
                                 ControlSystem.using_module(id).each do |sys|
                                     expire_cache sys.id, no_update: true
@@ -436,9 +436,8 @@ module Orchestrator
             Thread.new do
                 thread.notifier { |*args| log_unhandled_exception(*args) }
                 thread.run do |thread|
-                    thread.scheduler.every 8000 do
-                        check_threads
-                    end
+                    thread.scheduler.every 8000 { check_threads }
+                    thread.scheduler.every '2h1s' { sync_connected_state }
                 end
             end
             @watchdog = thread
@@ -490,5 +489,12 @@ module Orchestrator
         # =================
         # END WATCHDOG CODE
         # =================
+
+        # Backup code for ensuring metrics is accurate
+        def sync_connected_state
+            @loaded.values.each do |mod|
+                mod.thread.schedule { mod.__send__(:update_connected_status) }
+            end
+        end
     end
 end
