@@ -393,6 +393,7 @@ module Orchestrator
                 thread.notifier { |*args| log_unhandled_exception(*args) }
                 thread.run do |thread|
                     thread.scheduler.every(8000) { check_threads }
+                    thread.scheduler.every('2h1s') { sync_connected_state }
                 end
             end
             @watchdog = thread
@@ -444,5 +445,12 @@ module Orchestrator
         # =================
         # END WATCHDOG CODE
         # =================
+
+        # Backup code for ensuring metrics is accurate
+        def sync_connected_state
+            @loaded.values.each do |mod|
+                mod.thread.schedule { mod.__send__(:update_connected_status) }
+            end
+        end
     end
 end
