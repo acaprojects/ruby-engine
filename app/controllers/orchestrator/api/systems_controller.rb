@@ -112,7 +112,7 @@ module Orchestrator
 
                 # Start all modules in the system
                 @cs.modules.each do |mod_id|
-                    promise = control.start mod_id
+                    promise = control.start(mod_id, system_level: true)
                     loaded << promise
                 end
 
@@ -132,7 +132,7 @@ module Orchestrator
             def stop
                 # Stop all modules in the system (shared or not)
                 @cs.modules.each do |mod_id|
-                    control.stop mod_id
+                    control.stop(mod_id, system_level: true)
                 end
                 head :ok
             end
@@ -280,7 +280,7 @@ module Orchestrator
             # the count of each of those types
             def types
                 sys = System.get(id)
-                
+
                 if sys
                     result = {}
                     mods = sys.modules
@@ -309,7 +309,7 @@ module Orchestrator
                 }
             ]
             # We need to support an arbitrary settings hash so have to
-            # work around safe params as per 
+            # work around safe params as per
             # http://guides.rubyonrails.org/action_controller_overview.html#outside-the-scope-of-strong-parameters
             def safe_params
                 settings = params[:settings]

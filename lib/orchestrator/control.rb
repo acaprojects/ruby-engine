@@ -214,23 +214,27 @@ module Orchestrator
         end
 
         # Starts a module running
-        def start(mod_id, do_proxy = true)
+        def start(mod_id, do_proxy = true, system_level: false)
             defer = @reactor.defer
 
             # No need to proxy this load as the remote will load
             # when it runs start
             loading = load(mod_id, false)
             loading.then do |mod|
-                if do_proxy
-                    mod.remote_node do |remote|
-                        @reactor.schedule do
-                            remote.start mod_id
+                if !system_level || (system_level && !mod.ignore_startstop)
+                    if do_proxy
+                        mod.remote_node do |remote|
+                            @reactor.schedule do
+                                remote.start mod_id
+                            end
                         end
                     end
-                end
 
-                mod.thread.schedule do
-                    defer.resolve(mod.start)
+                    mod.thread.schedule do
+                        defer.resolve(mod.start)
+                    end
+                else
+                    defer.resolve true
                 end
             end
             loading.catch do |err|
@@ -243,22 +247,26 @@ module Orchestrator
         end
 
         # Stops a module running
-        def stop(mod_id, do_proxy = true)
+        def stop(mod_id, do_proxy = true, system_level: false)
             defer = @reactor.defer
 
             mod = loaded? mod_id
             if mod
-                if do_proxy
-                    mod.remote_node do |remote|
-                        @reactor.schedule do
-                            remote.stop mod_id
+                if !system_level || (system_level && !mod.ignore_startstop)
+                    if do_proxy
+                        mod.remote_node do |remote|
+                            @reactor.schedule do
+                                remote.stop mod_id
+                            end
                         end
                     end
-                end
 
-                mod.thread.schedule do
-                    mod.stop
-                    defer.resolve(mod)
+                    mod.thread.schedule do
+                        mod.stop
+                        defer.resolve(mod)
+                    end
+                else
+                    defer.resolve mod
                 end
             else
                 err = Error::ModuleNotFound.new "unable to stop module '#{mod_id}', might not be loaded"
