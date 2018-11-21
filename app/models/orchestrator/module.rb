@@ -44,6 +44,7 @@ module Orchestrator
         # Don't include this module in statistics or disconnected searches
         # Might be a device that commonly goes offline (like a PC or Display that only supports Wake on Lan)
         attribute :ignore_connected, type: Boolean, default: false
+        attribute :ignore_startstop, type: Boolean, default: false
 
 
         # helper method for looking up the manager
@@ -157,7 +158,7 @@ module Orchestrator
         before_destroy :unload_module
         def unload_module
             ::Orchestrator::Control.instance.unload(self.id)
-            
+
             # Find all the systems with this module ID and remove it
             self.systems.each do |cs|
                 cs.modules.delete(self.id)
