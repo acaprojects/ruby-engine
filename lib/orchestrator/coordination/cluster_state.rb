@@ -24,7 +24,6 @@ class Orchestrator::ClusterState
 
         @cluster_version = BOOT_VERSION
         @server_ready = {} # tracks the loaded servers for a cluster version
-        @redis = ::Orchestrator::RedisStatus.instance
         @control = ::Orchestrator::Control.instance
 
         # Allow other nodes to connect to this server
@@ -37,9 +36,15 @@ class Orchestrator::ClusterState
 
     attr_reader :node_count, :cluster_version
 
+    def redis
+        @redis ||= ::Orchestrator::RedisStatus.instance
+    end
+
     def new_node_list(nodes, seed)
         @cache = ::Concurrent::Map.new
         @control.reactor.schedule { @control.reset_ready }
+
+
 
         @lock.synchronize do
             @rendezvous = ::Clandestined::RendezvousHash.new(nodes, seed)
@@ -52,11 +57,11 @@ class Orchestrator::ClusterState
                 @cluster_version = "#{@node_count}\x02#{(Time.now.to_f * 1000).to_i}"
                 @server_ready.delete(old_version)
                 @server_ready[@cluster_version] = []
-                @redis.notify_new_version(@cluster_version)
+                redis.notify_new_version(@cluster_version)
             end
 
             # disconnect from remote nodes
-            @connections.each |remote, connection|
+            @connections.each do |remote, connection|
                 connection.close_connection
             end
             @connections = {}
@@ -112,8 +117,8 @@ class Orchestrator::ClusterState
     def signal_ready(count)
         @lock.synchronize {
             @loaded_count = count
-            @servers_ready[@cluster_version] << @redis.server_id
-            @redis.notify_load_complete(count) if count == @node_count
+            @servers_ready[@cluster_version] << redis.server_id
+            redis.notify_load_complete(count) if count == @node_count
             check_cluster_ready
         }
     end
@@ -131,7 +136,7 @@ class Orchestrator::ClusterState
 
             # check if processing has already completed
             # (this is very unlikely but we want to safe)
-            @redis.notify_load_complete(new_count) if new_count == @loaded_count
+            redis.notify_load_complete(new_count) if new_count == @loaded_count
         }
     end
 
@@ -148,7 +153,7 @@ class Orchestrator::ClusterState
     # Always called from within a lock.
     def check_cluster_ready
         if @servers_ready[@cluster_version].length == @node_count
-            @redis.notify_cluster_ready(@cluster_version)
+            redis.notify_cluster_ready(@cluster_version)
             # execute on load callbacks internally
             ::Orchestrator::Cache.instance.clear
             @control.ready_defer.resolve(true)

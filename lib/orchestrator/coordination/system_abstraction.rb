@@ -35,7 +35,7 @@ class Orchestrator::SystemAbstraction
 
     def all(mod)
         # We use the array helper here as to prevent returning nil
-        ::Array(@modules[mod])
+        Array(@modules[mod])
     end
 
     def count(name)

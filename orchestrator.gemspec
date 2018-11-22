@@ -19,6 +19,8 @@ Gem::Specification.new do |s|
     s.add_dependency 'rails',   '~> 5.2'    # Web framework
     s.add_dependency 'libuv',   '~> 4.1'    # High performance IO reactor for ruby
     s.add_dependency 'oauth',   '~> 0.5'    # OAuth protocol support
+    s.add_dependency 'redis',   '~> 4.0'    # Redis database stores module state
+    s.add_dependency 'hiredis', '~> 0.6'    # Improved redis performance
     s.add_dependency 'xorcist', '~> 1.1'    # Inproves string XOR speed for netsnmp
     s.add_dependency 'netsnmp', '~> 0.1'    # SNMP protocol support
     s.add_dependency 'uv-rays', '~> 2.4'    # Evented networking library
@@ -26,6 +28,7 @@ Gem::Specification.new do |s|
     s.add_dependency 'algorithms',   '~> 0.6'     # Priority queue
     s.add_dependency 'addressable',  '~> 2.5'     # IP address utilities
     s.add_dependency 'evented-ssh',  '~> 0.1'     # SSH protocol support
+    s.add_dependency 'clandestined', '~> 1.0'     # Consistent hashing
     s.add_dependency 'couchbase-orm','~> 1.1'     # Database adaptor
     s.add_dependency 'spider-gazelle',   '~> 3.1' # RACK Webserver
     s.add_dependency 'co-elastic-query', '~> 3.1' # Query builder

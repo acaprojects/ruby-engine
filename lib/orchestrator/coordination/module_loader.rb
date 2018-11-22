@@ -289,13 +289,13 @@ class Orchestrator::ModuleLoader
     end
 
     def start_statistics
-        next if @statistics
+        return if @statistics
         @statistics = @reactor.scheduler.every('5m') { save_statistics }
         @logger.warn "init: collecting statistics"
     end
 
     def stop_statistics
-        next if @statistics.nil?
+        return if @statistics.nil?
         @statistics.cancel
         @statistics = nil
         @logger.warn "stop: collecting statistics"

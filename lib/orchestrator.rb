@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+module Orchestrator
+end
+
 # Gems
 require 'uv-rays'
 require 'co-elastic-query'
@@ -13,6 +16,16 @@ require 'orchestrator/utilities/constants'      # constants for readable code
 require 'orchestrator/utilities/security'       # helper methods for protecting code access
 require 'orchestrator/utilities/state_binder'   # convenience method for linking state between modules
 
+# System Main
+require 'orchestrator/dependency_manager'   # Manages code loading
+require 'orchestrator/websocket_manager'    # Websocket interface
+require 'orchestrator/datagram_server'      # UDP abstraction management
+require 'orchestrator/encryption'           # For storing sensitive information in the database
+require 'orchestrator/control'              # Module control and system loader
+require 'orchestrator/version'              # orchestrator version
+require 'orchestrator/logger'               # Logs events of interest as well as coordinating live log feedback
+require 'orchestrator/errors'               # A list of errors that can occur within the system
+
 # Cluster coordination primitives
 require 'orchestrator/coordination/system_abstraction'  # This is the virtual system representation
 require 'orchestrator/coordination/cache'               # All caches work in the same way
@@ -24,16 +37,6 @@ require 'orchestrator/coordination/subscriptions'       # Tracks the mapping of 
 require 'orchestrator/coordination/redis_status'        # Provides distributed status storage
 require 'orchestrator/coordination/module_loader'       # Ensures the current cluster state is implemented
 require 'orchestrator/coordination/cluster_state'       # Tracks cluster state changes
-
-# System Main
-require 'orchestrator/dependency_manager'   # Manages code loading
-require 'orchestrator/websocket_manager'    # Websocket interface
-require 'orchestrator/datagram_server'      # UDP abstraction management
-require 'orchestrator/encryption'           # For storing sensitive information in the database
-require 'orchestrator/control'              # Module control and system loader
-require 'orchestrator/version'              # orchestrator version
-require 'orchestrator/logger'               # Logs events of interest as well as coordinating live log feedback
-require 'orchestrator/errors'               # A list of errors that can occur within the system
 
 # Core Abstractions
 require 'orchestrator/core/module_manager'  # Base class of logic, device and service managers
@@ -77,7 +80,3 @@ require 'orchestrator/remote/proxy'
 require 'orchestrator/remote/edge'
 require 'orchestrator/remote/master'
 require 'orchestrator/remote/manager'
-
-
-module Orchestrator
-end
