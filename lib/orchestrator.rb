@@ -9,6 +9,7 @@ require 'co-elastic-query'
 require 'couchbase-orm'
 require 'orchestrator/engine'
 require 'coauth'
+require 'spider-gazelle'
 
 # Optional utility modules
 require 'orchestrator/utilities/transcoder'     # functions for data manipulation
@@ -25,18 +26,6 @@ require 'orchestrator/control'              # Module control and system loader
 require 'orchestrator/version'              # orchestrator version
 require 'orchestrator/logger'               # Logs events of interest as well as coordinating live log feedback
 require 'orchestrator/errors'               # A list of errors that can occur within the system
-
-# Cluster coordination primitives
-require 'orchestrator/coordination/system_abstraction'  # This is the virtual system representation
-require 'orchestrator/coordination/cache'               # All caches work in the same way
-require 'orchestrator/coordination/zone_cache'          # Caches pre-decrypt sensitive information
-require 'orchestrator/coordination/system_cache'
-require 'orchestrator/coordination/dependency_cache'
-require 'orchestrator/coordination/subscribers'         # The callbacks watching a status variable
-require 'orchestrator/coordination/subscriptions'       # Tracks the mapping of system layout to subscribers
-require 'orchestrator/coordination/redis_status'        # Provides distributed status storage
-require 'orchestrator/coordination/module_loader'       # Ensures the current cluster state is implemented
-require 'orchestrator/coordination/cluster_state'       # Tracks cluster state changes
 
 # Core Abstractions
 require 'orchestrator/core/module_manager'  # Base class of logic, device and service managers
@@ -80,3 +69,15 @@ require 'orchestrator/remote/proxy'
 require 'orchestrator/remote/edge'
 require 'orchestrator/remote/master'
 require 'orchestrator/remote/manager'
+
+# Cluster coordination primitives
+require 'orchestrator/coordination/system_abstraction'  # This is the virtual system representation
+require 'orchestrator/coordination/cache'               # All caches work in the same way
+require 'orchestrator/coordination/zone_cache'          # Caches pre-decrypt sensitive information
+require 'orchestrator/coordination/system_cache'
+require 'orchestrator/coordination/dependency_cache'
+require 'orchestrator/coordination/subscribers'         # The callbacks watching a status variable
+require 'orchestrator/coordination/subscriptions'       # Tracks the mapping of system layout to subscribers
+require 'orchestrator/coordination/redis_status'        # Provides distributed status storage
+require 'orchestrator/coordination/module_loader'       # Ensures the current cluster state is implemented
+require 'orchestrator/coordination/cluster_state'       # Tracks cluster state changes

@@ -1,3 +1,4 @@
+# encoding: ASCII-8BIT
 # frozen_string_literal: true
 
 require 'radix/base'
@@ -334,7 +335,7 @@ module Orchestrator
                         msg.id = id
                         @sent[id] = defer
                         output = Marshal.dump(msg)
-                        @tcp.write "#{output}\x00\x00\x00\x03"
+                        @tcp.write "#{[output.length].pack('V')}#{output}"
                     rescue => e
                         @sent.delete id
                         defer.reject e
@@ -345,7 +346,7 @@ module Orchestrator
 
             def send_direct(msg)
                 output = Marshal.dump(msg)
-                @tcp.write "#{output}\x00\x00\x00\x03"
+                @tcp.write "#{[output.length].pack('V')}#{output}"
             rescue => e
                 # TODO:: use proper logger
                 puts "Error requesting message: #{msg.inspect}\n#{e.message}\n#{e.backtrace.join("\n")}"
@@ -375,7 +376,7 @@ module Orchestrator
                 end
 
                 @thread.schedule {
-                    @tcp.write "#{output}\x00\x00\x00\x03"
+                    @tcp.write "#{[output.length].pack('V')}#{output}"
                 }
             end
 
@@ -394,7 +395,7 @@ module Orchestrator
                 end
 
                 @thread.schedule {
-                    @tcp.write "#{output}\x00\x00\x00\x03"
+                    @tcp.write "#{[output.length].pack('V')}#{output}"
                 }
             end
         end

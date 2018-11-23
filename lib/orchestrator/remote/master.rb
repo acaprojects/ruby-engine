@@ -1,3 +1,4 @@
+# encoding: ASCII-8BIT
 # frozen_string_literal: true
 
 require 'uv-rays'
@@ -6,19 +7,26 @@ require 'set'
 
 module Orchestrator
     module Remote
-        Connection = Struct.new(:tokeniser, :edge, :parser, :node_id, :timeout, :io, :poll) do
+        Connection = Struct.new(:tokeniser, :parser, :node_id, :timeout, :io, :poll) do
             def validated?
                 !!self.node_id
             end
         end
 
         ParserSettings = {
-            delimiter: "\x00\x00\x00\x03"
+            callback: lambda do |byte_str|
+                return false if byte_str.bytesize < 4
+                length = byte_str[0...4].unpack('V')[0] + 4
+                return length if byte_str.length >= length
+                false
+            end
         }
+
+        PING = "#{[1].pack('V')}p"
 
         class Master
 
-            def initialize
+            def initialize(node_id)
                 @thread = ::Libuv::Reactor.default
                 @logger = ::SpiderGazelle::Logger.instance
                 @ctrl = ::Orchestrator::Control.instance
@@ -28,9 +36,10 @@ module Orchestrator
                 @connections = {}
                 @connected_to = Set.new
 
-                @node = @ctrl.nodes[NodeId]
+                @node_id = node_id
+                @bind, @port = THIS_NODE.split(':')
+                @port = @port.to_i
 
-                init_node_states
                 start_server
             end
 
@@ -41,14 +50,14 @@ module Orchestrator
             def start_server
                 # Bind the socket
                 @tcp = @thread.tcp
-                        .bind('0.0.0.0', @node.server_port) { |client| new_connection(client) }
+                        .bind(@bind, @port) { |client| new_connection(client) }
                         .listen(64) # smallish backlog is all we need
 
                 @tcp.catch do |error|
                     @logger.print_error(error, "Remote binding error")
                 end
 
-                @logger.info "Node server on tcp://0.0.0.0:#{@node.server_port}"
+                @logger.info "Node server on tcp://#{@node_id}"
             end
 
             def new_connection(client)
@@ -60,12 +69,12 @@ module Orchestrator
                     # Shutdown connection if validation doesn't occur within 15 seconds
                     client.close
                 end
-                connection.tokeniser = ::UV::BufferedTokenizer.new(ParserSettings)
+                connection.tokeniser = ::UV::AbstractTokenizer.new(ParserSettings)
                 connection.io = client
 
                 # Ping
                 connection.poll = @thread.scheduler.every(20000) do
-                    client.write "p\x00\x00\x00\x03"
+                    client.write PING
                 end
 
                 # Hook up the connection callbacks
@@ -76,25 +85,15 @@ module Orchestrator
 
                 client.finally do
                     @connections.delete client.object_id
+                    @connected_to.delete connection.node_id
+                    connection.timeout.cancel if !connection.validated?
                     connection.poll.cancel
-
-                    if connection.validated?
-                        edge = @ctrl.nodes[connection.node_id]
-
-                        # We may not have noticed the disconnect
-                        if edge.proxy == connection.parser
-                            edge.slave_disconnected
-                            @connected_to.delete connection.node_id
-                        end
-                    else
-                        connection.timeout.cancel
-                    end
                 end
 
                 client.progress do |data, client|
                     connection = @connections[client.object_id]
                     connection.tokeniser.extract(data).each do |msg|
-                        process connection, msg
+                        process connection, msg[4..-1]
                     end
                 end
 
@@ -105,7 +104,8 @@ module Orchestrator
 
             def process(connection, msg)
                 # Connection Maintenance
-                return if msg[0] == 'p'
+                return if msg[4] == 'p'
+                msg = msg[4..-1]
 
                 if connection.validated?
                     begin
@@ -115,33 +115,23 @@ module Orchestrator
                     end
                 else
                     begin
-                        # Will send an auth message: node_id password
-                        node_str, start_times, pass = msg.split(' ')
-                        node_id = node_str.to_sym
-                        start_time = start_times.to_i
-                        edge = @ctrl.nodes[node_id]
+                        # Will send an auth message: hello version node_id
+                        _, version, node = msg.split(' ')
 
-                        if edge.password == pass
+                        if version[0] == '1'
                             connection.timeout.cancel
                             connection.timeout = nil
-                            connection.node_id = node_id
+                            connection.node_id = node
                             connection.parser = Proxy.new(@ctrl, @dep_man, connection.io)
-                            connection.edge = edge
 
                             # Provide the edge node with our failover data
-                            if edge.is_failover_host && edge.host_active?
-                                connection.io.write "hello #{@node.password} #{edge.failover_time}\x00\x00\x00\x03"
-                            else
-                                connection.io.write "hello #{@node.password}\x00\x00\x00\x03"
-                            end
-                            @connected_to << node_id
-
-                            # this is the edge control model
-                            edge.slave_connected connection.parser, start_time
+                            output = "hello 1.0 #{@node}"
+                            connection.io.write("#{[output.length].pack('V')}#{output}")
+                            @connected_to << node
                         else
                             ip, _ = connection.io.peername
                             connection.io.close
-                            @logger.warn "Connection from #{ip} was closed due to bad credentials: #{edge.password} !== #{pass}"
+                            @logger.warn "Connection from #{ip} was closed due to bad credentials: #{msg}"
                         end
                     rescue => e
                         ip, _ = connection.io.peername
