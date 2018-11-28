@@ -11,6 +11,10 @@ module Orchestrator
     class Engine < ::Rails::Engine
         isolate_namespace Orchestrator
 
+        # Don't buffer std outs
+        STDOUT.sync = true
+        STDERR.sync = true
+
         #
         # Define the application configuration
         #

@@ -26,6 +26,7 @@ Gem::Specification.new do |s|
     s.add_dependency 'uv-rays', '~> 2.4'    # Evented networking library
     s.add_dependency 'yajl-ruby',    '~> 1.4'     # Improved JSON processing
     s.add_dependency 'algorithms',   '~> 0.6'     # Priority queue
+    s.add_dependency 'mono_logger',  '~> 1.1'     # Lock free logging
     s.add_dependency 'addressable',  '~> 2.5'     # IP address utilities
     s.add_dependency 'evented-ssh',  '~> 0.1'     # SSH protocol support
     s.add_dependency 'clandestined', '~> 1.0'     # Consistent hashing
