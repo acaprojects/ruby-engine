@@ -46,7 +46,7 @@ module Orchestrator::Testing
                 dep.name = config[:name] || 'unnamed device'
                 dep.role = role
                 dep.class_name = klass_name.to_s
-                dep.module_name = 'Testing' || config[:module_name]
+                dep.module_name = config[:module_name] || 'Testing'
 
                 mod = ::Orchestrator::Module.new
                 mod.dependency = dep
@@ -180,7 +180,7 @@ class Orchestrator::Testing::MockDevice
     # NOTE:: This is currently destructive! Probably don't use unless debugging
     def print_queues
         msg = String.new "sent items are #{@manager.connection.outgoing.inspect}\n"
-        
+
         waiting = @manager.processor.queue.waiting
 
         cmd_inspect = proc { |cmd|
