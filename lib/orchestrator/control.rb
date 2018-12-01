@@ -219,7 +219,9 @@ module Orchestrator
             # when it runs start
             loading = load(mod_id, false)
             loading.then do |mod|
-                if !system_level || (system_level && !mod.ignore_startstop)
+                if system_level && mod.settings.ignore_startstop
+                    defer.resolve true
+                else
                     if do_proxy
                         mod.remote_node do |remote|
                             @reactor.schedule do
@@ -231,8 +233,6 @@ module Orchestrator
                     mod.thread.schedule do
                         defer.resolve(mod.start)
                     end
-                else
-                    defer.resolve true
                 end
             end
             loading.catch do |err|
@@ -250,7 +250,9 @@ module Orchestrator
 
             mod = loaded? mod_id
             if mod
-                if !system_level || (system_level && !mod.ignore_startstop)
+                if system_level && mod.settings.ignore_startstop
+                    defer.resolve mod
+                else
                     if do_proxy
                         mod.remote_node do |remote|
                             @reactor.schedule do
@@ -263,8 +265,6 @@ module Orchestrator
                         mod.stop
                         defer.resolve(mod)
                     end
-                else
-                    defer.resolve mod
                 end
             else
                 err = Error::ModuleNotFound.new "unable to stop module '#{mod_id}', might not be loaded"
