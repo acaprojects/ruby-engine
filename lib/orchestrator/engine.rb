@@ -23,6 +23,7 @@ module Orchestrator
             #app.config.orchestrator.clearance_levels = Set.new([:Admin, :Support, :User, :Public])
             STDOUT.sync = true
             STDERR.sync = true
+            ::SpiderGazelle::Spider.instance.delay_port_binding
 
             # Access checking callback - used at the system level
             # Will always be passed a system id and the user attempting to access
