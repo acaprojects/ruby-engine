@@ -403,7 +403,7 @@ module Orchestrator
                 logger.debug 'init: Init complete'
 
                 # Ensure engine is completely loaded before accepting TCP connections
-                @ready_defer.resolve(true).then do
+                @ready_defer.resolve(true).promise.then do
                     delay = (ENV['DELAY_PORT_BINDING'] || 2000).to_i
                     @reactor.scheduler.in(delay) { @server.bind_application_ports }
                 end

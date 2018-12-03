@@ -3,6 +3,8 @@
 require 'set'
 require 'mono_logger'
 require 'active_support/all'
+require 'spider-gazelle'
+require 'spider-gazelle/spider'
 
 module Orchestrator
     class Engine < ::Rails::Engine
