@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'set'
+require 'mono_logger'
 require 'active_support/all'
 
 module Orchestrator
@@ -20,6 +21,8 @@ module Orchestrator
 
             # Clearance levels defined in code
             #app.config.orchestrator.clearance_levels = Set.new([:Admin, :Support, :User, :Public])
+            STDOUT.sync = true
+            STDERR.sync = true
 
             # Access checking callback - used at the system level
             # Will always be passed a system id and the user attempting to access

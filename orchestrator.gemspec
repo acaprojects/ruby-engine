@@ -22,6 +22,7 @@ Gem::Specification.new do |s|
     s.add_dependency 'xorcist', '~> 1.0'    # Inproves string XOR speed for netsnmp
     s.add_dependency 'netsnmp', '~> 0.1'    # SNMP protocol support
     s.add_dependency 'uv-rays', '~> 2.0'    # Evented networking library
+    s.add_dependency 'mono_logger', '~> 1.1'      # Lockless logging
     s.add_dependency 'addressable',  '~> 2.4'     # IP address utilities
     s.add_dependency 'algorithms',   '~> 0.6'     # Priority queue
     s.add_dependency 'evented-ssh',  '~> 0'       # SSH protocol support

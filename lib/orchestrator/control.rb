@@ -38,7 +38,7 @@ module Orchestrator
                 @ready = true
             end
 
-            logger = ::Logger.new(STDOUT)
+            logger = ::MonoLogger.new(STDOUT)
             logger.formatter = proc { |severity, datetime, progname, msg|
                 "#{datetime.strftime("%d/%m/%Y @ %I:%M%p")} #{severity}: #{msg}\n"
             }
