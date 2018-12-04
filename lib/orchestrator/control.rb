@@ -61,7 +61,7 @@ module Orchestrator
 
                 # 5min fail safe check to ensure system has booted.
                 # Couchbase sometimes never responds when it is booting.
-                @reactor.scheduler.in('5m') do
+                @reactor.scheduler.in('20m') do
                     if not @ready
                         STDERR.puts "\n\nSYSTEM BOOT FAILURE:\n\n"
                         dump_thread_backtraces
@@ -400,12 +400,15 @@ module Orchestrator
                     end
                 end
 
-                logger.debug 'init: Init complete'
+                logger.debug 'init: engine load complete'
 
                 # Ensure engine is completely loaded before accepting TCP connections
                 @ready_defer.resolve(true).promise.then do
                     delay = (ENV['DELAY_PORT_BINDING'] || 2000).to_i
-                    @reactor.scheduler.in(delay) { @server.bind_application_ports }
+                    @reactor.scheduler.in(delay) do
+                        logger.debug 'init: Init complete, opening ports'
+                        @server.bind_application_ports
+                    end
                 end
             end
         end
