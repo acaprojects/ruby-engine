@@ -300,7 +300,7 @@ module Orchestrator
 
             # Modules are not start until boot is complete
             promises = []
-            modules.stream do |mod|
+            modules.each do |mod|
                 promises << load(mod)
             end
 
@@ -521,7 +521,7 @@ module Orchestrator
 
             # these are invisible to the system - never make it into the system cache
             wait_loading = []
-            ControlSystem.on_node(self.id).stream do |sys|
+            ControlSystem.on_node(self.id).each do |sys|
                 prom = load_triggers_for sys
                 wait_loading << prom if prom
             end
