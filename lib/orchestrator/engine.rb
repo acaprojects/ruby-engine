@@ -85,7 +85,9 @@ module Orchestrator
             end
 
             # Don't auto-load if running in the console or as a rake task
-            unless ENV['ORC_NO_BOOT'] || defined?(Rails::Console) || Rails.env.test? || defined?(::Rake::Task)
+            if ENV['ORC_NO_BOOT'] || defined?(Rails::Console) || Rails.env.test? || defined?(::Rake::Task)
+                ::SpiderGazelle::Spider.instance.bind_application_ports
+            else
                 ctrl.reactor.next_tick do
                     begin
                         ctrl.mount.then { ctrl.boot }
