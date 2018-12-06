@@ -484,17 +484,23 @@ module Orchestrator
             self.master_id
         end
 
+        BATCH_LOAD_SIZE = (ENV['BATCH_LOAD_SIZE'] || 200).to_i
+        BATCH_LOAD_DELAY = (ENV['BATCH_LOAD_DELAY'] || 4000).to_i
+
         # Used to stagger the starting of different types of modules
         def wait_start(modules)
             starting = []
 
-            modules.each do |mod_man|
-                defer = @thread.defer
-                starting << defer.promise
-                mod_man.thread.schedule do
-                    mod_man.start_local
-                    defer.resolve(true)
+            modules.each_slice(BATCH_LOAD_SIZE) do |batch|
+                batch.each do |mod_man|
+                    defer = @thread.defer
+                    starting << defer.promise
+                    mod_man.thread.schedule do
+                        mod_man.start_local
+                        defer.resolve(true)
+                    end
                 end
+                reactor.scheduler.in(BATCH_LOAD_DELAY) { true }.value
             end
 
             # Once load is complete we'll accept websockets
