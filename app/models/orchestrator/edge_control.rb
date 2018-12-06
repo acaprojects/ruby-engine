@@ -500,7 +500,7 @@ module Orchestrator
                         defer.resolve(true)
                     end
                 end
-                reactor.scheduler.in(BATCH_LOAD_DELAY) { true }.value
+                reactor.scheduler.in((BATCH_LOAD_DELAY * (batch.size.to_f / BATCH_LOAD_SIZE.to_f)).to_i) { true }.value
             end
 
             # Once load is complete we'll accept websockets
