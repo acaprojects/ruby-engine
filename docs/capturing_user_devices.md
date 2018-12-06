@@ -11,7 +11,7 @@ For grabbing user device details that are interacting with the domain controller
 This grabs one minutes worth of details and should be run once a minute.
 
 * [Event result code details](https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventID=4768)
-* [Event details](https://docs.microsoft.com/en-us/windows/device-security/auditing/event-4768)
+* [Event details](https://docs.microsoft.com/en-us/windows/security/threat-protection/auditing/event-4768)
 
 ```powershell
 # Required for reliable Resolve-DnsName.
