@@ -164,7 +164,7 @@ module Orchestrator
                 result = mod.method_missing(para[:method], *para[:args])
 
                 # timeout in case message is queued
-                timeout = reactor.scheduler.in(5000) do
+                timeout = reactor.scheduler.in(15000) do
                     defer.resolve('Wait time exceeded. Command may have been queued.')
                 end
 
