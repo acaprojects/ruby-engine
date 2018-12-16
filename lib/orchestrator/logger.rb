@@ -96,7 +96,7 @@ module Orchestrator
         def <<(message)
             info(message)
         end
-       
+
         def debug(progname = nil)
             return true if ::Logger::DEBUG < @level
             if block_given?
@@ -199,6 +199,7 @@ module Orchestrator
 
         if ::Rails.env.production?
             def log(level, msg, progname)
+                return unless @listeners.size > 0 || level > ::Logger::INFO
                 return print_error(msg) if msg.is_a?(::Exception)
                 msg = msg.inspect unless msg.is_a?(::String)
 
@@ -207,17 +208,6 @@ module Orchestrator
                 msg = "(#{user}) #{msg}" if user
 
                 @reactor.schedule do
-                    # Writing to STDOUT is blocking hence doing this in a worker thread
-                    # http://nodejs.org/dist/v0.10.26/docs/api/process.html#process_process_stdout
-                    if level > ::Logger::INFO
-                        # We never write debug or info logs to disk
-                        @reactor.work do
-                            @logger.tagged(*tags) {
-                                @logger.add(level, msg, progname)
-                            }
-                        end
-                    end
-
                     # Listeners are any attached remote debuggers
                     if @listeners.size > 0
                         lname = level_name(level)
@@ -228,6 +218,16 @@ module Orchestrator
                                 @logger.error "logging to remote #{listener}\n#{e.message}\n#{e.backtrace.join("\n")}"
                             end
                         end
+                    end
+
+                    # Writing to STDOUT can be blocking
+                    # http://nodejs.org/dist/v0.10.26/docs/api/process.html#process_process_stdout
+                    # Overhead is less than scheduling the work to occur in the thread pool
+                    if level > ::Logger::INFO
+                        # We never write debug or info logs to disk
+                        @logger.tagged(*tags) {
+                            @logger.add(level, msg, progname)
+                        }
                     end
                 end
             end

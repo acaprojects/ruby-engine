@@ -1,7 +1,10 @@
 # frozen_string_literal: true
 
 require 'set'
+require 'mono_logger'
 require 'active_support/all'
+require 'spider-gazelle'
+require 'spider-gazelle/spider'
 
 module Orchestrator
     class Engine < ::Rails::Engine
@@ -20,6 +23,9 @@ module Orchestrator
 
             # Clearance levels defined in code
             #app.config.orchestrator.clearance_levels = Set.new([:Admin, :Support, :User, :Public])
+            STDOUT.sync = true
+            STDERR.sync = true
+            ::SpiderGazelle::Spider.instance.delay_port_binding
 
             # Access checking callback - used at the system level
             # Will always be passed a system id and the user attempting to access
@@ -79,7 +85,9 @@ module Orchestrator
             end
 
             # Don't auto-load if running in the console or as a rake task
-            unless ENV['ORC_NO_BOOT'] || defined?(Rails::Console) || Rails.env.test? || defined?(::Rake::Task)
+            if ENV['ORC_NO_BOOT'] || defined?(Rails::Console) || Rails.env.test? || defined?(::Rake::Task)
+                ::SpiderGazelle::Spider.instance.bind_application_ports
+            else
                 ctrl.reactor.next_tick do
                     begin
                         ctrl.mount.then { ctrl.boot }

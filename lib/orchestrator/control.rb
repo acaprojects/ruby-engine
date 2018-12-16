@@ -38,7 +38,7 @@ module Orchestrator
                 @ready = true
             end
 
-            logger = ::Logger.new(STDOUT)
+            logger = ::MonoLogger.new(STDOUT)
             logger.formatter = proc { |severity, datetime, progname, msg|
                 "#{datetime.strftime("%d/%m/%Y @ %I:%M%p")} #{severity}: #{msg}\n"
             }
@@ -61,7 +61,7 @@ module Orchestrator
 
                 # 5min fail safe check to ensure system has booted.
                 # Couchbase sometimes never responds when it is booting.
-                @reactor.scheduler.in('5m') do
+                @reactor.scheduler.in('20m') do
                     if not @ready
                         STDERR.puts "\n\nSYSTEM BOOT FAILURE:\n\n"
                         dump_thread_backtraces
@@ -174,7 +174,7 @@ module Orchestrator
                             result.then do |mod|
                                 # Signal the remote node to load this module
                                 mod.remote_node {|proxy| remote.load(mod_id) } if do_proxy
-                                
+
                                 # Expire the system cache
                                 ControlSystem.using_module(id).each do |sys|
                                     expire_cache sys.id, no_update: true
@@ -212,23 +212,27 @@ module Orchestrator
         end
 
         # Starts a module running
-        def start(mod_id, do_proxy = true)
+        def start(mod_id, do_proxy = true, system_level: false)
             defer = @reactor.defer
 
             # No need to proxy this load as the remote will load
             # when it runs start
             loading = load(mod_id, false)
             loading.then do |mod|
-                if do_proxy
-                    mod.remote_node do |remote|
-                        @reactor.schedule do
-                            remote.start mod_id
+                if system_level && mod.settings.ignore_startstop
+                    defer.resolve true
+                else
+                    if do_proxy
+                        mod.remote_node do |remote|
+                            @reactor.schedule do
+                                remote.start mod_id
+                            end
                         end
                     end
-                end
 
-                mod.thread.schedule do
-                    defer.resolve(mod.start)
+                    mod.thread.schedule do
+                        defer.resolve(mod.start)
+                    end
                 end
             end
             loading.catch do |err|
@@ -241,22 +245,26 @@ module Orchestrator
         end
 
         # Stops a module running
-        def stop(mod_id, do_proxy = true)
+        def stop(mod_id, do_proxy = true, system_level: false)
             defer = @reactor.defer
 
             mod = loaded? mod_id
             if mod
-                if do_proxy
-                    mod.remote_node do |remote|
-                        @reactor.schedule do
-                            remote.stop mod_id
+                if system_level && mod.settings.ignore_startstop
+                    defer.resolve mod
+                else
+                    if do_proxy
+                        mod.remote_node do |remote|
+                            @reactor.schedule do
+                                remote.stop mod_id
+                            end
                         end
                     end
-                end
 
-                mod.thread.schedule do
-                    mod.stop
-                    defer.resolve(mod)
+                    mod.thread.schedule do
+                        mod.stop
+                        defer.resolve(mod)
+                    end
                 end
             else
                 err = Error::ModuleNotFound.new "unable to stop module '#{mod_id}', might not be loaded"
@@ -392,8 +400,16 @@ module Orchestrator
                     end
                 end
 
-                logger.debug 'init: Init complete'
-                @ready_defer.resolve(true)
+                logger.debug 'init: engine load complete'
+
+                # Ensure engine is completely loaded before accepting TCP connections
+                @ready_defer.resolve(true).promise.then do
+                    delay = (ENV['DELAY_PORT_BINDING'] || 2000).to_i
+                    @reactor.scheduler.in(delay) do
+                        logger.debug 'init: Init complete, opening ports'
+                        @server.bind_application_ports
+                    end
+                end
             end
         end
 
@@ -419,7 +435,7 @@ module Orchestrator
         def attach_watchdog(thread)
             @last_seen[thread] = @watchdog.now
 
-            thread.scheduler.every 3000 do
+            thread.scheduler.every 8000 do
                 @last_seen[thread] = @watchdog.now
             end
         end
@@ -436,9 +452,8 @@ module Orchestrator
             Thread.new do
                 thread.notifier { |*args| log_unhandled_exception(*args) }
                 thread.run do |thread|
-                    thread.scheduler.every 8000 do
-                        check_threads
-                    end
+                    thread.scheduler.every(20000) { check_threads }
+                    thread.scheduler.every('2h1s') { sync_connected_state }
                 end
             end
             @watchdog = thread
@@ -452,10 +467,10 @@ module Orchestrator
             @threads.each do |thread|
                 difference = now - (@last_seen[thread] || 0)
 
-                if difference > 30000
+                if difference > 40000
                     should_kill = true
                     watching = Rails.env.production?
-                elsif difference > 12000
+                elsif difference > 20000
                     watching = true
                 end
             end
@@ -490,5 +505,12 @@ module Orchestrator
         # =================
         # END WATCHDOG CODE
         # =================
+
+        # Backup code for ensuring metrics is accurate
+        def sync_connected_state
+            @loaded.values.each do |mod|
+                mod.thread.schedule { mod.__send__(:update_connected_status) }
+            end
+        end
     end
 end

@@ -300,7 +300,7 @@ module Orchestrator
 
             # Modules are not start until boot is complete
             promises = []
-            modules.stream do |mod|
+            modules.each do |mod|
                 promises << load(mod)
             end
 
@@ -484,17 +484,23 @@ module Orchestrator
             self.master_id
         end
 
+        BATCH_LOAD_SIZE = (ENV['BATCH_LOAD_SIZE'] || 200).to_i
+        BATCH_LOAD_DELAY = (ENV['BATCH_LOAD_DELAY'] || 4000).to_i
+
         # Used to stagger the starting of different types of modules
         def wait_start(modules)
             starting = []
 
-            modules.each do |mod_man|
-                defer = @thread.defer
-                starting << defer.promise
-                mod_man.thread.schedule do
-                    mod_man.start_local
-                    defer.resolve(true)
+            modules.each_slice(BATCH_LOAD_SIZE) do |batch|
+                batch.each do |mod_man|
+                    defer = @thread.defer
+                    starting << defer.promise
+                    mod_man.thread.schedule do
+                        mod_man.start_local
+                        defer.resolve(true)
+                    end
                 end
+                reactor.scheduler.in((BATCH_LOAD_DELAY * (batch.size.to_f / BATCH_LOAD_SIZE.to_f)).to_i) { true }.value
             end
 
             # Once load is complete we'll accept websockets
@@ -521,7 +527,7 @@ module Orchestrator
 
             # these are invisible to the system - never make it into the system cache
             wait_loading = []
-            ControlSystem.on_node(self.id).stream do |sys|
+            ControlSystem.on_node(self.id).each do |sys|
                 prom = load_triggers_for sys
                 wait_loading << prom if prom
             end
