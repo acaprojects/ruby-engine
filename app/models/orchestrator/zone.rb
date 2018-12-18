@@ -50,6 +50,7 @@ module Orchestrator
             zone_cache.delete(self.id)
             systems.each do |cs|
                 cs.zones.delete(self.id)
+                cs.version += 1
                 cs.save!
             end
         end
