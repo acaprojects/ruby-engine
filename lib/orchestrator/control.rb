@@ -433,10 +433,10 @@ module Orchestrator
         # WATCHDOG CODE
         # =============
         def attach_watchdog(thread)
-            @last_seen[thread] = @watchdog.now
+            @last_seen[thread] = thread.now
 
-            thread.scheduler.every 8000 do
-                @last_seen[thread] = @watchdog.now
+            thread.scheduler.every(8000) do
+                @last_seen[thread] = thread.now
             end
         end
 
@@ -508,8 +508,11 @@ module Orchestrator
 
         # Backup code for ensuring metrics is accurate
         def sync_connected_state
-            @loaded.values.each do |mod|
-                mod.thread.schedule { mod.__send__(:update_connected_status) }
+            @loaded.values.each_slice(100) do |batch|
+                batch.each do |mod|
+                    mod.thread.schedule { mod.__send__(:update_connected_status) }
+                end
+                reactor.scheduler.in(4000) { true }.value
             end
         end
     end
