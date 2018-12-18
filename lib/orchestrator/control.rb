@@ -433,10 +433,10 @@ module Orchestrator
         # WATCHDOG CODE
         # =============
         def attach_watchdog(thread)
-            @last_seen[thread] = @watchdog.now
+            @last_seen[thread] = thread.now
 
             thread.scheduler.every(8000) do
-                @last_seen[thread] = @watchdog.now
+                @last_seen[thread] = thread.now
             end
         end
 
