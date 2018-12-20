@@ -305,7 +305,7 @@ module Orchestrator
             # Better performance as don't need to create the object each time
             CS_PARAMS = [
                 :name, :edge_id, :description, :support_url, :installed_ui_devices,
-                :capacity, :email, :bookable, :features, :version
+                :capacity, :email, :bookable, :features, :version,
                 {
                     zones: [],
                     modules: []
