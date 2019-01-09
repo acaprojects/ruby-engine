@@ -31,7 +31,10 @@ module Orchestrator
             def delaying; false; end
 
             def new_server
+                server = @server
                 @server = UV::HttpEndpoint.new @settings.uri, @config
+                # Ensure cookies are propagated
+                @server.instance_variable_set(:@cookiejar, server.cookiejar) if server
             end
 
             def transmit(cmd)
