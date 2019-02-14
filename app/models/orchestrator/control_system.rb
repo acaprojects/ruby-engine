@@ -49,6 +49,7 @@ module Orchestrator
 
         # Provide a field for simplifying support
         attribute :support_url, type: String
+        attribute :version,  type: Integer, default: lambda { 0 }
 
 
         # Used in triggers::manager for accssing a system proxy

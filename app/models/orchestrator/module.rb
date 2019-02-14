@@ -162,6 +162,7 @@ module Orchestrator
             # Find all the systems with this module ID and remove it
             self.systems.each do |cs|
                 cs.modules.delete(self.id)
+                cs.version += 1
                 cs.save!
             end
         end

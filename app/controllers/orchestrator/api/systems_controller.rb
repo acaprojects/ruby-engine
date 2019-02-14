@@ -48,7 +48,10 @@ module Orchestrator
             end
 
             def update
+                args = safe_params
+                return head(:conflict) if args[:version].to_i != @cs.version
                 @cs.assign_attributes(safe_params)
+                @cs.version += 1
                 save_and_respond(@cs)
             end
 
@@ -302,7 +305,7 @@ module Orchestrator
             # Better performance as don't need to create the object each time
             CS_PARAMS = [
                 :name, :edge_id, :description, :support_url, :installed_ui_devices,
-                :capacity, :email, :bookable, :features,
+                :capacity, :email, :bookable, :features, :version,
                 {
                     zones: [],
                     modules: []

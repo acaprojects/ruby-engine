@@ -12,7 +12,8 @@ module Orchestrator
                 config = @processor.config
                 config[:tls] ||= @settings.tls
                 config[:tokenize] = false
-                @server = UV::HttpEndpoint.new @settings.uri, config
+                @config = config
+                new_server
 
                 @state = :connected
 
@@ -29,10 +30,18 @@ module Orchestrator
 
             def delaying; false; end
 
+            def new_server
+                server = @server
+                @server = UV::HttpEndpoint.new @settings.uri, @config
+                # Ensure cookies are propagated
+                @server.instance_variable_set(:@cookiejar, server.cookiejar) if server
+            end
+
             def transmit(cmd)
                 return if @terminated
 
                 # TODO:: Support multiple simultaneous requests (multiple servers)
+                new_server if cmd[:keepalive] == false
 
                 # Log the requests
                 @manager.logger.debug {
