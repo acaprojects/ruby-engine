@@ -103,6 +103,15 @@ module Orchestrator
         protected
 
 
+        def self.failure_is_not_an_option(sys_id, count = 0, result = reactor.defer)
+          result.resolve(ControlSystem.find_by_id(sys_id))
+          result.promise
+        rescue => err
+          @@ctrl.logger.print_error e, "laoding critical component, system #{sys_id}" if count > 3
+          reactor.scheduler.in(rand(800) + 500) { failure_is_not_an_option(sys_id, count + 1, result) }
+          result.promise
+        end
+
         # looks for the system in the database
         # It's imperitive that this succeeds
         def self.load(id)
@@ -124,11 +133,11 @@ module Orchestrator
             }
             return loading.value if loading
 
-            begin
-                system = @@systems[id]
-                return system if system
+            system = @@systems[id]
+            return system if system
 
-                sys = ControlSystem.find_by_id(id.to_s)
+            begin
+                sys = failure_is_not_an_option(id.to_s).value
                 if sys.nil?
                     @@loading.delete id
                     wait.resolve(nil)
