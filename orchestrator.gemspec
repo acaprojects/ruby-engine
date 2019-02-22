@@ -19,12 +19,14 @@ Gem::Specification.new do |s|
     s.add_dependency 'rails',   '~> 5.0'    # Web framework
     s.add_dependency 'libuv',   '4.0.9'    # High performance IO reactor for ruby
     s.add_dependency 'oauth',   '~> 0.5'    # OAuth protocol support
+    s.add_dependency 'rbtrace', '~> 0.4'    # OAuth protocol support
     s.add_dependency 'xorcist', '~> 1.0'    # Inproves string XOR speed for netsnmp
     s.add_dependency 'netsnmp', '~> 0.1'    # SNMP protocol support
     s.add_dependency 'uv-rays', '~> 2.0'    # Evented networking library
-    s.add_dependency 'mono_logger', '~> 1.1'      # Lockless logging
+    s.add_dependency 'yajl-ruby',    '~> 1.4'     # Improved JSON processing
     s.add_dependency 'addressable',  '~> 2.4'     # IP address utilities
     s.add_dependency 'algorithms',   '~> 0.6'     # Priority queue
+    s.add_dependency 'mono_logger',  '~> 1.1'     # Lock free logging
     s.add_dependency 'evented-ssh',  '~> 0'       # SSH protocol support
     s.add_dependency 'couchbase-orm','~> 1'       # Database adaptor
     s.add_dependency 'doorkeeper-couchbase', '~> 1.0'
