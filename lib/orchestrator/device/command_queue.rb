@@ -75,7 +75,7 @@ module Orchestrator
 
                     # Chain the promises if the named command is already in the queue
                     cmd = current[1]
-                    cmd[:defer].resolve(command[:defer].promise) if cmd
+                    cmd[:defer].reject(RuntimeError.new("request overwritten")) if cmd
 
                     current[1] = command   # replace the old command
                     priors = current[0]
