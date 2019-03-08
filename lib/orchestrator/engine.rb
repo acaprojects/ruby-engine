@@ -5,6 +5,7 @@ require 'mono_logger'
 require 'active_support/all'
 require 'spider-gazelle'
 require 'spider-gazelle/spider'
+require 'lograge'
 
 module Orchestrator
     class Engine < ::Rails::Engine
@@ -60,6 +61,18 @@ module Orchestrator
                 end
             end
             app.config.orchestrator.module_paths.uniq!
+
+            # configure single line logging
+            app.config.lograge.enabled = true
+            app.config.lograge.base_controller_class = ['ActionController::API', 'ActionController::Base']
+            app.config.lograge.custom_payload do |controller|
+              user = controller.respond_to?(:current_user, true) ? controller.__send(:current_user)__ : "anonymous"
+              user ||= "anonymous"
+              {
+                time: Time.now,
+                user_id: user
+              }
+            end
 
             # Start the control system by initializing it
             ctrl = ::Orchestrator::Control.instance
