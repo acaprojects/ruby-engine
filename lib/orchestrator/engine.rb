@@ -66,8 +66,8 @@ module Orchestrator
             app.config.lograge.enabled = true
             app.config.lograge.base_controller_class = ['ActionController::API', 'ActionController::Base']
             app.config.lograge.custom_payload do |controller|
-              user = controller.respond_to?(:current_user, true) ? controller.__send(:current_user)__ : "anonymous"
-              user ||= "anonymous"
+              user = controller.respond_to?(:current_user, true) ? controller.__send__(:current_user) : nil
+              user = user ? user.id : "anonymous"
               {
                 time: Time.now,
                 user_id: user
