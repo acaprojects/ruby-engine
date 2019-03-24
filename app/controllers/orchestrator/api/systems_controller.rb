@@ -183,8 +183,8 @@ module Orchestrator
                     render json: [prepare_json(value)]
                 rescue Exception => e
                     # respond with nil if object cannot be converted to JSON
-                    logger.info "failed to convert object #{value} to JSON"
-                    render json: ['response could not be rendered in JSON']
+                    logger.info "failed to convert object #{value.class} to JSON"
+                    render json: ["response object #{value.class} could not be rendered in JSON"]
                 end
             rescue => e
                 render json: ["#{e.message}\n#{e.backtrace.join("\n")}"], status: :internal_server_error
