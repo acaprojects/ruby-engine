@@ -39,7 +39,17 @@ module Orchestrator
             end
 
             def get_ssh_settings
-                ssh_settings = (decrypt(:ssh) || {}).symbolize_keys
+                ssh_settings = begin
+                    (decrypt(:ssh) || {}).symbolize_keys
+                rescue => e
+                    @logger.print_error(e, 'error decrypting SSH settings')
+                    begin
+                        (setting(:ssh) || {}).symbolize_keys
+                    rescue => e
+                        @logger.print_error(e, 'invalid SSH settings')
+                        {}
+                    end
+                end
                 ssh_settings.merge!({
                     port: @settings.port,
                     non_interactive: true,  # No password prompt
