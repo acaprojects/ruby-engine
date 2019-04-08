@@ -73,6 +73,10 @@ module Orchestrator
             end
         end
 
+        def id
+            @config.id
+        end
+
         def get(mod, index)
             mods = @modules[mod]
             if mods
