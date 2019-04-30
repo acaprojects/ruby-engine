@@ -107,7 +107,7 @@ module Orchestrator
           result.resolve(ControlSystem.find_by_id(sys_id))
           result.promise
         rescue => err
-          @@ctrl.logger.print_error e, "laoding critical component, system #{sys_id}" if count > 3
+          @@ctrl.logger.print_error err, "laoding critical component, system #{sys_id}" if count > 3
           reactor.scheduler.in(rand(800) + 500) { failure_is_not_an_option(sys_id, count + 1, result) }
           result.promise
         end
