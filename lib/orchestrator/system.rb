@@ -57,7 +57,7 @@ module Orchestrator
                         @@ctrl.logger.warn "Stale zone, #{zone_id}, removed from system #{@config.id}"
                         @config.zones.delete(zone_id)
                         @config.save
-                    rescue => e
+                    rescue => err
                         # Failed to load due to an error
                         @@ctrl.logger.print_error err, "Zone #{zone_id} failed to load. System #{@config.id} may not function correctly"
                     end
