@@ -250,39 +250,53 @@ module Orchestrator
             # Called from Core::Mixin on any thread
             # For Logics: instance -> system -> zones -> dependency
             # For Device: instance -> dependency
-            def setting(name)
-                res = @settings.settings[name]
-                id  = @settings.id
+            # An optional merge behaviour may be speicifed to compose settings
+            # defined at different inheritance layers. This must take the form
+            # of a binary operation, specified by a block or a symbol that
+            # names a method or operator.
+            def setting(name, merge = nil)
+                lookup_path = []
 
-                # As we don't continually go to the database we should
-                # ensure that every module has a unique copy of settings
-                # as they may modify the hash
-                return decrypt_value(id, name, res.deep_dup) unless res.nil?
+                # Instance
+                lookup_path << @settings
 
                 id = @settings.control_system_id
                 if id
                     sys = System.get(id)
-                    res = sys.settings[name]
 
-                    # Check if zones have the setting
-                    if res.nil?
-                        sys.zones.each do |zone|
-                            res = zone.settings[name]
-                            return decrypt_value(zone.id, name, res.deep_dup) unless res.nil?
-                        end
+                    # System
+                    lookup_path << sys
 
-                        # Fallback to the dependency
-                        res = @settings.dependency.settings[name]
-                        id  = @settings.dependency.id
-                    end
-                else
-                    # Fallback to the dependency
-                    res = @settings.dependency.settings[name]
-                    id  = @settings.dependency.id
+                    # Zones
+                    lookup_path += sys.zones
                 end
 
-                return nil if res.nil?
-                decrypt_value(id, name, res.deep_dup)
+                # Dependency
+                lookup_path << @settings.dependency
+
+                value_from = lambda do |obj|
+                    id  = obj.id
+                    res = obj.settings[name]
+                    decrypt_value id, name, res.deep_dup unless res.nil?
+                end
+
+                # Should noe be needed as Orchestrator::Core::Mixin already
+                # captures to Procs for forwarding, but here for safety.
+                merge = Proc.new if block_given?
+
+                case merge
+                when Proc
+                    lookup_path.map(&value_from).compact.reduce(&merge)
+                when Symbol
+                    lookup_path.map(&value_from).compact.reduce(merge)
+                when nil
+                    lookup_path.each do |obj|
+                        value = value_from[obj]
+                        break value unless value.nil?
+                    end
+                else
+                    raise 'Invalid settings merge behaviour'
+                end
             end
 
             # Perform decryption work in the thread pool as we don't want to block the reactor
