@@ -268,7 +268,7 @@ module Orchestrator
                     lookup_path << sys
 
                     # Zones
-                    lookup_path += sys.zones
+                    lookup_path.concat sys.zones
                 end
 
                 # Dependency
@@ -280,23 +280,21 @@ module Orchestrator
                     decrypt_value id, name, res.deep_dup unless res.nil?
                 end
 
-                # Should noe be needed as Orchestrator::Core::Mixin already
-                # captures to Procs for forwarding, but here for safety.
-                merge = Proc.new if block_given?
-
                 case merge
                 when Proc
-                    lookup_path.map(&value_from).compact.reduce(&merge)
+                    return lookup_path.map(&value_from).compact.reduce(&merge)
                 when Symbol
-                    lookup_path.map(&value_from).compact.reduce(merge)
+                    return lookup_path.map(&value_from).compact.reduce(merge)
                 when nil
                     lookup_path.each do |obj|
-                        value = value_from[obj]
-                        break value unless value.nil?
+                        value = value_from.call(obj)
+                        return value unless value.nil?
                     end
                 else
                     raise 'Invalid settings merge behaviour'
                 end
+
+                nil
             end
 
             # Perform decryption work in the thread pool as we don't want to block the reactor
