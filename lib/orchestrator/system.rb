@@ -57,7 +57,7 @@ module Orchestrator
                         @@ctrl.logger.warn "Stale zone, #{zone_id}, removed from system #{@config.id}"
                         @config.zones.delete(zone_id)
                         @config.save
-                    rescue => e
+                    rescue => err
                         # Failed to load due to an error
                         @@ctrl.logger.print_error err, "Zone #{zone_id} failed to load. System #{@config.id} may not function correctly"
                     end
@@ -71,6 +71,10 @@ module Orchestrator
                     thread.observer.reloaded_system(@config.id, self)
                 end
             end
+        end
+
+        def id
+            @config.id
         end
 
         def get(mod, index)
@@ -107,7 +111,7 @@ module Orchestrator
           result.resolve(ControlSystem.find_by_id(sys_id))
           result.promise
         rescue => err
-          @@ctrl.logger.print_error e, "laoding critical component, system #{sys_id}" if count > 3
+          @@ctrl.logger.print_error err, "laoding critical component, system #{sys_id}" if count > 3
           reactor.scheduler.in(rand(800) + 500) { failure_is_not_an_option(sys_id, count + 1, result) }
           result.promise
         end

@@ -148,10 +148,17 @@ module Orchestrator
                     req = Core::RequestProxy.new(@reactor, mod_man, @user)
                     result = req.method_missing(name, *args)
                     result.then(proc { |res|
+                        value = begin
+                            prepare_json(res)
+                        rescue => error
+                            @logger.warn "error processing updated for #{sys}->#{mod}_#{index}.#{name} - parsing a #{res.class}"
+                            nil
+                        end
+
                         output = {
                             id: id,
                             type: :success,
-                            value: prepare_json(res)
+                            value: value
                         }
 
                         begin
@@ -160,7 +167,7 @@ module Orchestrator
                             # Probably an error generating JSON
                             @logger.debug {
                                 begin
-                                    "exec could not generate JSON result for #{output[:value]}"
+                                    "exec could not generate JSON result for #{sys}->#{mod}_#{index}.#{name} - parsing a #{res.class}"
                                 rescue Exception => e
                                     "exec could not generate JSON result for return value"
                                 end
@@ -305,9 +312,16 @@ module Orchestrator
         end
 
         def notify_update(update)
+            value = begin
+                prepare_json(update.value)
+            rescue => error
+                @logger.warn "error processing updated for #{update.sys_id}->#{update.mod_name}_#{update.index}.#{update.status} - parsing a #{update.value.class}"
+                nil
+            end
+
             output = {
                 type: :notify,
-                value: prepare_json(update.value),
+                value: value,
                 meta: {
                     sys: update.sys_id,
                     mod: update.mod_name,
@@ -321,7 +335,7 @@ module Orchestrator
             rescue Exception => e
                 # respond with nil if object cannot be converted
                 begin
-                    @logger.warn "status #{output[:meta]} update failed, could not generate JSON data for #{output[:value]}"
+                    @logger.warn "status #{output[:meta]} update failed, could not generate JSON data for #{update.sys_id}->#{update.mod_name}_#{update.index}.#{update.status} - parsing a #{update.value.class}"
                 rescue Exception => e
                     @logger.warn "status #{output[:meta]} update failed, could not generate JSON data for value"
                 end

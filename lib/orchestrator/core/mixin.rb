@@ -106,8 +106,12 @@ module Orchestrator
                 @__config__.logger
             end
 
-            def setting(name)
-                @__config__.setting(name)
+            def setting(name, merge = nil)
+                if block_given?
+                    @__config__.setting(name, Proc.new)
+                else
+                    @__config__.setting(name, merge)
+                end
             end
 
             # Similar to how you would extract settings. Except it
