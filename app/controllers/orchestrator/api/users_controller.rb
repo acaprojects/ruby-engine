@@ -67,7 +67,7 @@ module Orchestrator
                     @user.destroy
                     head :ok
                 else
-                    ::Auth::Authentication.for_user(@user.id).each do |auth|
+                    ::Authentication.for_user(@user.id).each do |auth|
                         auth.destroy
                     end
                     @user.destroy
