@@ -251,7 +251,10 @@ module Orchestrator
                         end
 
                         # Remove protected methods
-                        pub = funcs.select { |func| !Core::PROTECTED[func] }
+                        pub = funcs.reject { |func| Core::PROTECTED[func] }
+
+                        # Remove hidden methods
+                        pub -= klass::HIDDEN_METHODS.to_a if defined? klass::HIDDEN_METHODS
 
                         # Provide details on the methods
                         resp = {}
