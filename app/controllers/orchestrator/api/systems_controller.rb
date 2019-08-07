@@ -85,7 +85,12 @@ module Orchestrator
             end
 
             def create
-                cs = ControlSystem.new(safe_params)
+                props = safe_params
+
+                # Defaul to local node unless edge explicitly specified
+                props[:edge_id] ||= ::Orchestrator::Remote::NodeId
+
+                cs = ControlSystem.new props
                 save_and_respond cs
             end
 
