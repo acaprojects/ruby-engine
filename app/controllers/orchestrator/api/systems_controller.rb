@@ -85,7 +85,12 @@ module Orchestrator
             end
 
             def create
-                cs = ControlSystem.new(safe_params)
+                props = safe_params
+
+                # Defaul to local node unless edge explicitly specified
+                props[:edge_id] ||= ::Orchestrator::Remote::NodeId
+
+                cs = ControlSystem.new props
                 save_and_respond cs
             end
 
@@ -246,7 +251,10 @@ module Orchestrator
                         end
 
                         # Remove protected methods
-                        pub = funcs.select { |func| !Core::PROTECTED[func] }
+                        pub = funcs.reject { |func| Core::PROTECTED[func] }
+
+                        # Remove hidden methods
+                        pub -= klass::HIDDEN_METHODS.to_a if defined? klass::HIDDEN_METHODS
 
                         # Provide details on the methods
                         resp = {}
