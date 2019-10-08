@@ -3,6 +3,12 @@
 module Orchestrator
     module Core
         module Mixin
+            # Returns the module id as defined in the database.
+            #
+            # @return [Symbol] the id of the module instance
+            def id
+                @__config__.settings.id.to_sym
+            end
 
             # Returns a wrapper around a shared instance of ::UV::Scheduler
             #
