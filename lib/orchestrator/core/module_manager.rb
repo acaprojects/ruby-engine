@@ -360,50 +360,49 @@ module Orchestrator
 
 
             def update_connected_status
-                id = settings.id
-                tries = 0
-                begin
-                    model = ::Orchestrator::Module.find_by_id id
-                    connected = @status[:connected]
-                    return unless model && model.connected != connected
-                    model.connected = connected
-                    model.updated_at = Time.now.to_i
-                    model.save!(with_cas: true)
-                    @settings = model
-                rescue ::Libcouchbase::Error::KeyExists
-                    retry
-                rescue => e
-                    tries += 1
-                    retry if tries < 5
+                model = ::Orchestrator::Module.find_by_id settings.id
+                connected = @status[:connected]
+                return unless model && model.connected != connected
+                model.connected = connected
+                model.updated_at = Time.now.to_i
+                model.save!(with_cas: true)
+                @settings = model
+            rescue => e
+                # report any errors updating the model
+                @logger.print_error(e, 'error updating connected state in database model')
+                nil
+            end
 
-                    # report any errors updating the model
-                    @logger.print_error(e, 'error updating connected state in database model')
-
-                    nil
-                end
+            def sync_connected_status
+                model = ::Orchestrator::Module.find_by_id settings.id
+                connected = @status[:connected]
+                return unless model && model.connected != connected
+                model.connected = connected
+                model.updated_at = Time.now.to_i
+                model.save!(with_cas: true)
+                @settings = model
+            rescue ::Libcouchbase::Error::KeyExists
+                retry
+            rescue => e
+                # report any errors updating the model
+                @logger.print_error(e, 'error updating connected state in database model')
+                nil
             end
 
             def update_running_status(running)
                 model = ::Orchestrator::Module.find_by_id settings.id
                 return nil unless model && model.running != running
-
-                tries = 0
-                begin
-                    model.running = running
-                    model.connected = false if !running
-                    model.updated_at = Time.now.to_i
-                    model.save!(with_cas: true)
-                    @settings = model
-                rescue => e
-                    tries += 1
-                    if tries < 5
-                        model = ::Orchestrator::Module.find_by_id settings.id
-                        retry
-                    end
-                    # report any errors updating the model
-                    @logger.print_error(e, 'error updating running state in database model')
-                    nil
-                end
+                model.running = running
+                model.connected = false if !running
+                model.updated_at = Time.now.to_i
+                model.save!(with_cas: true)
+                @settings = model
+            rescue ::Libcouchbase::Error::KeyExists
+                retry
+            rescue => e
+                # report any errors updating the model
+                @logger.print_error(e, 'error updating running state in database model')
+                nil
             end
         end
     end
