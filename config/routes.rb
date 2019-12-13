@@ -64,6 +64,7 @@ Orchestrator::Engine.routes.draw do
         end
         resources :webhooks do
             post 'notify', on: :member
+            post 'router', on: :member
         end
         get 'webhooks/:id/notify', to: 'webhooks#show'
 
