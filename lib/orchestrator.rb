@@ -29,7 +29,6 @@ require 'orchestrator/errors'               # A list of errors that can occur wi
 require 'orchestrator/core/module_manager'  # Base class of logic, device and service managers
 require 'orchestrator/core/schedule_proxy'  # Common proxy for all module schedules
 require 'orchestrator/core/requests_proxy'  # Sends a command to all modules of that type
-require 'orchestrator/core/request_proxy'   # Sends a command to a single module
 require 'orchestrator/core/system_proxy'    # prevents stale system objects (maintains loose coupling)
 require 'orchestrator/core/mixin'           # Common mixin functions for modules classes
 
@@ -67,6 +66,8 @@ require 'orchestrator/remote/proxy'
 require 'orchestrator/remote/edge'
 require 'orchestrator/remote/master'
 require 'orchestrator/remote/manager'
+
+require 'orchestrator/core/request_proxy'   # Sends a command to a single module
 
 
 module Orchestrator

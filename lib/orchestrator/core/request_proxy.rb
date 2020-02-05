@@ -48,6 +48,17 @@ module Orchestrator
         # SSH module
         PROTECTED[:exec] = true
 
+        [
+            Constants, Transcoder, Core::Mixin, Ssh::Mixin,
+            Logic::Mixin, Device::Mixin, Service::Mixin,
+            ::ActiveSupport::ToJsonWithActiveSupportEncoder,
+            Object, Kernel, BasicObject
+        ].each do |klass|
+            klass.instance_methods(true).each do |method|
+              PROTECTED[method] = true
+            end
+        end
+
         # This class exists so that we can access regular kernel methods
         class RequestForward
             def initialize(thread, mod, user = nil)
