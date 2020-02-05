@@ -189,15 +189,6 @@ module Orchestrator
                         @stattrak.update(@settings.id, name, value)
                     end
 
-                    if remote
-                        proxy = @nodes[Remote::NodeId].proxy
-                        if proxy
-                            @thread.schedule do
-                                proxy.set_status(@settings.id, name, value)
-                            end
-                        end
-                    end
-
                     # Check level to speed processing
                     if @logger.level == 0
                         @logger.debug "Status updated: #{name} = #{value}"
