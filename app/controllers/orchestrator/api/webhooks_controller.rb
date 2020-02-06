@@ -17,9 +17,9 @@ module Orchestrator
             #  * Ignore payload
             #  * Perform payload before actions
             #  * Perform payload after actions
-            def notify
+            def notify(sys = nil)
                 # Update count without reloading the trigger
-                sys  = ::Orchestrator::Core::SystemProxy.new(::Libuv.reactor, @trigger.control_system_id)
+                sys ||= ::Orchestrator::Core::SystemProxy.new(::Libuv.reactor, @trigger.control_system_id)
                 trig = sys[:__Triggers__]
 
                 case @trigger.conditions[0][1].to_sym
@@ -43,6 +43,15 @@ module Orchestrator
                 end
 
                 head :accepted
+            end
+
+            def router
+                args = params.permit(:mod, :func)
+                sys = ::Orchestrator::Core::SystemProxy.new(::Libuv.reactor, @trigger.control_system_id)
+                mod = sys[args[:mod]]
+                mod.send(args[:func], request.raw_post)
+
+                notify(sys)
             end
 
 

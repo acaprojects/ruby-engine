@@ -510,7 +510,7 @@ module Orchestrator
         def sync_connected_state
             @loaded.values.each_slice(100) do |batch|
                 batch.each do |mod|
-                    mod.thread.schedule { mod.__send__(:update_connected_status) }
+                    mod.thread.schedule { mod.__send__(:sync_connected_status) }
                 end
                 reactor.scheduler.in(4000) { true }.value
             end
