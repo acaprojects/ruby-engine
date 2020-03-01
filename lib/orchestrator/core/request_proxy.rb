@@ -23,6 +23,7 @@ module Orchestrator
         PROTECTED[:trust] = true
         PROTECTED[:untrust] = true
         PROTECTED[:freeze] = true
+        PROTECTED[:JSON] = true
 
         # Callbacks
         PROTECTED[:on_load] = true
