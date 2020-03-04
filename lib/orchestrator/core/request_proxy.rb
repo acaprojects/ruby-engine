@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'pp'
+
 module Orchestrator
     module Core
         PROTECTED = ::Concurrent::Map.new
@@ -21,6 +23,7 @@ module Orchestrator
         PROTECTED[:trust] = true
         PROTECTED[:untrust] = true
         PROTECTED[:freeze] = true
+        PROTECTED[:JSON] = true
 
         # Callbacks
         PROTECTED[:on_load] = true
@@ -52,7 +55,7 @@ module Orchestrator
             Constants, Transcoder, Core::Mixin, Ssh::Mixin,
             Logic::Mixin, Device::Mixin, Service::Mixin,
             ::ActiveSupport::ToJsonWithActiveSupportEncoder,
-            Object, Kernel, BasicObject
+            Object, Kernel, BasicObject, PP::ObjectMixin
         ].each do |klass|
             klass.instance_methods(true).each do |method|
               PROTECTED[method] = true
