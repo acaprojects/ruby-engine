@@ -23,10 +23,10 @@ module Orchestrator
         def load(dependency, force = false)
             defer = @reactor.defer
 
-            classname = dependency.class_name
-            class_lookup = classname.to_sym
-
             begin
+                classname = dependency.class_name
+                class_lookup = classname.to_sym
+
                 defer.resolve(load_helper(classname, dependency.role, force))
             rescue Exception => e
                 msg = String.new(e.message)
