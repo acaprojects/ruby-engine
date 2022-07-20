@@ -502,7 +502,7 @@ module Orchestrator
 
         def update_accessed(*args)
             @access_log.systems = @accessed.to_a
-            @access_log.save!
+            # @access_log.save!
         rescue => e
             @logger.print_error(e, "unknown error writing access log")
         end
@@ -510,7 +510,7 @@ module Orchestrator
         def periodicly_update_logs
             @accessTimer = @reactor.scheduler.every(60000 + Random.rand(1000)) { update_accessed }
             @access_log.systems = @accessed.to_a
-            @access_log.save
+            # @access_log.save
         end
 
         def expire_access(sys_id)
