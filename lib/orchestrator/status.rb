@@ -49,6 +49,7 @@ module Orchestrator
 
         # Subscribes to updates from a system module
         # Modules do not have to exist and updates will be triggered as soon as they do exist
+        
         def subscribe(status:, callback:, on_thread:, sys_name: nil, sys_id: nil, mod: nil, mod_name: nil, mod_id: nil, index: nil)
             # Build the subscription object (as loosely coupled as we can)
             sub = Subscription.new(as_sym(sys_name), as_sym(sys_id), as_sym(mod_name), as_sym(mod_id), index.to_i, as_sym(status), callback, on_thread)
