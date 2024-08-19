@@ -49,11 +49,6 @@ module Orchestrator
 
         # Subscribes to updates from a system module
         # Modules do not have to exist and updates will be triggered as soon as they do exist
-        #
-        # When built with Ruby 3:
-        # [error] unhandled exception: wrong number of arguments (given 1, expected 0; required keywords: status, callback, on_thread) (performing next tick callback)
-        # /home/aca-apps/ruby-engine/lib/orchestrator/status.rb:52:in `subscribe'
-        # /home/aca-apps/ruby-engine/lib/orchestrator/websocket_manager.rb:304:in `block in try_bind'
         
         def subscribe(status:, callback:, on_thread:, sys_name: nil, sys_id: nil, mod: nil, mod_name: nil, mod_id: nil, index: nil)
             # Build the subscription object (as loosely coupled as we can)
