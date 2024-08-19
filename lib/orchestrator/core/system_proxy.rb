@@ -201,7 +201,7 @@ module Orchestrator
                     thread.schedule do
                         begin
                             defer.resolve (
-                                thread.observer.subscribe(*options)
+                                thread.observer.subscribe(**options)
                             )
                         rescue => e
                             defer.reject(e)
@@ -210,7 +210,7 @@ module Orchestrator
 
                     defer.promise.value
                 else
-                    @thread.observer.subscribe(*options)
+                    @thread.observer.subscribe(**options)
                 end
 
                 @origin.add_subscription sub if @origin

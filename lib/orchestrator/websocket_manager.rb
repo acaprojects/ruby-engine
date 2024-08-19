@@ -301,12 +301,12 @@ module Orchestrator
                 thread = mod_man.thread
                 thread.schedule do
                     defer.resolve (
-                        thread.observer.subscribe(*options)
+                        thread.observer.subscribe(**options)
                     )
                 end
             else
                 @reactor.schedule do
-                    defer.resolve @stattrak.subscribe(*options)
+                    defer.resolve @stattrak.subscribe(**options)
                 end
             end
         end
